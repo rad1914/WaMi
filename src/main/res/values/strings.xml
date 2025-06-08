@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">WaMi</string>
+        <string name="add_contact">Add Contact</string>
+
+</resources>

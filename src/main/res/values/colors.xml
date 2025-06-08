@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Material You–based color values with original names -->
+
+    <!-- Primary brand colors -->
+    <color name="purple_500">#34C25E</color> <!-- acts as colorPrimary -->
+    <color name="purple_700">#23270B</color> <!-- colorPrimaryContainer -->
+    <color name="teal_200">#03DAC5</color>   <!-- colorSecondary -->
+
+    <!-- Base colors -->
+    <color name="white">#FFFFFF</color>      <!-- used for onPrimary, onBackground -->
+    <color name="black">#000000</color>      <!-- used for onSecondary -->
+
+    <!-- Custom Material You role mapping -->
+    <color name="bg_primary">#23270B</color>         <!-- colorBackground -->
+    <color name="bg_header">#23270B</color>          <!-- colorPrimary -->
+    <color name="text_primary">#FFFFFF</color>       <!-- colorOnBackground -->
+    <color name="text_secondary">#D0D48F</color>     <!-- colorOnSurfaceVariant -->
+    <color name="divider">#0D0D0D</color>            <!-- colorSurfaceVariant -->
+    <color name="bg_bottom_nav">#1A1C09</color>      <!-- colorSurface -->
+    <color name="nav_item_inactive">#D0D48F</color>  <!-- colorOnSurfaceVariant -->
+    <color name="nav_item_active">#FFFFFF</color>    <!-- colorOnSurface -->
+    <color name="online_indicator">#4CAF50</color>   <!-- colorTertiary -->
+    <color name="bg_bubble_in">#EEEEEE</color>
+    <color name="bg_bubble_out">#0084FF</color>
+
+    <!-- Legacy alias for send-button icon -->
+    <color name="colorAccent">@color/teal_200</color>
+
+</resources>
