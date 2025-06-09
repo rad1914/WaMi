@@ -1,5 +1,16 @@
 <resources>
     <string name="app_name">WaMi</string>
-        <string name="add_contact">Add Contact</string>
+    <string name="add_contact">Add Contact</string>
 
+    <!-- Content descriptions -->
+    <string name="cd_back">Back</string>
+    <string name="cd_video_call">Video call</string>
+    <string name="cd_voice_call">Voice call</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_emoji">Emoji picker</string>
+    <string name="hint_message">Type a message</string>
+    <string name="cd_attach">Attach file</string>
+    <string name="cd_camera">Open camera</string>
+    <string name="cd_send">Send message</string>
+    <string name="cd_voice_message">Record voice message</string>
 </resources>

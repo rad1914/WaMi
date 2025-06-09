@@ -1,72 +1,219 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#0b141a">
 
-    <!-- Toolbar -->
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar_chat"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="?attr/colorPrimary"
-        android:titleTextColor="@android:color/white"
-        android:navigationIcon="@drawable/ic_arrow_back"
-        android:title="Chat" />
-
-    <!-- Connection status -->
-    <TextView
-        android:id="@+id/tvChatStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:text="Connecting…"
-        android:textStyle="italic"
-        android:textColor="@android:color/darker_gray" />
-
-    <!-- Editable phone number -->
-    <EditText
-        android:id="@+id/etPhone"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Phone number (e.g. +1234567890)"
-        android:inputType="phone"
-        android:padding="8dp" />
-
-    <!-- Message bubbles -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvChat"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        android:overScrollMode="never" />
-
-    <!-- Composer -->
+    <!-- WhatsApp Chat Header -->
     <LinearLayout
+        android:id="@+id/chat_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:orientation="horizontal">
+        android:layout_height="64dp"
+        android:background="#202c33"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="16dp"
+        android:elevation="4dp">
 
-        <EditText
-            android:id="@+id/etMessage"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:hint="Type a message"
-            android:background="@drawable/bg_input"
-            android:padding="12dp" />
-
+        <!-- Back Arrow -->
         <ImageButton
-            android:id="@+id/btnSend"
+            android:id="@+id/btn_back"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_send"
-            android:contentDescription="Send"
+            android:src="@drawable/ic_arrow_back_white"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:layout_marginStart="8dp" />
+            android:contentDescription="Back"
+            android:tint="#8696a0" />
+
+        <!-- Profile Picture -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_profile"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_default_avatar"
+            app:civ_border_width="0dp" />
+
+        <!-- Contact Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_contact_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#e9edef"
+                android:textSize="16sp"
+                android:textStyle="normal" />
+
+            <TextView
+                android:id="@+id/tv_last_seen"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8696a0"
+                android:textSize="13sp"
+                android:layout_marginTop="1dp" />
+
+        </LinearLayout>
+
+        <!-- Header Actions -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btn_video_call"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_videocam"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Video call"
+                android:tint="#8696a0" />
+
+            <ImageButton
+                android:id="@+id/btn_voice_call"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_call"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Voice call"
+                android:tint="#8696a0" />
+
+            <ImageButton
+                android:id="@+id/btn_more_options"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_more_vert"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="More options"
+                android:tint="#8696a0" />
+
+        </LinearLayout>
+
     </LinearLayout>
-</LinearLayout>
+
+    <!-- Chat Messages RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_messages"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/chat_header"
+        android:layout_above="@+id/input_container"
+        android:padding="12dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:scrollbars="none"
+        android:background="@drawable/chat_background" />
+
+    <!-- Message Input Container -->
+    <LinearLayout
+        android:id="@+id/input_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="#202c33"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:gravity="center_vertical"
+        android:elevation="8dp">
+
+        <!-- Emoji Button -->
+        <ImageButton
+            android:id="@+id/btn_emoji"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_emoji"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Emoji"
+            android:tint="#8696a0"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Message Input -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/message_input_background"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <EditText
+                android:id="@+id/et_message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="Message"
+                android:textColorHint="#8696a0"
+                android:textColor="#e9edef"
+                android:textSize="16sp"
+                android:maxLines="5"
+                android:inputType="textMultiLine|textCapSentences"
+                android:scrollbars="vertical" />
+
+            <!-- Attachment Button -->
+            <ImageButton
+                android:id="@+id/btn_attachment"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_attach_file"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Attach file"
+                android:tint="#8696a0"
+                android:layout_marginStart="8dp" />
+
+            <!-- Camera Button -->
+            <ImageButton
+                android:id="@+id/btn_camera"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_camera_alt"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Camera"
+                android:tint="#8696a0"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+        <!-- Send/Mic Button -->
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp">
+
+            <ImageButton
+                android:id="@+id/btn_send"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_send"
+                android:background="@drawable/send_button_background"
+                android:contentDescription="Send"
+                android:tint="@android:color/white"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btn_mic"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_mic"
+                android:background="@drawable/mic_button_background"
+                android:contentDescription="Voice message"
+                android:tint="@android:color/white"
+                android:visibility="visible" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>

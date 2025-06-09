@@ -19,14 +19,16 @@
         <item name="colorSurface">@color/bg_bottom_nav</item>
         <item name="colorOnSurface">@color/nav_item_active</item>
 
-        <!-- Optional custom text colors -->
-        <item name="android:textColorPrimary">@color/text_primary</item>
-        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <!-- Status bar -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/purple_700</item>
 
         <!-- Divider -->
         <item name="colorSurfaceVariant">@color/divider</item>
 
-        <!-- Status bar -->
-        <item name="android:statusBarColor" tools:targetApi="l">@color/purple_700</item>
+        <!-- Standard Android text colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
     </style>
+
 </resources>

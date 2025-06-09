@@ -1,6 +1,21 @@
-/build*.class
-*.log
-*.iml
-.gradle/
+# Ignore build outputs
 build/
 *.apk
+*.dex
+*.class
+
+# Android Studio / Gradle
+.gradle/
+.idea/
+local.properties
+*.iml
+
+# Logs
+*.log
+
+# Configs
+app_config.json
+
+# OS files
+.DS_Store
+Thumbs.db

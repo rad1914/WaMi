@@ -1,0 +1,7 @@
+<!-- res/drawable/chat_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:startColor="#0b141a"
+        android:endColor="#0f1b21"
+        android:angle="90" />
+</shape>

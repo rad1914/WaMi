@@ -1,0 +1,4 @@
+<resources>
+    <!-- Padding para tus diálogos -->
+    <dimen name="padding">16dp</dimen>
+</resources>
