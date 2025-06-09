@@ -2997,7 +2997,6 @@ drawable bg_bubble_in
 drawable bg_bubble_out
 drawable bg_incoming
 drawable bg_incoming_message
-drawable bg_input
 drawable bg_message_bubble
 drawable bg_outgoing
 drawable bg_outgoing_message
@@ -3015,10 +3014,8 @@ drawable design_ic_visibility
 drawable design_ic_visibility_off
 drawable design_password_eye
 drawable design_snackbar_background
-drawable dialog_background
 drawable divider
 drawable ic_add
-drawable ic_arrow_back
 drawable ic_arrow_back_black_24
 drawable ic_arrow_back_white
 drawable ic_attach_file
@@ -3035,7 +3032,6 @@ drawable ic_clock_black_24dp
 drawable ic_contacts
 drawable ic_default_avatar
 drawable ic_emoji
-drawable ic_home
 drawable ic_keyboard_black_24dp
 drawable ic_launcher_background
 drawable ic_launcher_foreground
@@ -3050,7 +3046,6 @@ drawable ic_mtrl_chip_checked_black
 drawable ic_mtrl_chip_checked_circle
 drawable ic_mtrl_chip_close_circle
 drawable ic_placeholder_avatar
-drawable ic_profile
 drawable ic_search
 drawable ic_search_black_24
 drawable ic_send
@@ -3648,19 +3643,12 @@ id transition_transform
 id triangle
 id tvLastMessage
 id tvMessage
-id tvMessageIn
-id tvMessageOut
 id tvName
 id tvPhoneNumber
 id tvStatus
 id tvTimestamp
 id tv_contact_name
-id tv_edited
 id tv_last_seen
-id tv_message
-id tv_message_status
-id tv_message_text
-id tv_message_time
 id unchecked
 id uniform
 id unlabeled
@@ -3820,12 +3808,6 @@ layout design_text_input_start_icon
 layout dialog_add_contact
 layout item_chat_message
 layout item_message
-layout item_message_in
-layout item_message_incoming
-layout item_message_out
-layout item_message_outgoing
-layout item_message_received
-layout item_message_sent
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title
