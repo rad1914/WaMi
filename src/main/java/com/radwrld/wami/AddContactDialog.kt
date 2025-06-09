@@ -1,33 +1,51 @@
-// app/src/main/java/com/radwrld/wami/AddContactDialog.kt
+// AddContactDialog.kt
 package com.radwrld.wami
 
-import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Context
-import android.view.LayoutInflater
+import android.os.Bundle
+import android.widget.Button
 import android.widget.EditText
+import com.radwrld.wami.R
+import android.widget.Toast
 
+/**
+ * A dialog for entering a new contact (name, phone number, avatar URL).
+ * Calls onAdd(name, number, avatarUrl) when the user taps "Add".
+ */
 class AddContactDialog(
-    private val context: Context, // Make sure to accept the context here
-    private val onAddContact: (name: String, number: String, avatarUrl: String) -> Unit
-) {
+    context: Context,
+    private val onAdd: (name: String, number: String, avatarUrl: String) -> Unit
+) : Dialog(context) {
 
-    fun show() {
-        val view = LayoutInflater.from(context).inflate(R.layout.dialog_add_contact, null)
-        val etName = view.findViewById<EditText>(R.id.etName)
-        val etPhone = view.findViewById<EditText>(R.id.etPhone)
-        val etAvatar = view.findViewById<EditText>(R.id.etAvatar)
+    private lateinit var etName: EditText
+    private lateinit var etNumber: EditText
+    private lateinit var etAvatar: EditText
+    private lateinit var btnAdd: Button
+    private lateinit var btnCancel: Button
 
-        AlertDialog.Builder(context)
-            .setTitle("New Contact")
-            .setView(view)
-            .setPositiveButton("Add") { _, _ ->
-                onAddContact(
-                    etName.text.toString(),
-                    etPhone.text.toString(),
-                    etAvatar.text.toString().ifBlank { "https://via.placeholder.com/48" }
-                )
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.dialog_add_contact)
+
+        etName   = findViewById(R.id.et_contact_name)
+        etNumber = findViewById(R.id.et_contact_number)
+        etAvatar = findViewById(R.id.et_contact_avatar)
+        btnAdd    = findViewById(R.id.btn_add_contact)
+        btnCancel = findViewById(R.id.btn_cancel_contact)
+
+        btnAdd.setOnClickListener {
+            val name      = etName.text.toString().trim()
+            val number    = etNumber.text.toString().trim()
+            val avatarUrl = etAvatar.text.toString().trim()
+            if (name.isNotEmpty() && number.isNotEmpty()) {
+                onAdd(name, number, avatarUrl)
+                dismiss()
+            } else {
+                Toast.makeText(context, "Name and number are required", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+
+        btnCancel.setOnClickListener { dismiss() }
     }
 }

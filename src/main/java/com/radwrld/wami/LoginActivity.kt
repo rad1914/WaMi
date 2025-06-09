@@ -1,12 +1,11 @@
 // LoginActivity.kt
-// LoginActivity.kt
+
 package com.radwrld.wami
 
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.os.Bundle
-import android.os.Handler
+import android.os.*
 import android.util.Log
 import android.widget.ImageView
 import android.widget.TextView
@@ -14,7 +13,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
-import com.google.zxing.common.BitMatrix
 import com.radwrld.wami.api.QrResponse
 import com.radwrld.wami.api.StatusResponse
 import com.radwrld.wami.api.WaApi
@@ -30,8 +28,11 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var waApi: WaApi
     private lateinit var config: ServerConfigStorage
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
     private var isConnected = false
+
+    // Delay before switching to the next server (in milliseconds)
+    private val SWITCH_SERVER_DELAY_MS = 12_000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,13 +42,8 @@ class LoginActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         config     = ServerConfigStorage(this)
 
-        // Override any previously stored defaults with our desired primary/fallback
-        config.saveServers(
-            primary   = "22.ip.gl.ply.gg:18880",
-            fallback  = "127.0.0.1:3007"
-        )
-
-        // Initialize API on current server (will be primary at first)
+        // Initialize storage with primary & fallback
+        config.saveServers("22.ip.gl.ply.gg:18880", "127.0.0.1:3007")
         initApi(config.getCurrentServer())
         checkStatus()
     }
@@ -56,67 +52,74 @@ class LoginActivity : AppCompatActivity() {
         val baseUrl = "http://$serverIp/"
         Toast.makeText(this, "Connecting to $baseUrl", Toast.LENGTH_SHORT).show()
 
-        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         val client = OkHttpClient.Builder()
-            .addInterceptor(logging)
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
             .callTimeout(15, TimeUnit.SECONDS)
             .build()
 
-        val retrofit = Retrofit.Builder()
+        waApi = Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-
-        waApi = retrofit.create(WaApi::class.java)
+            .create(WaApi::class.java)
     }
 
     private fun checkStatus() {
         waApi.getStatus().enqueue(object : Callback<StatusResponse> {
-            override fun onResponse(call: Call<StatusResponse>, resp: Response<StatusResponse>) {
-                if (resp.isSuccessful && resp.body()?.connected == true) {
+            override fun onResponse(call: Call<StatusResponse>, res: Response<StatusResponse>) {
+                if (res.isSuccessful && res.body()?.connected == true) {
                     config.resetToPrimary()
                     launchMain()
                 } else {
-                    // Try fallback if this was primary
-                    if (config.getCurrentServer() != config.moveToNextServer()) {
-                        initApi(config.getCurrentServer())
-                        checkStatus()
-                    } else {
-                        pollForQr()
-                    }
+                    retryOrPollQr()
                 }
             }
 
             override fun onFailure(call: Call<StatusResponse>, t: Throwable) {
-                Log.e("LoginActivity", "status() failed: ${t.localizedMessage}", t)
-                // On failure, switch server and retry once
-                if (config.getCurrentServer() != config.moveToNextServer()) {
-                    initApi(config.getCurrentServer())
-                    checkStatus()
-                } else {
-                    pollForQr()
-                }
+                Log.e("Login", "Status check failed: ${t.localizedMessage}")
+                retryOrPollQr()
             }
         })
     }
 
+    private fun retryOrPollQr() {
+        val oldServer = config.getCurrentServer()
+        val nextServer = config.moveToNextServer()
+
+        if (oldServer != nextServer) {
+            // Wait before switching servers
+            handler.postDelayed({
+                initApi(nextServer)
+                checkStatus()
+            }, SWITCH_SERVER_DELAY_MS)
+        } else {
+            pollForQr()
+        }
+    }
+
     private fun pollForQr() {
         if (isConnected) return
+
         waApi.getQr().enqueue(object : Callback<QrResponse> {
-            override fun onResponse(call: Call<QrResponse>, resp: Response<QrResponse>) {
-                if (resp.isSuccessful && resp.body()?.qr != null) {
-                    renderQr(resp.body()!!.qr)
+            override fun onResponse(call: Call<QrResponse>, res: Response<QrResponse>) {
+                val qr = res.body()?.qr
+                if (res.isSuccessful && qr != null) {
+                    renderQr(qr)
                     statusText.text = "Scan this with WhatsApp"
                 } else {
                     statusText.text = "Waiting for QR…"
                 }
-                handler.postDelayed({ pollForQr() }, 3000)
+                // Poll again after 9 seconds
+                handler.postDelayed({ pollForQr() }, 9_000L)
             }
 
             override fun onFailure(call: Call<QrResponse>, t: Throwable) {
-                statusText.text = "Error fetching QR: ${t.localizedMessage}"
-                handler.postDelayed({ pollForQr() }, 5000)
+                statusText.text = "QR error: ${t.localizedMessage}"
+                // Retry after 10 seconds on failure
+                handler.postDelayed({ pollForQr() }, 10_000L)
             }
         })
     }
@@ -124,15 +127,14 @@ class LoginActivity : AppCompatActivity() {
     private fun renderQr(text: String) {
         try {
             val size = 400
-            val matrix: BitMatrix = MultiFormatWriter()
-                .encode(text, BarcodeFormat.QR_CODE, size, size)
+            val matrix = MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
             val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565)
             for (x in 0 until size) for (y in 0 until size)
                 bmp.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
             qrImage.setImageBitmap(bmp)
         } catch (e: Exception) {
             statusText.text = "Failed to render QR"
-            Log.e("LoginActivity", "renderQr error: ${e.localizedMessage}", e)
+            Log.e("Login", "QR render error", e)
         }
     }
 
@@ -143,7 +145,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 }

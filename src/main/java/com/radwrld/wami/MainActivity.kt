@@ -3,10 +3,9 @@ package com.radwrld.wami
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.MessageAdapter
@@ -34,22 +33,17 @@ class MainActivity : AppCompatActivity() {
         contactStorage = ContactStorage(this)
         serverConfigStorage = ServerConfigStorage(this)
 
-        // Show both primary and fallback on startup
         val primary = serverConfigStorage.primaryServer
         val fallback = serverConfigStorage.fallbackServer
-        Toast.makeText(
-            this,
-            "Server (primary/fallback): $primary / $fallback",
-            Toast.LENGTH_LONG
-        ).show()
 
-        // Long-press header to open dialog to set primary & fallback
+        // Replacing Toast with Log.d() for debugging purposes
+        Log.d("MainActivity", "Server (primary/fallback): $primary / $fallback")
+
         binding.header.setOnLongClickListener {
             showSetServersDialog()
             true
         }
 
-        // Load saved contacts into messages list
         val savedContacts = contactStorage.getContacts()
         messages.addAll(savedContacts.map { contact ->
             Message(
@@ -61,7 +55,6 @@ class MainActivity : AppCompatActivity() {
             )
         })
 
-        // Set up RecyclerView adapter
         adapter = MessageAdapter(messages) { msg ->
             val jid = "${msg.phoneNumber}@s.whatsapp.net"
             startActivity(
@@ -74,7 +67,6 @@ class MainActivity : AppCompatActivity() {
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
         binding.rvMessages.adapter = adapter
 
-        // FAB to add a new contact
         binding.fabAdd.setOnClickListener {
             AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(name, number, avatarUrl)
@@ -96,10 +88,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Show an AlertDialog allowing the user to enter and save primary and fallback servers.
-     */
     private fun showSetServersDialog() {
+        // Using custom approach: simplified dialog with linear layout and edit texts
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val padding = resources.getDimensionPixelSize(R.dimen.padding)
@@ -108,16 +98,16 @@ class MainActivity : AppCompatActivity() {
 
         val inputPrimary = EditText(this).apply {
             hint = "Primary Server (e.g., ip:port)"
-            setText(serverConfigStorage.primaryServer)
+            setText(serverConfigStorage.primaryServer ?: "")
         }
         val inputFallback = EditText(this).apply {
             hint = "Fallback Server (e.g., ip:port)"
-            setText(serverConfigStorage.fallbackServer)
+            setText(serverConfigStorage.fallbackServer ?: "")
         }
         layout.addView(inputPrimary)
         layout.addView(inputFallback)
 
-        AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Set WAALT Servers")
             .setView(layout)
             .setPositiveButton("Save") { _, _ ->
@@ -125,20 +115,15 @@ class MainActivity : AppCompatActivity() {
                 val fallback = inputFallback.text.toString().trim()
                 if (primary.isNotEmpty() && fallback.isNotEmpty()) {
                     serverConfigStorage.saveServers(primary, fallback)
-                    Toast.makeText(
-                        this,
-                        "Saved: primary=$primary, fallback=$fallback",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // Replaced Toast with Log.d() to display the saved servers
+                    Log.d("MainActivity", "Saved: primary=$primary, fallback=$fallback")
                 } else {
-                    Toast.makeText(
-                        this,
-                        "Both fields must be filled",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Log.d("MainActivity", "Both fields must be filled") // Replacing Toast
                 }
             }
             .setNegativeButton("Cancel", null)
-            .show()
+            .create()
+
+        dialog.show()
     }
 }

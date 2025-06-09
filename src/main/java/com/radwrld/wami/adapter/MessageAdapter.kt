@@ -1,4 +1,4 @@
-// app/src/main/java/com/radwrld/wami/adapter/MessageAdapter.kt
+// MessageAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater
@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemMessageBinding
 import com.radwrld.wami.model.Message
+import com.squareup.picasso.Picasso
 
 class MessageAdapter(
     private val items: List<Message>,
@@ -18,7 +19,11 @@ class MessageAdapter(
         fun bind(message: Message) {
             binding.tvName.text = message.name
             binding.tvLastMessage.text = message.lastMessage
-            binding.avatarImageView.setImageResource(R.drawable.ic_placeholder_avatar) // Placeholder avatar
+            if (message.avatarUrl.isNotBlank()) {
+                Picasso.get().load(message.avatarUrl).into(binding.avatarImageView)
+            } else {
+                binding.avatarImageView.setImageResource(R.drawable.ic_placeholder_avatar)
+            }
 
             binding.root.setOnClickListener {
                 itemClickListener?.invoke(message)
@@ -27,7 +32,11 @@ class MessageAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
-        val binding = ItemMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemMessageBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
         return MessageViewHolder(binding)
     }
 

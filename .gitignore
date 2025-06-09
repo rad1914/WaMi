@@ -1,21 +1,16 @@
-# Ignore build outputs
-build/
+# Android and temp files
 *.apk
-*.dex
-*.class
-
-# Android Studio / Gradle
-.gradle/
-.idea/
-local.properties
-*.iml
-
-# Logs
 *.log
-
-# Configs
-app_config.json
-
-# OS files
+*.tmp
+*.bak
+*.swp
 .DS_Store
 Thumbs.db
+
+# Node modules or Python cache (if applicable)
+node_modules/
+__pycache__/
+.env
+
+# Termux and system files
+/storage/*

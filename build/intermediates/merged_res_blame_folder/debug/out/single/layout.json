@@ -1,0 +1,50 @@
+[
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_received.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_received.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_main.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_sent.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_sent.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_in.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_in.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/dialog_add_contact.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/dialog_add_contact.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_out.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_out.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_outgoing.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_outgoing.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_login.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/activity_login.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_message_incoming.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_message_incoming.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_chat.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/activity_chat.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_chat_message.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_chat_message.xml"
+    }
+]

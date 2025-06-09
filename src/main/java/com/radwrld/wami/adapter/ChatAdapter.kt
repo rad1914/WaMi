@@ -1,54 +1,62 @@
-// adapter/ChatAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.radwrld.wami.R
+import com.radwrld.wami.databinding.ItemChatMessageBinding
 import com.radwrld.wami.model.Message
+import com.radwrld.wami.R
 
 class ChatAdapter(
-    private val items: List<Message>
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private val messages: MutableList<Message>
+) : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
 
-    companion object {
-        private const val TYPE_INCOMING = 0
-        private const val TYPE_OUTGOING = 1
+    inner class MessageViewHolder(val binding: ItemChatMessageBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
+        val binding = ItemChatMessageBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return MessageViewHolder(binding)
     }
 
-    override fun getItemViewType(position: Int): Int {
-        return if (items[position].isOutgoing) TYPE_OUTGOING else TYPE_INCOMING
-    }
+    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+        val msg = messages[position]
+        with(holder.binding) {
+            tvMessage.text = msg.text
+            tvTimestamp.text = android.text.format.DateFormat.format("hh:mm a", msg.timestamp)
+            tvStatus.text = msg.status
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return if (viewType == TYPE_OUTGOING) {
-            val v = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_message_outgoing, parent, false)
-            OutgoingHolder(v)
-        } else {
-            val v = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_message_incoming, parent, false)
-            IncomingHolder(v)
+            // Example styling per outgoing vs. incoming:
+            root.apply {
+                if (msg.isOutgoing) {
+                    // Align to the end, change background, etc.
+                    tvMessage.setBackgroundResource(R.drawable.bg_outgoing_message)
+                } else {
+                    // Align to the start, other style
+                    tvMessage.setBackgroundResource(R.drawable.bg_incoming_message)
+                }
+            }
         }
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = messages.size
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val msg = items[position]
-        when (holder) {
-            is OutgoingHolder -> holder.tvMessage.text = msg.lastMessage
-            is IncomingHolder -> holder.tvMessage.text = msg.lastMessage
+    /** Adds a new message to the bottom and scrolls to it */
+    fun addMessage(message: Message) {
+        messages.add(message)
+        notifyItemInserted(messages.size - 1)
+    }
+
+    /** Finds a message by its id, updates status, and refreshes that item */
+    fun updateStatus(msgId: String, newStatus: String) {
+        val idx = messages.indexOfFirst { it.id == msgId }
+        if (idx != -1) {
+            messages[idx].status = newStatus
+            notifyItemChanged(idx)
         }
-    }
-
-    class IncomingHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvMessage: TextView = view.findViewById(R.id.tvMessageIn)
-    }
-
-    class OutgoingHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvMessage: TextView = view.findViewById(R.id.tvMessageOut)
     }
 }
