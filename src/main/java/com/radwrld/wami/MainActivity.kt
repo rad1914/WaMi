@@ -33,55 +33,29 @@ class MainActivity : AppCompatActivity() {
         contactStorage = ContactStorage(this)
         serverConfigStorage = ServerConfigStorage(this)
 
-        val primary = serverConfigStorage.primaryServer
-        val fallback = serverConfigStorage.fallbackServer
+        Log.d("MainActivity", "Server (primary/fallback): ${serverConfigStorage.primaryServer} / ${serverConfigStorage.fallbackServer}")
 
-        // Replacing Toast with Log.d() for debugging purposes
-        Log.d("MainActivity", "Server (primary/fallback): $primary / $fallback")
+        binding.header.setOnLongClickListener { showSetServersDialog() ; true }
 
-        binding.header.setOnLongClickListener {
-            showSetServersDialog()
-            true
-        }
-
-        val savedContacts = contactStorage.getContacts()
-        messages.addAll(savedContacts.map { contact ->
-            Message(
-                name = contact.name,
-                lastMessage = "Say hi!",
-                avatarUrl = contact.avatarUrl,
-                phoneNumber = contact.phoneNumber,
-                isOnline = false
-            )
+        messages.addAll(contactStorage.getContacts().map {
+            Message(it.name, "Say hi!", it.avatarUrl, it.phoneNumber, "false")
         })
 
         adapter = MessageAdapter(messages) { msg ->
-            val jid = "${msg.phoneNumber}@s.whatsapp.net"
-            startActivity(
-                Intent(this, ChatActivity::class.java).apply {
-                    putExtra("EXTRA_JID", jid)
-                    putExtra("EXTRA_NAME", msg.name)
-                }
-            )
+            startActivity(Intent(this, ChatActivity::class.java).apply {
+                putExtra("EXTRA_JID", "${msg.phoneNumber}@s.whatsapp.net")
+                putExtra("EXTRA_NAME", msg.name)
+            })
         }
+
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
         binding.rvMessages.adapter = adapter
 
         binding.fabAdd.setOnClickListener {
             AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(name, number, avatarUrl)
-                val currentContacts = contactStorage.getContacts().toMutableList()
-                currentContacts.add(newContact)
-                contactStorage.saveContacts(currentContacts)
-
-                val newMessage = Message(
-                    name = name,
-                    lastMessage = "Say hi!",
-                    avatarUrl = avatarUrl,
-                    phoneNumber = number,
-                    isOnline = false
-                )
-                messages.add(0, newMessage)
+                contactStorage.saveContacts(contactStorage.getContacts() + newContact)
+                messages.add(0, Message(name, "Say hi!", avatarUrl, number, "false"))
                 adapter.notifyItemInserted(0)
                 binding.rvMessages.scrollToPosition(0)
             }.show()
@@ -89,25 +63,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSetServersDialog() {
-        // Using custom approach: simplified dialog with linear layout and edit texts
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val padding = resources.getDimensionPixelSize(R.dimen.padding)
-            setPadding(padding, padding, padding, padding)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.padding),
+                resources.getDimensionPixelSize(R.dimen.padding),
+                resources.getDimensionPixelSize(R.dimen.padding),
+                resources.getDimensionPixelSize(R.dimen.padding)
+            )
         }
 
         val inputPrimary = EditText(this).apply {
-            hint = "Primary Server (e.g., ip:port)"
-            setText(serverConfigStorage.primaryServer ?: "")
+            hint = "Primary Server"
+            setText(serverConfigStorage.primaryServer)
         }
         val inputFallback = EditText(this).apply {
-            hint = "Fallback Server (e.g., ip:port)"
-            setText(serverConfigStorage.fallbackServer ?: "")
+            hint = "Fallback Server"
+            setText(serverConfigStorage.fallbackServer)
         }
         layout.addView(inputPrimary)
         layout.addView(inputFallback)
 
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Set WAALT Servers")
             .setView(layout)
             .setPositiveButton("Save") { _, _ ->
@@ -115,15 +92,12 @@ class MainActivity : AppCompatActivity() {
                 val fallback = inputFallback.text.toString().trim()
                 if (primary.isNotEmpty() && fallback.isNotEmpty()) {
                     serverConfigStorage.saveServers(primary, fallback)
-                    // Replaced Toast with Log.d() to display the saved servers
                     Log.d("MainActivity", "Saved: primary=$primary, fallback=$fallback")
                 } else {
-                    Log.d("MainActivity", "Both fields must be filled") // Replacing Toast
+                    Log.d("MainActivity", "Both fields must be filled")
                 }
             }
             .setNegativeButton("Cancel", null)
-            .create()
-
-        dialog.show()
+            .show()
     }
 }

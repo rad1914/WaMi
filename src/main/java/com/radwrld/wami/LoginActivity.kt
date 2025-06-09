@@ -29,20 +29,17 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var waApi: WaApi
     private lateinit var config: ServerConfigStorage
     private val handler = Handler(Looper.getMainLooper())
-    private var isConnected = false
 
-    // Delay before switching to the next server (in milliseconds)
     private val SWITCH_SERVER_DELAY_MS = 12_000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
-        qrImage    = findViewById(R.id.qrImage)
+        qrImage = findViewById(R.id.qrImage)
         statusText = findViewById(R.id.statusText)
-        config     = ServerConfigStorage(this)
+        config = ServerConfigStorage(this)
 
-        // Initialize storage with primary & fallback
         config.saveServers("22.ip.gl.ply.gg:18880", "127.0.0.1:3007")
         initApi(config.getCurrentServer())
         checkStatus()
@@ -53,9 +50,7 @@ class LoginActivity : AppCompatActivity() {
         Toast.makeText(this, "Connecting to $baseUrl", Toast.LENGTH_SHORT).show()
 
         val client = OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
             .callTimeout(15, TimeUnit.SECONDS)
             .build()
 
@@ -90,19 +85,13 @@ class LoginActivity : AppCompatActivity() {
         val nextServer = config.moveToNextServer()
 
         if (oldServer != nextServer) {
-            // Wait before switching servers
-            handler.postDelayed({
-                initApi(nextServer)
-                checkStatus()
-            }, SWITCH_SERVER_DELAY_MS)
+            handler.postDelayed({ initApi(nextServer); checkStatus() }, SWITCH_SERVER_DELAY_MS)
         } else {
             pollForQr()
         }
     }
 
     private fun pollForQr() {
-        if (isConnected) return
-
         waApi.getQr().enqueue(object : Callback<QrResponse> {
             override fun onResponse(call: Call<QrResponse>, res: Response<QrResponse>) {
                 val qr = res.body()?.qr
@@ -112,13 +101,11 @@ class LoginActivity : AppCompatActivity() {
                 } else {
                     statusText.text = "Waiting for QR…"
                 }
-                // Poll again after 9 seconds
                 handler.postDelayed({ pollForQr() }, 9_000L)
             }
 
             override fun onFailure(call: Call<QrResponse>, t: Throwable) {
                 statusText.text = "QR error: ${t.localizedMessage}"
-                // Retry after 10 seconds on failure
                 handler.postDelayed({ pollForQr() }, 10_000L)
             }
         })
@@ -139,7 +126,6 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun launchMain() {
-        isConnected = true
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
