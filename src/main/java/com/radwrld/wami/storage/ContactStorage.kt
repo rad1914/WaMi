@@ -22,4 +22,11 @@ class ContactStorage(context: Context) {
         val jsonString = sharedPreferences.getString("contacts", "[]")
         return gson.fromJson(jsonString, Array<Contact>::class.java).toList()
     }
+
+    // --- APPLIED SUGGESTION: Added the missing addContact method ---
+    fun addContact(newContact: Contact) {
+        val currentContacts = getContacts().toMutableList()
+        currentContacts.add(0, newContact) // Add to the top of the list
+        saveContacts(currentContacts)
+    }
 }

@@ -6,23 +6,24 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.LinearLayout
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.radwrld.wami.adapter.MessageAdapter
+import com.radwrld.wami.adapter.ConversationAdapter // NOTE: Using the new ConversationAdapter
 import com.radwrld.wami.databinding.ActivityMainBinding
+import com.radwrld.wami.model.Chat
 import com.radwrld.wami.model.Contact
-import com.radwrld.wami.model.Message
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.ServerConfigStorage
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var adapter: MessageAdapter
+    private lateinit var conversationAdapter: ConversationAdapter // Using the new adapter
     private lateinit var contactStorage: ContactStorage
     private lateinit var serverConfigStorage: ServerConfigStorage
 
-    private val messages = mutableListOf<Message>()
+    private val chats = mutableListOf<Chat>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,28 +36,40 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "Server (primary/fallback): ${serverConfigStorage.primaryServer} / ${serverConfigStorage.fallbackServer}")
 
-        binding.header.setOnLongClickListener { showSetServersDialog() ; true }
+        binding.header.setOnLongClickListener { showSetServersDialog(); true }
 
-        messages.addAll(contactStorage.getContacts().map {
-            Message(it.name, "Say hi!", it.avatarUrl, it.phoneNumber, "false")
+        // Clear previous list to avoid duplication on activity recreation
+        chats.clear()
+        chats.addAll(contactStorage.getContacts().map { contact ->
+            Chat(
+                contactName = contact.name,
+                lastMessage = "Say hi!",
+                avatarUrl = contact.avatarUrl,
+                phoneNumber = contact.phoneNumber
+            )
         })
 
-        adapter = MessageAdapter(messages) { msg ->
+        // --- APPLIED FIX: Using the new ConversationAdapter ---
+        conversationAdapter = ConversationAdapter(chats) { chat ->
             startActivity(Intent(this, ChatActivity::class.java).apply {
-                putExtra("EXTRA_JID", "${msg.phoneNumber}@s.whatsapp.net")
-                putExtra("EXTRA_NAME", msg.name)
+                putExtra("EXTRA_JID", "${chat.phoneNumber}@s.whatsapp.net")
+                putExtra("EXTRA_NAME", chat.contactName)
             })
         }
 
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
-        binding.rvMessages.adapter = adapter
+        binding.rvMessages.adapter = conversationAdapter
 
         binding.fabAdd.setOnClickListener {
             AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(name, number, avatarUrl)
-                contactStorage.saveContacts(contactStorage.getContacts() + newContact)
-                messages.add(0, Message(name, "Say hi!", avatarUrl, number, "false"))
-                adapter.notifyItemInserted(0)
+
+                // --- APPLIED FIX: This call will now work ---
+                contactStorage.addContact(newContact)
+
+                val newChat = Chat(name, "Say hi!", avatarUrl, number)
+                chats.add(0, newChat)
+                conversationAdapter.notifyItemInserted(0)
                 binding.rvMessages.scrollToPosition(0)
             }.show()
         }
@@ -65,12 +78,8 @@ class MainActivity : AppCompatActivity() {
     private fun showSetServersDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(
-                resources.getDimensionPixelSize(R.dimen.padding),
-                resources.getDimensionPixelSize(R.dimen.padding),
-                resources.getDimensionPixelSize(R.dimen.padding),
-                resources.getDimensionPixelSize(R.dimen.padding)
-            )
+            val padding = resources.getDimensionPixelSize(R.dimen.padding)
+            setPadding(padding, padding, padding, padding)
         }
 
         val inputPrimary = EditText(this).apply {
@@ -84,7 +93,7 @@ class MainActivity : AppCompatActivity() {
         layout.addView(inputPrimary)
         layout.addView(inputFallback)
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("Set WAALT Servers")
             .setView(layout)
             .setPositiveButton("Save") { _, _ ->

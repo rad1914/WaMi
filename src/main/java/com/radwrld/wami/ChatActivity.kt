@@ -1,3 +1,5 @@
+// ChatActivity.kt
+
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -11,35 +13,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
-import com.google.gson.annotations.SerializedName
 import io.socket.client.IO
 import io.socket.client.Socket
+import io.socket.engineio.client.transports.WebSocket
+import io.socket.client.IO.Options
+import org.json.JSONArray
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.*
-import org.json.JSONArray
-
-data class ChatMessageDto(
-    val id: Long,
-    val jid: String,
-    val text: String,
-    @SerializedName("isOutgoing") val isOutgoing: Int,
-    val status: String,
-    val timestamp: Long
-)
-
-data class SendRequest(val jid: String, val text: String)
-data class SendResponse(val status: String, val id: String?)
-
-interface WhatsAppApi {
-    @GET("history/{jid}")
-    suspend fun getHistory(@Path("jid") jid: String, @Query("limit") limit: Int = 200): List<ChatMessageDto>
-
-    @POST("send")
-    suspend fun sendMessage(@Body req: SendRequest): SendResponse
-}
+import retrofit2.converter.scalars.ScalarsConverterFactory
 
 class ChatActivity : AppCompatActivity() {
 
@@ -52,7 +36,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var contactName: String
 
     companion object {
-        private const val BASE_URL = "http://192.168.1.68:3007/"
+        private const val BASE_URL = "http://22.ip.gl.ply.gg:18880/"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +44,15 @@ class ChatActivity : AppCompatActivity() {
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Retrieve JID and validate it immediately.
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
+        if (!isValidJid(jid)) {
+            // If the JID is invalid, show an error and close the activity.
+            showToast("Error: Invalid or missing contact JID.")
+            finish() // Prevents the user from interacting with a broken chat window.
+            return   // Stop further execution of onCreate.
+        }
+
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
         binding.tvContactName.text = contactName
         binding.tvLastSeen.visibility = View.GONE
@@ -73,16 +65,25 @@ class ChatActivity : AppCompatActivity() {
         binding.etMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val visible = !s.isNullOrBlank()
-                binding.btnSend.visibility = if (visible) View.VISIBLE else View.GONE
-                binding.btnMic.visibility = if (visible) View.GONE else View.VISIBLE
+                val hasText = !s.isNullOrBlank()
+                binding.btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
+                binding.btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+
         api = Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(OkHttpClient.Builder().build())
+            .client(client)
+            .addConverterFactory(ScalarsConverterFactory.create())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(WhatsAppApi::class.java)
@@ -100,23 +101,36 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun addMessageToUI(text: String) {
-        messages.add(
-            Message(contactName, text, "", "", jid, true, System.currentTimeMillis())
-        )
+        val message = Message(contactName, text, "", "", jid, true, System.currentTimeMillis())
+        messages.add(message)
         adapter.notifyItemInserted(messages.size - 1)
         binding.rvMessages.scrollToPosition(messages.size - 1)
         binding.etMessage.text?.clear()
     }
 
     private fun sendMessageToServer(text: String) {
+        // The check in onCreate ensures the JID is valid, but we can keep this for safety.
+        if (!isValidJid(jid)) {
+            showToast("Cannot send message: Invalid JID format.")
+            return
+        }
+
+        showToast("Requesting to send message: JID=$jid, Text=$text")
+
         lifecycleScope.launch {
             try {
-                val resp = api.sendMessage(SendRequest(jid, text))
-                if (resp.status != "sent") {
-                    Toast.makeText(this@ChatActivity, "Send failed", Toast.LENGTH_SHORT).show()
-                } else adapter.updateStatus("", "sent")
+                showToast("Sending message to JID: $jid - Text: $text")
+
+                val result = api.sendMessage(SendRequest(jid, text))
+
+                val trimmed = result.trim().trim('"')
+                if (trimmed.equals("OK", ignoreCase = true)) {
+                    showToast("Message sent")
+                } else {
+                    showToast("Send failed: $trimmed")
+                }
             } catch (e: Exception) {
-                Toast.makeText(this@ChatActivity, "Error sending message", Toast.LENGTH_SHORT).show()
+                showToast("Error sending message: ${e.message}")
             }
         }
     }
@@ -124,24 +138,44 @@ class ChatActivity : AppCompatActivity() {
     private fun loadChatHistory() {
         lifecycleScope.launch {
             try {
-                messages.addAll(api.getHistory(jid).map {
-                    Message(contactName, it.text, it.status, it.id.toString(), it.jid, it.isOutgoing == 1, it.timestamp)
+                val history = api.getHistory(jid)
+                messages.addAll(history.map {
+                    Message(
+                        contactName,
+                        it.text,
+                        it.status,
+                        it.id.toString(),
+                        it.jid,
+                        it.isOutgoing == 1,
+                        it.timestamp
+                    )
                 })
                 adapter.notifyDataSetChanged()
                 binding.rvMessages.scrollToPosition(messages.size - 1)
             } catch (e: Exception) {
-                Toast.makeText(this@ChatActivity, "Failed to load history", Toast.LENGTH_SHORT).show()
+                showToast("Failed to load history: ${e.message}")
             }
         }
     }
 
     private fun setupSocket() {
-        socket = IO.socket(BASE_URL.dropLastWhile { it == '/' })
-        socket.on(Socket.EVENT_CONNECT)     { toast("Socket connected") }
-        socket.on(Socket.EVENT_CONNECT_ERROR){ toast("Socket connect error") }
-        socket.on(Socket.EVENT_DISCONNECT)  { toast("Socket disconnected") }
-        socket.on("whatsapp-message", onNewMessage)
-        socket.connect()
+        try {
+            val opts = Options().apply {
+                forceNew = true
+                reconnection = true
+                transports = arrayOf(WebSocket.NAME)
+            }
+            socket = IO.socket(BASE_URL.trimEnd('/'), opts)
+            socket.apply {
+                on(Socket.EVENT_CONNECT) { showToast("Socket connected") }
+                on(Socket.EVENT_CONNECT_ERROR) { showToast("Socket connect error") }
+                on(Socket.EVENT_DISCONNECT) { showToast("Socket disconnected") }
+                on("whatsapp-message", onNewMessage)
+                connect()
+            }
+        } catch (e: Exception) {
+            showToast("Socket connection failed: ${e.message}")
+        }
     }
 
     private val onNewMessage = io.socket.emitter.Emitter.Listener { args ->
@@ -153,7 +187,8 @@ class ChatActivity : AppCompatActivity() {
                 if (remote == jid) {
                     val text = obj.optJSONObject("message")?.optString("conversation") ?: ""
                     val fromMe = obj.getJSONObject("key").optBoolean("fromMe", false)
-                    messages.add(Message(contactName, text, "", "", remote, fromMe, System.currentTimeMillis()))
+                    val newMessage = Message(contactName, text, "", "", remote, fromMe, System.currentTimeMillis())
+                    messages.add(newMessage)
                 }
             }
             adapter.notifyDataSetChanged()
@@ -161,12 +196,20 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun toast(msg: String) {
+    private fun isValidJid(jid: String): Boolean {
+        // A more robust check to ensure the JID has a user part before the '@'.
+        return jid.isNotEmpty() && jid.contains("@s.whatsapp.net") && jid.length > "@s.whatsapp.net".length
+    }
+
+    private fun showToast(msg: String) {
         runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }
     }
 
     override fun onDestroy() {
-        socket.off(); socket.disconnect()
         super.onDestroy()
+        if (::socket.isInitialized) {
+            socket.off()
+            socket.disconnect()
+        }
     }
 }

@@ -28,16 +28,10 @@ public final class ChatAdapter extends androidx.recyclerview.widget.RecyclerView
         return 0;
     }
     
-    /**
-     * Adds a new message to the bottom and scrolls to it
-     */
     public final void addMessage(@org.jetbrains.annotations.NotNull
     com.radwrld.wami.model.Message message) {
     }
     
-    /**
-     * Finds a message by its id, updates status, and refreshes that item
-     */
     public final void updateStatus(@org.jetbrains.annotations.NotNull
     java.lang.String msgId, @org.jetbrains.annotations.NotNull
     java.lang.String newStatus) {

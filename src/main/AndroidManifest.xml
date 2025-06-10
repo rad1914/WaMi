@@ -6,6 +6,7 @@
 
     <!-- App-wide permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />  <!-- Add this line -->
 
     <application
         android:allowBackup="true"

@@ -3382,6 +3382,7 @@ id is_pooling_container_tag
 id italic
 id item_container
 id item_touch_helper_previous_elevation
+id ivAvatar
 id iv_profile
 id jumpToEnd
 id jumpToStart
@@ -3641,6 +3642,7 @@ id transition_position
 id transition_scene_layoutid_cache
 id transition_transform
 id triangle
+id tvContactName
 id tvLastMessage
 id tvMessage
 id tvName
@@ -3807,6 +3809,7 @@ layout design_text_input_end_icon
 layout design_text_input_start_icon
 layout dialog_add_contact
 layout item_chat_message
+layout item_conversation
 layout item_message
 layout m3_alert_dialog
 layout m3_alert_dialog_actions

@@ -1,5 +1,4 @@
 // LoginActivity.kt
-
 package com.radwrld.wami
 
 import android.content.Intent
@@ -11,12 +10,12 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
-import com.radwrld.wami.api.QrResponse
-import com.radwrld.wami.api.StatusResponse
-import com.radwrld.wami.api.WaApi
+import com.radwrld.wami.WaApi
 import com.radwrld.wami.storage.ServerConfigStorage
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.*
@@ -63,21 +62,20 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun checkStatus() {
-        waApi.getStatus().enqueue(object : Callback<StatusResponse> {
-            override fun onResponse(call: Call<StatusResponse>, res: Response<StatusResponse>) {
-                if (res.isSuccessful && res.body()?.connected == true) {
+        lifecycleScope.launch {
+            try {
+                val statusResponse = waApi.getStatus()
+                if (statusResponse.connected) {
                     config.resetToPrimary()
                     launchMain()
                 } else {
                     retryOrPollQr()
                 }
-            }
-
-            override fun onFailure(call: Call<StatusResponse>, t: Throwable) {
-                Log.e("Login", "Status check failed: ${t.localizedMessage}")
+            } catch (e: Exception) {
+                Log.e("Login", "Status check failed: ${e.localizedMessage}")
                 retryOrPollQr()
             }
-        })
+        }
     }
 
     private fun retryOrPollQr() {
@@ -92,23 +90,22 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun pollForQr() {
-        waApi.getQr().enqueue(object : Callback<QrResponse> {
-            override fun onResponse(call: Call<QrResponse>, res: Response<QrResponse>) {
-                val qr = res.body()?.qr
-                if (res.isSuccessful && qr != null) {
+        lifecycleScope.launch {
+            try {
+                val qrResponse = waApi.getQr()
+                val qr = qrResponse.qr
+                if (qr != null) {
                     renderQr(qr)
                     statusText.text = "Scan this with WhatsApp"
                 } else {
                     statusText.text = "Waiting for QR…"
                 }
                 handler.postDelayed({ pollForQr() }, 9_000L)
-            }
-
-            override fun onFailure(call: Call<QrResponse>, t: Throwable) {
-                statusText.text = "QR error: ${t.localizedMessage}"
+            } catch (e: Exception) {
+                statusText.text = "QR error: ${e.localizedMessage}"
                 handler.postDelayed({ pollForQr() }, 10_000L)
             }
-        })
+        }
     }
 
     private fun renderQr(text: String) {

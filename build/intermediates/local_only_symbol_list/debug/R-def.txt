@@ -77,6 +77,7 @@ id header
 id header_title
 id input_container
 id item_container
+id ivAvatar
 id iv_profile
 id layout_add_contact
 id menu_contacts
@@ -87,6 +88,7 @@ id rvMessages
 id rv_messages
 id search_icon
 id statusText
+id tvContactName
 id tvLastMessage
 id tvMessage
 id tvName
@@ -100,6 +102,7 @@ layout activity_login
 layout activity_main
 layout dialog_add_contact
 layout item_chat_message
+layout item_conversation
 layout item_message
 menu bottom_nav_menu
 mipmap ic_launcher
