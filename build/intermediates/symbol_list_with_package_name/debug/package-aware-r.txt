@@ -1191,9 +1191,7 @@ attr textBackgroundPanY
 attr textBackgroundRotate
 attr textBackgroundZoom
 attr textColorAlertDialogListItem
-attr textColorPrimary
 attr textColorSearchUrl
-attr textColorSecondary
 attr textEndPadding
 attr textFillColor
 attr textInputFilledDenseStyle
@@ -1379,6 +1377,7 @@ color cardview_light_background
 color cardview_shadow_end_color
 color cardview_shadow_start_color
 color colorAccent
+color colorSurface
 color design_bottom_navigation_shadow_color
 color design_box_stroke_color
 color design_dark_default_color_background

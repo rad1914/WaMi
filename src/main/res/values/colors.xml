@@ -12,7 +12,8 @@
     <color name="onSecondary">#000000</color> <!-- Black text on secondary elements -->
 
     <!-- Surface Colors -->
-    <color name="surface">#2C3021</color> <!-- Deep earthy tone for surfaces -->
+    <color name="surface">#000000</color> <!-- Deep earthy tone for surfaces -->
+    <color name="colorSurface">#000000</color> <!-- Deep earthy tone for surfaces -->
     <color name="onSurface">#FFFFFF</color> <!-- White text on surface -->
     <color name="surfaceVariant">#4C5733</color> <!-- Olive-toned variant for surfaces -->
     <color name="onSurfaceVariant">#D1D68A</color> <!-- Muted yellow for contrast on surface variant -->

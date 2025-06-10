@@ -1,12 +1,11 @@
 R_DEF: Internal format may change without notice
 local
-attr textColorPrimary
-attr textColorSecondary
 color background
 color bg_bubble_in
 color bg_bubble_out
 color bg_header
 color colorAccent
+color colorSurface
 color divider
 color nav_item_active
 color nav_item_color
