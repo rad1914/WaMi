@@ -3516,6 +3516,7 @@ id pooling_container_listener_holder_tag
 id position
 id postLayout
 id pressed
+id profile_picture
 id progress_circular
 id progress_horizontal
 id qrImage
@@ -4047,6 +4048,7 @@ string path_password_eye
 string path_password_eye_mask_strike_through
 string path_password_eye_mask_visible
 string path_password_strike_through
+string profile_picture
 string search_menu_title
 string searchbar_scrolling_view_behavior
 string searchview_clear_text_content_description

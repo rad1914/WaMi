@@ -2,7 +2,6 @@
     <string name="app_name">WaMi</string>
     <string name="add_contact">Add Contact</string>
 
-    <!-- Content descriptions -->
     <string name="cd_back">Back</string>
     <string name="cd_video_call">Video call</string>
     <string name="cd_voice_call">Voice call</string>
@@ -13,4 +12,6 @@
     <string name="cd_camera">Open camera</string>
     <string name="cd_send">Send message</string>
     <string name="cd_voice_message">Record voice message</string>
+    <string name="profile_picture">User profile picture</string>
+
 </resources>

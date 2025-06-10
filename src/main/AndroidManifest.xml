@@ -4,11 +4,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="MissingApplicationIcon">
 
-    <!-- App-wide permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />  <!-- Add this line -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".WamiApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Wami"
@@ -17,7 +17,6 @@
         android:theme="@style/Theme.Wami"
         android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- Launch screen -->
         <activity
             android:name=".LoginActivity"
             android:exported="true">
@@ -27,12 +26,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Main message list -->
         <activity
             android:name=".MainActivity"
             android:exported="false" />
 
-        <!-- One-on-one chat -->
         <activity
             android:name=".ChatActivity"
             android:exported="false"

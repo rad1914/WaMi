@@ -15,12 +15,12 @@ import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
 import io.socket.client.IO
 import io.socket.client.Socket
-import io.socket.engineio.client.transports.WebSocket
 import io.socket.client.IO.Options
-import org.json.JSONArray
+import io.socket.engineio.client.transports.WebSocket
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.json.JSONArray
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
@@ -44,13 +44,11 @@ class ChatActivity : AppCompatActivity() {
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Retrieve JID and validate it immediately.
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
         if (!isValidJid(jid)) {
-            // If the JID is invalid, show an error and close the activity.
             showToast("Error: Invalid or missing contact JID.")
-            finish() // Prevents the user from interacting with a broken chat window.
-            return   // Stop further execution of onCreate.
+            finish()
+            return
         }
 
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
@@ -109,7 +107,6 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendMessageToServer(text: String) {
-        // The check in onCreate ensures the JID is valid, but we can keep this for safety.
         if (!isValidJid(jid)) {
             showToast("Cannot send message: Invalid JID format.")
             return
@@ -120,9 +117,7 @@ class ChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 showToast("Sending message to JID: $jid - Text: $text")
-
                 val result = api.sendMessage(SendRequest(jid, text))
-
                 val trimmed = result.trim().trim('"')
                 if (trimmed.equals("OK", ignoreCase = true)) {
                     showToast("Message sent")
@@ -179,25 +174,39 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private val onNewMessage = io.socket.emitter.Emitter.Listener { args ->
+        // Prevent crash if the activity is already destroyed
+        if (isFinishing || isDestroyed) {
+            return@Listener
+        }
+
         runOnUiThread {
-            val arr = args[0] as JSONArray
+            val arr = args[0] as? JSONArray ?: return@runOnUiThread
             for (i in 0 until arr.length()) {
-                val obj = arr.getJSONObject(i)
-                val remote = obj.getJSONObject("key").getString("remoteJid")
-                if (remote == jid) {
+                val obj = arr.optJSONObject(i) ?: continue
+
+                // --- APPLIED FIX: Use opt...() methods to prevent JSONException ---
+                val keyObject = obj.optJSONObject("key")
+                val remoteJid = keyObject?.optString("remoteJid")
+                
+                if (remoteJid == jid) {
+                    val fromMe = keyObject?.optBoolean("fromMe", false) ?: false
                     val text = obj.optJSONObject("message")?.optString("conversation") ?: ""
-                    val fromMe = obj.getJSONObject("key").optBoolean("fromMe", false)
-                    val newMessage = Message(contactName, text, "", "", remote, fromMe, System.currentTimeMillis())
-                    messages.add(newMessage)
+                    
+                    // Only add the message if it has content and is not from us
+                    // (since we already add our own messages to the UI instantly)
+                    if (text.isNotEmpty() && !fromMe) {
+                         val newMessage = Message(contactName, text, "", "", remoteJid, fromMe, System.currentTimeMillis())
+                         messages.add(newMessage)
+                    }
                 }
             }
+            // Use notifyDataSetChanged to be safe with multiple additions
             adapter.notifyDataSetChanged()
             binding.rvMessages.scrollToPosition(messages.size - 1)
         }
     }
 
     private fun isValidJid(jid: String): Boolean {
-        // A more robust check to ensure the JID has a user part before the '@'.
         return jid.isNotEmpty() && jid.contains("@s.whatsapp.net") && jid.length > "@s.whatsapp.net".length
     }
 

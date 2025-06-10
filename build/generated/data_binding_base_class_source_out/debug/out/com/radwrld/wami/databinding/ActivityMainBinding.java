@@ -37,6 +37,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final TextView headerTitle;
 
   @NonNull
+  public final ImageView profilePicture;
+
+  @NonNull
   public final RecyclerView rvMessages;
 
   @NonNull
@@ -45,12 +48,14 @@ public final class ActivityMainBinding implements ViewBinding {
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
       @NonNull BottomNavigationView bottomNav, @NonNull FloatingActionButton fabAdd,
       @NonNull RelativeLayout header, @NonNull TextView headerTitle,
-      @NonNull RecyclerView rvMessages, @NonNull ImageView searchIcon) {
+      @NonNull ImageView profilePicture, @NonNull RecyclerView rvMessages,
+      @NonNull ImageView searchIcon) {
     this.rootView = rootView;
     this.bottomNav = bottomNav;
     this.fabAdd = fabAdd;
     this.header = header;
     this.headerTitle = headerTitle;
+    this.profilePicture = profilePicture;
     this.rvMessages = rvMessages;
     this.searchIcon = searchIcon;
   }
@@ -106,6 +111,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.profile_picture;
+      ImageView profilePicture = ViewBindings.findChildViewById(rootView, id);
+      if (profilePicture == null) {
+        break missingId;
+      }
+
       id = R.id.rvMessages;
       RecyclerView rvMessages = ViewBindings.findChildViewById(rootView, id);
       if (rvMessages == null) {
@@ -119,7 +130,7 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, bottomNav, fabAdd, header,
-          headerTitle, rvMessages, searchIcon);
+          headerTitle, profilePicture, rvMessages, searchIcon);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

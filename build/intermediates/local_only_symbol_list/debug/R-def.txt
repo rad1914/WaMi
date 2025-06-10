@@ -83,6 +83,7 @@ id layout_add_contact
 id menu_contacts
 id menu_messages
 id onlineIndicator
+id profile_picture
 id qrImage
 id rvMessages
 id rv_messages
@@ -119,5 +120,6 @@ string cd_video_call
 string cd_voice_call
 string cd_voice_message
 string hint_message
+string profile_picture
 style Theme.Wami
 xml network_security_config

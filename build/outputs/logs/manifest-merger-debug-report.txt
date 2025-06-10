@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-41:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-41:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-41:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-41:12
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
 MERGED from [androidx.databinding:databinding-adapters:8.1.0] /root/.gradle/caches/transforms-3/70853768bd0d5ab26ab6592c1e4ab91c/transformed/databinding-adapters-8.1.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.databinding:databinding-ktx:8.1.0] /root/.gradle/caches/transforms-3/eaf8bab0ac0983149d4ef4618de09e4b/transformed/databinding-ktx-8.1.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.databinding:databinding-runtime:8.1.0] /root/.gradle/caches/transforms-3/bf57db6afd7990d88513a0cee730b856/transformed/databinding-runtime-8.1.0/AndroidManifest.xml:2:1-7:12
@@ -70,16 +70,16 @@ MERGED from [de.hdodenhof:circleimageview:3.1.0] /root/.gradle/caches/transforms
 	tools:ignore
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:5:5-42
 uses-permission#android.permission.INTERNET
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:5-67
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:7:5-67
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:22-64
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:7:22-64
 uses-permission#android.permission.POST_NOTIFICATIONS
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:9:5-77
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:5-77
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:9:22-74
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:22-74
 application
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:11:5-40:19
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:11:5-40:19
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-37:19
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-37:19
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/c77ec6b341548d9b8995d6231db0bbd0/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/c77ec6b341548d9b8995d6231db0bbd0/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /root/.gradle/caches/transforms-3/757328ccc9cd16290655f64d9b9b5a3d/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -122,36 +122,38 @@ MERGED from [de.hdodenhof:circleimageview:3.1.0] /root/.gradle/caches/transforms
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:17:9-42
 	android:networkSecurityConfig
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:18:9-69
+	android:name
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:11:9-32
 activity#com.radwrld.wami.LoginActivity
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:21:9-28:20
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:20:9-27:20
 	android:exported
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:23:13-36
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:22:13-36
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:22:13-42
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:21:13-42
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:24:13-27:29
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:23:13-26:29
 action#android.intent.action.MAIN
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:25:17-69
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:24:17-69
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:25:25-66
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:24:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:26:17-77
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:25:17-77
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:26:27-74
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:25:27-74
 activity#com.radwrld.wami.MainActivity
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:31:9-33:40
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:29:9-31:40
 	android:exported
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:33:13-37
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:31:13-37
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:32:13-41
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:30:13-41
 activity#com.radwrld.wami.ChatActivity
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:36:9-39:36
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:33:9-36:36
 	android:label
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:39:13-33
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:36:13-33
 	android:exported
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:38:13-37
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:35:13-37
 	android:name
-		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:37:13-41
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:34:13-41
 uses-sdk
 INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml
