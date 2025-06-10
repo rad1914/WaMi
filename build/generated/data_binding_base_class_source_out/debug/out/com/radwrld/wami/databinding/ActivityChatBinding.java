@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.radwrld.wami.R;
-import de.hdodenhof.circleimageview.CircleImageView;
 import java.lang.NullPointerException;
 import java.lang.Override;
 import java.lang.String;
@@ -25,31 +24,16 @@ public final class ActivityChatBinding implements ViewBinding {
   private final RelativeLayout rootView;
 
   @NonNull
-  public final ImageButton btnAttachment;
-
-  @NonNull
   public final ImageButton btnBack;
 
   @NonNull
-  public final ImageButton btnCamera;
-
-  @NonNull
-  public final ImageButton btnEmoji;
-
-  @NonNull
   public final ImageButton btnMic;
-
-  @NonNull
-  public final ImageButton btnMoreOptions;
 
   @NonNull
   public final ImageButton btnSend;
 
   @NonNull
   public final ImageButton btnVideoCall;
-
-  @NonNull
-  public final ImageButton btnVoiceCall;
 
   @NonNull
   public final LinearLayout chatHeader;
@@ -61,9 +45,6 @@ public final class ActivityChatBinding implements ViewBinding {
   public final LinearLayout inputContainer;
 
   @NonNull
-  public final CircleImageView ivProfile;
-
-  @NonNull
   public final RecyclerView rvMessages;
 
   @NonNull
@@ -72,28 +53,19 @@ public final class ActivityChatBinding implements ViewBinding {
   @NonNull
   public final TextView tvLastSeen;
 
-  private ActivityChatBinding(@NonNull RelativeLayout rootView, @NonNull ImageButton btnAttachment,
-      @NonNull ImageButton btnBack, @NonNull ImageButton btnCamera, @NonNull ImageButton btnEmoji,
-      @NonNull ImageButton btnMic, @NonNull ImageButton btnMoreOptions,
-      @NonNull ImageButton btnSend, @NonNull ImageButton btnVideoCall,
-      @NonNull ImageButton btnVoiceCall, @NonNull LinearLayout chatHeader,
-      @NonNull EditText etMessage, @NonNull LinearLayout inputContainer,
-      @NonNull CircleImageView ivProfile, @NonNull RecyclerView rvMessages,
+  private ActivityChatBinding(@NonNull RelativeLayout rootView, @NonNull ImageButton btnBack,
+      @NonNull ImageButton btnMic, @NonNull ImageButton btnSend, @NonNull ImageButton btnVideoCall,
+      @NonNull LinearLayout chatHeader, @NonNull EditText etMessage,
+      @NonNull LinearLayout inputContainer, @NonNull RecyclerView rvMessages,
       @NonNull TextView tvContactName, @NonNull TextView tvLastSeen) {
     this.rootView = rootView;
-    this.btnAttachment = btnAttachment;
     this.btnBack = btnBack;
-    this.btnCamera = btnCamera;
-    this.btnEmoji = btnEmoji;
     this.btnMic = btnMic;
-    this.btnMoreOptions = btnMoreOptions;
     this.btnSend = btnSend;
     this.btnVideoCall = btnVideoCall;
-    this.btnVoiceCall = btnVoiceCall;
     this.chatHeader = chatHeader;
     this.etMessage = etMessage;
     this.inputContainer = inputContainer;
-    this.ivProfile = ivProfile;
     this.rvMessages = rvMessages;
     this.tvContactName = tvContactName;
     this.tvLastSeen = tvLastSeen;
@@ -126,39 +98,15 @@ public final class ActivityChatBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
-      id = R.id.btn_attachment;
-      ImageButton btnAttachment = ViewBindings.findChildViewById(rootView, id);
-      if (btnAttachment == null) {
-        break missingId;
-      }
-
       id = R.id.btn_back;
       ImageButton btnBack = ViewBindings.findChildViewById(rootView, id);
       if (btnBack == null) {
         break missingId;
       }
 
-      id = R.id.btn_camera;
-      ImageButton btnCamera = ViewBindings.findChildViewById(rootView, id);
-      if (btnCamera == null) {
-        break missingId;
-      }
-
-      id = R.id.btn_emoji;
-      ImageButton btnEmoji = ViewBindings.findChildViewById(rootView, id);
-      if (btnEmoji == null) {
-        break missingId;
-      }
-
       id = R.id.btn_mic;
       ImageButton btnMic = ViewBindings.findChildViewById(rootView, id);
       if (btnMic == null) {
-        break missingId;
-      }
-
-      id = R.id.btn_more_options;
-      ImageButton btnMoreOptions = ViewBindings.findChildViewById(rootView, id);
-      if (btnMoreOptions == null) {
         break missingId;
       }
 
@@ -171,12 +119,6 @@ public final class ActivityChatBinding implements ViewBinding {
       id = R.id.btn_video_call;
       ImageButton btnVideoCall = ViewBindings.findChildViewById(rootView, id);
       if (btnVideoCall == null) {
-        break missingId;
-      }
-
-      id = R.id.btn_voice_call;
-      ImageButton btnVoiceCall = ViewBindings.findChildViewById(rootView, id);
-      if (btnVoiceCall == null) {
         break missingId;
       }
 
@@ -198,12 +140,6 @@ public final class ActivityChatBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.iv_profile;
-      CircleImageView ivProfile = ViewBindings.findChildViewById(rootView, id);
-      if (ivProfile == null) {
-        break missingId;
-      }
-
       id = R.id.rv_messages;
       RecyclerView rvMessages = ViewBindings.findChildViewById(rootView, id);
       if (rvMessages == null) {
@@ -222,9 +158,9 @@ public final class ActivityChatBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityChatBinding((RelativeLayout) rootView, btnAttachment, btnBack, btnCamera,
-          btnEmoji, btnMic, btnMoreOptions, btnSend, btnVideoCall, btnVoiceCall, chatHeader,
-          etMessage, inputContainer, ivProfile, rvMessages, tvContactName, tvLastSeen);
+      return new ActivityChatBinding((RelativeLayout) rootView, btnBack, btnMic, btnSend,
+          btnVideoCall, chatHeader, etMessage, inputContainer, rvMessages, tvContactName,
+          tvLastSeen);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

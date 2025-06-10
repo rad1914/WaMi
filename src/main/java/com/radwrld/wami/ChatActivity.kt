@@ -33,7 +33,9 @@ import java.util.UUID
 
 class ChatActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityChatBinding
+    private var _binding: ActivityChatBinding? = null
+    private val binding get() = _binding!! // This property is only valid between onCreateView and onDestroyView
+
     private lateinit var adapter: ChatAdapter
     private val messages = mutableListOf<Message>()
     private lateinit var api: WhatsAppApi
@@ -45,7 +47,7 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityChatBinding.inflate(layoutInflater)
+        _binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
@@ -56,8 +58,10 @@ class ChatActivity : AppCompatActivity() {
         }
 
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
+        // Set contact name in the header
         binding.tvContactName.text = contactName
-        binding.tvLastSeen.visibility = View.GONE
+
+        binding.tvLastSeen.visibility = View.GONE // As per your original logic
         binding.btnBack.setOnClickListener { finish() }
 
         adapter = ChatAdapter(messages)
@@ -250,5 +254,6 @@ class ChatActivity : AppCompatActivity() {
             socket.off()
             socket.disconnect()
         }
+        _binding = null // Clear the binding reference
     }
 }

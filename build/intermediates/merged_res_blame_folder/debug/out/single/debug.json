@@ -24,8 +24,20 @@
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_default_avatar.xml"
     },
     {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_magnifying_glass.xml.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_magnifying_glass.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_profile_placeholder.xml.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_profile_placeholder.xml"
+    },
+    {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_more_vert.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_more_vert.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_chat_circle_dots.xml.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_chat_circle_dots.xml"
     },
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_divider.xml.flat",
@@ -44,10 +56,6 @@
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_camera_alt.xml"
     },
     {
-        "merged": "com.radwrld.wami.app-merged_res-38:/layout_activity_main.xml.flat",
-        "source": "com.radwrld.wami.app-main-40:/layout/activity_main.xml"
-    },
-    {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/layout_dialog_add_contact.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/layout/dialog_add_contact.xml"
     },
@@ -58,6 +66,10 @@
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_search.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_search.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-merged_res-38:/layout_item_conversation.xml.flat",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_conversation.xml"
     },
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_mic_button_background.xml.flat",
@@ -74,6 +86,10 @@
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable-v24_ic_launcher_foreground.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable-v24/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_users.xml.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/ic_users.xml"
     },
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/mipmap-xxxhdpi_ic_launcher.webp.flat",
@@ -132,12 +148,12 @@
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/layout/activity_chat.xml"
     },
     {
-        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/mipmap-hdpi_ic_launcher.webp.flat",
-        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/mipmap-hdpi/ic_launcher.webp"
-    },
-    {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_send_button_background.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/send_button_background.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/mipmap-hdpi/ic_launcher.webp"
     },
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_ic_placeholder_avatar.xml.flat",
@@ -202,6 +218,10 @@
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/menu_bottom_nav_menu.xml.flat",
         "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/menu/bottom_nav_menu.xml"
+    },
+    {
+        "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_online_indicator_background.xml.flat",
+        "source": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-main-40:/drawable/online_indicator_background.xml"
     },
     {
         "merged": "/root/.gradle/daemon/8.1.1/com.radwrld.wami.app-merged_res-38:/drawable_online_dot.xml.flat",

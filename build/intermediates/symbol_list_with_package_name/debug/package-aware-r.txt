@@ -3027,6 +3027,7 @@ drawable ic_call_answer_video_low
 drawable ic_call_decline
 drawable ic_call_decline_low
 drawable ic_camera_alt
+drawable ic_chat_circle_dots
 drawable ic_clear_black_24
 drawable ic_clock_black_24dp
 drawable ic_contacts
@@ -3038,6 +3039,7 @@ drawable ic_launcher_foreground
 drawable ic_m3_chip_check
 drawable ic_m3_chip_checked_circle
 drawable ic_m3_chip_close
+drawable ic_magnifying_glass
 drawable ic_messages
 drawable ic_mic
 drawable ic_more_vert
@@ -3046,9 +3048,11 @@ drawable ic_mtrl_chip_checked_black
 drawable ic_mtrl_chip_checked_circle
 drawable ic_mtrl_chip_close_circle
 drawable ic_placeholder_avatar
+drawable ic_profile_placeholder
 drawable ic_search
 drawable ic_search_black_24
 drawable ic_send
+drawable ic_users
 drawable ic_videocam
 drawable m3_avd_hide_password
 drawable m3_avd_show_password
@@ -3124,6 +3128,7 @@ drawable notification_template_icon_low_bg
 drawable notification_tile_bg
 drawable notify_panel_notification_icon_bg
 drawable online_dot
+drawable online_indicator_background
 drawable received_message_background
 drawable send_button_background
 drawable sent_message_background
@@ -3225,22 +3230,16 @@ id beginning
 id bestChoice
 id blocking
 id bottom
-id bottom_nav
 id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
 id btn_add_contact
-id btn_attachment
 id btn_back
-id btn_camera
 id btn_cancel_contact
-id btn_emoji
 id btn_mic
-id btn_more_options
 id btn_send
 id btn_video_call
-id btn_voice_call
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3302,7 +3301,6 @@ id disableIntraAutoTransition
 id disablePostScroll
 id disableScroll
 id disjoint
-id divider
 id dragAnticlockwise
 id dragClockwise
 id dragDown
@@ -3383,7 +3381,6 @@ id italic
 id item_container
 id item_touch_helper_previous_elevation
 id ivAvatar
-id iv_profile
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3516,7 +3513,6 @@ id pooling_container_listener_holder_tag
 id position
 id postLayout
 id pressed
-id profile_picture
 id progress_circular
 id progress_horizontal
 id qrImage
@@ -3549,7 +3545,6 @@ id search_button
 id search_close_btn
 id search_edit_frame
 id search_go_btn
-id search_icon
 id search_mag_icon
 id search_plate
 id search_src_text
@@ -3618,6 +3613,7 @@ id textSpacerNoTitle
 id textStart
 id textTop
 id textWatcher
+id text_container
 id text_input_end_icon
 id text_input_error_icon
 id text_input_start_icon

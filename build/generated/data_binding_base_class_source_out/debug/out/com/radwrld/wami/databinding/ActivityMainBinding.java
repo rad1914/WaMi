@@ -4,16 +4,13 @@ package com.radwrld.wami.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.radwrld.wami.R;
 import java.lang.NullPointerException;
@@ -25,39 +22,21 @@ public final class ActivityMainBinding implements ViewBinding {
   private final CoordinatorLayout rootView;
 
   @NonNull
-  public final BottomNavigationView bottomNav;
-
-  @NonNull
   public final FloatingActionButton fabAdd;
 
   @NonNull
-  public final RelativeLayout header;
-
-  @NonNull
-  public final TextView headerTitle;
-
-  @NonNull
-  public final ImageView profilePicture;
+  public final LinearLayout header;
 
   @NonNull
   public final RecyclerView rvMessages;
 
-  @NonNull
-  public final ImageView searchIcon;
-
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
-      @NonNull BottomNavigationView bottomNav, @NonNull FloatingActionButton fabAdd,
-      @NonNull RelativeLayout header, @NonNull TextView headerTitle,
-      @NonNull ImageView profilePicture, @NonNull RecyclerView rvMessages,
-      @NonNull ImageView searchIcon) {
+      @NonNull FloatingActionButton fabAdd, @NonNull LinearLayout header,
+      @NonNull RecyclerView rvMessages) {
     this.rootView = rootView;
-    this.bottomNav = bottomNav;
     this.fabAdd = fabAdd;
     this.header = header;
-    this.headerTitle = headerTitle;
-    this.profilePicture = profilePicture;
     this.rvMessages = rvMessages;
-    this.searchIcon = searchIcon;
   }
 
   @Override
@@ -87,12 +66,6 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
-      id = R.id.bottom_nav;
-      BottomNavigationView bottomNav = ViewBindings.findChildViewById(rootView, id);
-      if (bottomNav == null) {
-        break missingId;
-      }
-
       id = R.id.fabAdd;
       FloatingActionButton fabAdd = ViewBindings.findChildViewById(rootView, id);
       if (fabAdd == null) {
@@ -100,20 +73,8 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       id = R.id.header;
-      RelativeLayout header = ViewBindings.findChildViewById(rootView, id);
+      LinearLayout header = ViewBindings.findChildViewById(rootView, id);
       if (header == null) {
-        break missingId;
-      }
-
-      id = R.id.header_title;
-      TextView headerTitle = ViewBindings.findChildViewById(rootView, id);
-      if (headerTitle == null) {
-        break missingId;
-      }
-
-      id = R.id.profile_picture;
-      ImageView profilePicture = ViewBindings.findChildViewById(rootView, id);
-      if (profilePicture == null) {
         break missingId;
       }
 
@@ -123,14 +84,7 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.search_icon;
-      ImageView searchIcon = ViewBindings.findChildViewById(rootView, id);
-      if (searchIcon == null) {
-        break missingId;
-      }
-
-      return new ActivityMainBinding((CoordinatorLayout) rootView, bottomNav, fabAdd, header,
-          headerTitle, profilePicture, rvMessages, searchIcon);
+      return new ActivityMainBinding((CoordinatorLayout) rootView, fabAdd, header, rvMessages);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

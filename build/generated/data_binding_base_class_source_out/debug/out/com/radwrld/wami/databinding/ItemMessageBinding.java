@@ -4,6 +4,7 @@ package com.radwrld.wami.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -24,10 +25,10 @@ public final class ItemMessageBinding implements ViewBinding {
   public final CircleImageView avatarImageView;
 
   @NonNull
-  public final View divider;
+  public final View onlineIndicator;
 
   @NonNull
-  public final View onlineIndicator;
+  public final LinearLayout textContainer;
 
   @NonNull
   public final TextView tvLastMessage;
@@ -39,13 +40,13 @@ public final class ItemMessageBinding implements ViewBinding {
   public final TextView tvPhoneNumber;
 
   private ItemMessageBinding(@NonNull ConstraintLayout rootView,
-      @NonNull CircleImageView avatarImageView, @NonNull View divider,
-      @NonNull View onlineIndicator, @NonNull TextView tvLastMessage, @NonNull TextView tvName,
-      @NonNull TextView tvPhoneNumber) {
+      @NonNull CircleImageView avatarImageView, @NonNull View onlineIndicator,
+      @NonNull LinearLayout textContainer, @NonNull TextView tvLastMessage,
+      @NonNull TextView tvName, @NonNull TextView tvPhoneNumber) {
     this.rootView = rootView;
     this.avatarImageView = avatarImageView;
-    this.divider = divider;
     this.onlineIndicator = onlineIndicator;
+    this.textContainer = textContainer;
     this.tvLastMessage = tvLastMessage;
     this.tvName = tvName;
     this.tvPhoneNumber = tvPhoneNumber;
@@ -84,15 +85,15 @@ public final class ItemMessageBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.divider;
-      View divider = ViewBindings.findChildViewById(rootView, id);
-      if (divider == null) {
-        break missingId;
-      }
-
       id = R.id.onlineIndicator;
       View onlineIndicator = ViewBindings.findChildViewById(rootView, id);
       if (onlineIndicator == null) {
+        break missingId;
+      }
+
+      id = R.id.text_container;
+      LinearLayout textContainer = ViewBindings.findChildViewById(rootView, id);
+      if (textContainer == null) {
         break missingId;
       }
 
@@ -114,8 +115,8 @@ public final class ItemMessageBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemMessageBinding((ConstraintLayout) rootView, avatarImageView, divider,
-          onlineIndicator, tvLastMessage, tvName, tvPhoneNumber);
+      return new ItemMessageBinding((ConstraintLayout) rootView, avatarImageView, onlineIndicator,
+          textContainer, tvLastMessage, tvName, tvPhoneNumber);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
