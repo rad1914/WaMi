@@ -9,9 +9,9 @@ import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.radwrld.wami.adapter.ConversationAdapter // NOTE: Using the new ConversationAdapter
+import com.radwrld.wami.adapter.ConversationAdapter
 import com.radwrld.wami.databinding.ActivityMainBinding
-import com.radwrld.wami.model.Chat
+import com.radwrld.wami.model.Message // CHANGED: Import Message instead of Chat
 import com.radwrld.wami.model.Contact
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.ServerConfigStorage
@@ -19,11 +19,12 @@ import com.radwrld.wami.storage.ServerConfigStorage
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var conversationAdapter: ConversationAdapter // Using the new adapter
+    private lateinit var conversationAdapter: ConversationAdapter
     private lateinit var contactStorage: ContactStorage
     private lateinit var serverConfigStorage: ServerConfigStorage
 
-    private val chats = mutableListOf<Chat>()
+    // CHANGED: The list is now of type Message
+    private val conversations = mutableListOf<Message>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,22 +39,23 @@ class MainActivity : AppCompatActivity() {
 
         binding.header.setOnLongClickListener { showSetServersDialog(); true }
 
-        // Clear previous list to avoid duplication on activity recreation
-        chats.clear()
-        chats.addAll(contactStorage.getContacts().map { contact ->
-            Chat(
-                contactName = contact.name,
+        conversations.clear()
+        conversations.addAll(contactStorage.getContacts().map { contact ->
+            // CHANGED: Create a Message object using its constructor
+            Message(
+                name = contact.name,
                 lastMessage = "Say hi!",
                 avatarUrl = contact.avatarUrl,
                 phoneNumber = contact.phoneNumber
             )
         })
 
-        // --- APPLIED FIX: Using the new ConversationAdapter ---
-        conversationAdapter = ConversationAdapter(chats) { chat ->
+        // The adapter now works with a list of Message objects
+        conversationAdapter = ConversationAdapter(conversations) { conversation ->
             startActivity(Intent(this, ChatActivity::class.java).apply {
-                putExtra("EXTRA_JID", "${chat.phoneNumber}@s.whatsapp.net")
-                putExtra("EXTRA_NAME", chat.contactName)
+                // CHANGED: Use properties from the conversation (which is a Message)
+                putExtra("EXTRA_JID", "${conversation.phoneNumber}@s.whatsapp.net")
+                putExtra("EXTRA_NAME", conversation.name)
             })
         }
 
@@ -63,12 +65,16 @@ class MainActivity : AppCompatActivity() {
         binding.fabAdd.setOnClickListener {
             AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(name, number, avatarUrl)
-
-                // --- APPLIED FIX: This call will now work ---
                 contactStorage.addContact(newContact)
 
-                val newChat = Chat(name, "Say hi!", avatarUrl, number)
-                chats.add(0, newChat)
+                // CHANGED: Create a new Message object
+                val newConversation = Message(
+                    name = name,
+                    lastMessage = "Say hi!",
+                    avatarUrl = avatarUrl,
+                    phoneNumber = number
+                )
+                conversations.add(0, newConversation)
                 conversationAdapter.notifyItemInserted(0)
                 binding.rvMessages.scrollToPosition(0)
             }.show()

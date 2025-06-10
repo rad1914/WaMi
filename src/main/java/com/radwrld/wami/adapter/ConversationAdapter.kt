@@ -4,27 +4,24 @@ package com.radwrld.wami.adapter
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.radwrld.wami.databinding.ItemConversationBinding // NOTE: Create this binding from item_conversation.xml
-import com.radwrld.wami.model.Chat
+import com.radwrld.wami.databinding.ItemConversationBinding
+import com.radwrld.wami.model.Message // CHANGED: Import Message instead of Chat
 
 class ConversationAdapter(
-    private val chats: List<Chat>,
-    private val onItemClicked: (Chat) -> Unit
+    // CHANGED: The list now holds Message objects
+    private val conversations: List<Message>,
+    private val onItemClicked: (Message) -> Unit
 ) : RecyclerView.Adapter<ConversationAdapter.ConversationViewHolder>() {
 
-    // You need to create a layout file named `item_conversation.xml`.
-    // It should contain at least:
-    // - A TextView with the id `tvContactName`
-    // - A TextView with the id `tvLastMessage`
-    // - An ImageView with the id `ivAvatar` (optional, for displaying avatar)
     inner class ConversationViewHolder(val binding: ItemConversationBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(chat: Chat) {
-            binding.tvContactName.text = chat.contactName
-            binding.tvLastMessage.text = chat.lastMessage
-            // Here you would load the avatar using a library like Glide or Picasso
-            // For example: Glide.with(binding.root.context).load(chat.avatarUrl).into(binding.ivAvatar)
+        // CHANGED: The bind function now accepts a Message object
+        fun bind(message: Message) {
+            // CHANGED: Use properties from the Message model
+            binding.tvContactName.text = message.name
+            binding.tvLastMessage.text = message.lastMessage
+            // Example for Glide/Picasso would now use message.avatarUrl
             binding.root.setOnClickListener {
-                onItemClicked(chat)
+                onItemClicked(message)
             }
         }
     }
@@ -35,8 +32,8 @@ class ConversationAdapter(
     }
 
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
-        holder.bind(chats[position])
+        holder.bind(conversations[position]) // CHANGED: Pass item from the new list
     }
 
-    override fun getItemCount() = chats.size
+    override fun getItemCount() = conversations.size // CHANGED: Get size of the new list
 }
