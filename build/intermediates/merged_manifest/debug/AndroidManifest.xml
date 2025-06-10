@@ -45,6 +45,9 @@
             android:name="com.radwrld.wami.ChatActivity"
             android:exported="false"
             android:label="Chat" />
+        <activity
+            android:name="com.radwrld.wami.SettingsActivity"
+            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

@@ -4,24 +4,24 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1f1f14"
+    android:background="?attr/colorSurface"
     tools:context=".ChatActivity">
 
     <LinearLayout
         android:id="@+id/chat_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#1f1f14"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp">
+        android:paddingHorizontal="4dp">
 
         <ImageButton
             android:id="@+id/btn_back"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:src="?attr/homeAsUpIndicator"
-            app:tint="@android:color/white"
+            app:tint="?attr/colorOnSurface"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Back" />
 
@@ -36,8 +36,8 @@
                 android:id="@+id/tv_contact_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/white"
-                android:textSize="18sp"
+                android:textColor="?attr/colorOnSurface"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textStyle="bold"
                 tools:text="Sophia" />
 
@@ -45,8 +45,8 @@
                 android:id="@+id/tv_last_seen"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#bec09b"
-                android:textSize="13sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textAppearance="?attr/textAppearanceBodySmall"
                 tools:text="online" />
 
         </LinearLayout>
@@ -56,9 +56,10 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:src="@android:drawable/ic_media_play"
-            app:tint="@android:color/white"
+            app:tint="?attr/colorOnSurface"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Video Call" />
+            android:contentDescription="Video Call"
+            android:layout_marginEnd="8dp"/>
 
     </LinearLayout>
 
@@ -69,14 +70,15 @@
         android:layout_below="@id/chat_header"
         android:layout_above="@+id/input_container"
         android:clipToPadding="false"
-        android:padding="16dp" />
+        android:paddingVertical="8dp"
+        android:paddingHorizontal="16dp" />
 
     <LinearLayout
         android:id="@+id/input_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:background="#1f1f14"
+        android:background="?attr/colorSurface"
         android:orientation="horizontal"
         android:padding="8dp"
         android:gravity="center_vertical">
@@ -99,9 +101,9 @@
                 android:layout_weight="1"
                 android:background="@android:color/transparent"
                 android:hint="Message"
-                android:textColorHint="#bec09b"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
+                android:textColorHint="?attr/colorOnSurfaceVariant"
+                android:textColor="?attr/colorOnSurface"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
                 android:maxLines="5"
                 android:inputType="textMultiLine|textCapSentences"
                 android:scrollbars="vertical" />
@@ -120,7 +122,7 @@
                 android:src="@android:drawable/ic_menu_send"
                 android:background="@drawable/send_button_background"
                 android:contentDescription="Send"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnPrimaryContainer"
                 android:visibility="gone" />
 
             <ImageButton
@@ -130,7 +132,7 @@
                 android:src="@android:drawable/ic_btn_speak_now"
                 android:background="@drawable/mic_button_background"
                 android:contentDescription="Voice message"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnPrimaryContainer"
                 android:visibility="visible" />
 
         </FrameLayout>

@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:ns1="http://schemas.android.com/tools">
+<resources>
     <attr format="color" name="textColorPrimary"/>
     <attr format="color" name="textColorSecondary"/>
-    <color name="bg_bottom_nav">#1A1C09</color>
-    <color name="bg_bubble_in">#EEEEEE</color>
+    <color name="background">#232921</color>
+    <color name="bg_bubble_in">@color/surfaceVariant</color>
     <color name="bg_bubble_out">#0084FF</color>
-    <color name="bg_header">#23270B</color>
-    <color name="bg_primary">#23270B</color>
-    <color name="black">#000000</color>
-    <color name="colorAccent">@color/teal_200</color>
-    <color name="divider">#0D0D0D</color>
-    <color name="nav_item_active">#FFFFFF</color>
-    <color name="nav_item_inactive">#D0D48F</color>
+    <color name="bg_header">@color/primaryContainer</color>
+    <color name="colorAccent">@color/secondary</color>
+    <color name="divider">@color/outline</color>
+    <color name="nav_item_active">@color/onSurface</color>
+    <color name="nav_item_inactive">@color/onSurfaceVariant</color>
+    <color name="onBackground">#FFFFFF</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="onPrimaryContainer">#E1E8B7</color>
+    <color name="onSecondary">#000000</color>
+    <color name="onSurface">#FFFFFF</color>
+    <color name="onSurfaceVariant">#D1D68A</color>
     <color name="online_indicator">#4CAF50</color>
-    <color name="purple_500">#34C25E</color>
-    <color name="purple_700">#23270B</color>
-    <color name="teal_200">#03DAC5</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#D0D48F</color>
-    <color name="white">#FFFFFF</color>
+    <color name="outline">#5A6235</color>
+    <color name="primary">#4CAF50</color>
+    <color name="primaryContainer">#2E3B24</color>
+    <color name="secondary">#00B8A9</color>
+    <color name="surface">#2C3021</color>
+    <color name="surfaceVariant">#4C5733</color>
+    <color name="text_primary">@color/onSurface</color>
+    <color name="text_secondary">@color/onSurfaceVariant</color>
     <dimen name="padding">16dp</dimen>
     <string name="add_contact">Add Contact</string>
     <string name="app_name">WaMi</string>
@@ -33,33 +39,32 @@
     <string name="cd_voice_message">Record voice message</string>
     <string name="hint_message">Type a message</string>
     <string name="profile_picture">User profile picture</string>
-    <style name="Theme.Wami" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Wami" parent="Theme.Material3.Dark.NoActionBar">
+        
+        <item name="colorPrimary">@color/primary</item> 
+        <item name="colorOnPrimary">@color/onPrimary</item> 
+
+        <item name="colorPrimaryContainer">@color/primaryContainer</item> 
+        <item name="colorOnPrimaryContainer">@color/onPrimaryContainer</item> 
 
         
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/secondary</item> 
+        <item name="colorOnSecondary">@color/onSecondary</item> 
 
         
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
+        <item name="android:colorBackground">@color/background</item> 
+        <item name="colorOnBackground">@color/onBackground</item> 
+        
+        <item name="colorSurface">@color/surface</item> 
+        <item name="colorOnSurface">@color/onSurface</item> 
+        
+        <item name="colorSurfaceVariant">@color/surfaceVariant</item> 
+        <item name="colorOnSurfaceVariant">@color/onSurfaceVariant</item> 
 
         
-        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="colorOutline">@color/outline</item> 
 
         
-        <item name="colorSurface">@color/bg_bottom_nav</item>
-        <item name="colorOnSurface">@color/nav_item_active</item>
-
-        
-        <item name="android:statusBarColor" ns1:targetApi="l">@color/purple_700</item>
-
-        
-        <item name="colorSurfaceVariant">@color/divider</item>
-
-        
-        <item name="android:textColorPrimary">@color/text_primary</item>
-        <item name="android:textColorSecondary">@color/text_secondary</item>
-
+        <item name="android:statusBarColor">?attr/colorSurface</item> 
     </style>
 </resources>

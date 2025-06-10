@@ -1,8 +1,8 @@
 <!-- res/drawable/received_message_background.xml -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#202c33" />
-    <corners 
+    <solid android:color="?attr/colorSurfaceVariant" />
+    <corners
         android:topLeftRadius="8dp"
         android:topRightRadius="8dp"
         android:bottomLeftRadius="2dp"

@@ -4,6 +4,7 @@ package com.radwrld.wami.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,14 +29,18 @@ public final class ActivityMainBinding implements ViewBinding {
   public final LinearLayout header;
 
   @NonNull
+  public final ImageView ivProfile;
+
+  @NonNull
   public final RecyclerView rvMessages;
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
       @NonNull FloatingActionButton fabAdd, @NonNull LinearLayout header,
-      @NonNull RecyclerView rvMessages) {
+      @NonNull ImageView ivProfile, @NonNull RecyclerView rvMessages) {
     this.rootView = rootView;
     this.fabAdd = fabAdd;
     this.header = header;
+    this.ivProfile = ivProfile;
     this.rvMessages = rvMessages;
   }
 
@@ -78,13 +83,20 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.ivProfile;
+      ImageView ivProfile = ViewBindings.findChildViewById(rootView, id);
+      if (ivProfile == null) {
+        break missingId;
+      }
+
       id = R.id.rvMessages;
       RecyclerView rvMessages = ViewBindings.findChildViewById(rootView, id);
       if (rvMessages == null) {
         break missingId;
       }
 
-      return new ActivityMainBinding((CoordinatorLayout) rootView, fabAdd, header, rvMessages);
+      return new ActivityMainBinding((CoordinatorLayout) rootView, fabAdd, header, ivProfile,
+          rvMessages);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

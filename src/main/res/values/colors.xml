@@ -1,31 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Material You–based color values with original names -->
+    <!-- Primary Colors -->
+    <color name="primary">#4CAF50</color> <!-- Deep green for primary elements -->
+    <color name="onPrimary">#FFFFFF</color> <!-- White text on primary color -->
+    <color name="primaryContainer">#2E3B24</color> <!-- Darker green for containers -->
+    <color name="onPrimaryContainer">#E1E8B7</color> <!-- Soft yellow-green for readability on containers -->
 
-    <!-- Primary brand colors -->
-    <color name="purple_500">#34C25E</color> <!-- acts as colorPrimary -->
-    <color name="purple_700">#23270B</color> <!-- colorPrimaryContainer -->
-    <color name="teal_200">#03DAC5</color>   <!-- colorSecondary -->
+    <!-- Secondary Colors -->
+    <color name="secondary">#00B8A9</color> <!-- Vibrant cyan for secondary elements -->
+    <color name="onSecondary">#000000</color> <!-- Black text on secondary elements -->
 
-    <!-- Base colors -->
-    <color name="white">#FFFFFF</color>      <!-- used for onPrimary, onBackground -->
-    <color name="black">#000000</color>      <!-- used for onSecondary -->
+    <!-- Surface Colors -->
+    <color name="surface">#2C3021</color> <!-- Deep earthy tone for surfaces -->
+    <color name="onSurface">#FFFFFF</color> <!-- White text on surface -->
+    <color name="surfaceVariant">#4C5733</color> <!-- Olive-toned variant for surfaces -->
+    <color name="onSurfaceVariant">#D1D68A</color> <!-- Muted yellow for contrast on surface variant -->
+    <color name="outline">#5A6235</color> <!-- Darker outline for separation -->
 
-    <!-- Custom Material You role mapping -->
-    <color name="bg_primary">#23270B</color>         <!-- colorBackground -->
-    <color name="bg_header">#23270B</color>          <!-- colorPrimary -->
-    <color name="text_primary">#FFFFFF</color>       <!-- colorOnBackground -->
-    <color name="text_secondary">#D0D48F</color>     <!-- colorOnSurfaceVariant -->
-    <color name="divider">#0D0D0D</color>            <!-- colorSurfaceVariant -->
-    <color name="bg_bottom_nav">#1A1C09</color>      <!-- colorSurface -->
-    <color name="nav_item_inactive">#D0D48F</color>  <!-- colorOnSurfaceVariant -->
-    <color name="nav_item_active">#FFFFFF</color>    <!-- colorOnSurface -->
-    <color name="online_indicator">#4CAF50</color>   <!-- colorTertiary -->
-    <color name="bg_bubble_in">#EEEEEE</color>
-    <color name="bg_bubble_out">#0084FF</color>
+    <!-- Background Colors -->
+    <color name="background">#232921</color> <!-- Very dark green for background -->
+    <color name="onBackground">#FFFFFF</color> <!-- White text on background -->
 
-    <!-- Legacy alias for send-button icon -->
-    <color name="colorAccent">@color/teal_200</color>
+    <!-- UI Elements -->
+    <color name="bg_header">@color/primaryContainer</color> <!-- Header background using primary container color -->
+    <color name="divider">@color/outline</color> <!-- Divider using outline color -->
+
+    <!-- Text Colors -->
+    <color name="text_primary">@color/onSurface</color> <!-- Primary text color (white on surface) -->
+    <color name="text_secondary">@color/onSurfaceVariant</color> <!-- Secondary text color (muted yellow-green) -->
+
+    <!-- Navigation -->
+    <color name="nav_item_active">@color/onSurface</color> <!-- Active navigation item (white on surface) -->
+    <color name="nav_item_inactive">@color/onSurfaceVariant</color> <!-- Inactive navigation item (muted yellow-green) -->
+
+    <!-- Accent Color -->
+    <color name="colorAccent">@color/secondary</color> <!-- Accent color for highlights -->
+
+    <!-- Status Indicators -->
+    <color name="online_indicator">#4CAF50</color> <!-- Green indicator for online status -->
+
+    <!-- Message Bubbles -->
+    <color name="bg_bubble_in">@color/surfaceVariant</color> <!-- Incoming message bubble (olive variant) -->
+    <color name="bg_bubble_out">#0084FF</color> <!-- Outgoing message bubble (blue) -->
+
 </resources>
-

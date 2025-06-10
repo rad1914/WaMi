@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-38:12
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-43:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-43:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-43:12
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:2:1-43:12
 MERGED from [androidx.databinding:databinding-adapters:8.1.0] /root/.gradle/caches/transforms-3/70853768bd0d5ab26ab6592c1e4ab91c/transformed/databinding-adapters-8.1.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.databinding:databinding-ktx:8.1.0] /root/.gradle/caches/transforms-3/eaf8bab0ac0983149d4ef4618de09e4b/transformed/databinding-ktx-8.1.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.databinding:databinding-runtime:8.1.0] /root/.gradle/caches/transforms-3/bf57db6afd7990d88513a0cee730b856/transformed/databinding-runtime-8.1.0/AndroidManifest.xml:2:1-7:12
@@ -78,8 +78,8 @@ ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:5-77
 	android:name
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:8:22-74
 application
-ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-37:19
-INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-37:19
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-42:19
+INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:10:5-42:19
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/c77ec6b341548d9b8995d6231db0bbd0/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /root/.gradle/caches/transforms-3/c77ec6b341548d9b8995d6231db0bbd0/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /root/.gradle/caches/transforms-3/757328ccc9cd16290655f64d9b9b5a3d/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -154,6 +154,12 @@ ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:33:9-36:
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:35:13-37
 	android:name
 		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:34:13-41
+activity#com.radwrld.wami.SettingsActivity
+ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:38:9-40:40
+	android:exported
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:40:13-37
+	android:name
+		ADDED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml:39:13-45
 uses-sdk
 INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /root/shared/_Box/bot/wami1/app/src/main/AndroidManifest.xml

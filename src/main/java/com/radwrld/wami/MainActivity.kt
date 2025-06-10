@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ConversationAdapter
 import com.radwrld.wami.databinding.ActivityMainBinding
-import com.radwrld.wami.model.Message // CHANGED: Import Message instead of Chat
+import com.radwrld.wami.model.Message
 import com.radwrld.wami.model.Contact
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.ServerConfigStorage
@@ -23,7 +23,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var contactStorage: ContactStorage
     private lateinit var serverConfigStorage: ServerConfigStorage
 
-    // CHANGED: The list is now of type Message
     private val conversations = mutableListOf<Message>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,9 +38,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.header.setOnLongClickListener { showSetServersDialog(); true }
 
+        // Set an OnClickListener on the profile picture ImageView
+        binding.ivProfile.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
         conversations.clear()
         conversations.addAll(contactStorage.getContacts().map { contact ->
-            // CHANGED: Create a Message object using its constructor
             Message(
                 name = contact.name,
                 lastMessage = "Say hi!",
@@ -50,10 +53,8 @@ class MainActivity : AppCompatActivity() {
             )
         })
 
-        // The adapter now works with a list of Message objects
         conversationAdapter = ConversationAdapter(conversations) { conversation ->
             startActivity(Intent(this, ChatActivity::class.java).apply {
-                // CHANGED: Use properties from the conversation (which is a Message)
                 putExtra("EXTRA_JID", "${conversation.phoneNumber}@s.whatsapp.net")
                 putExtra("EXTRA_NAME", conversation.name)
             })
@@ -67,7 +68,6 @@ class MainActivity : AppCompatActivity() {
                 val newContact = Contact(name, number, avatarUrl)
                 contactStorage.addContact(newContact)
 
-                // CHANGED: Create a new Message object
                 val newConversation = Message(
                     name = name,
                     lastMessage = "Say hi!",

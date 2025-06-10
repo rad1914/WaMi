@@ -3,6 +3,7 @@ package com.radwrld.wami
 
 import android.app.Application
 import android.util.Log
+import com.google.android.material.color.DynamicColors // <-- Make sure this import is present
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -13,6 +14,11 @@ class WamiApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Apply dynamic colors to the app theme for Material You
+        DynamicColors.applyToActivitiesIfAvailable(this)
+
+        // Your existing crash logging setup
         setupCrashLogging()
     }
 
