@@ -14,31 +14,36 @@ class AddContactDialog(
     private val onAdd: (name: String, number: String, avatarUrl: String) -> Unit
 ) : Dialog(context) {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.dialog_add_contact)
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
 
-        val etName = findViewById<EditText>(R.id.et_contact_name)
-        val etNumber = findViewById<EditText>(R.id.et_contact_number)
-        val etAvatar = findViewById<EditText>(R.id.et_contact_avatar)
-        val btnAdd = findViewById<Button>(R.id.btn_add_contact)
-        val btnCancel = findViewById<Button>(R.id.btn_cancel_contact)
+    // Make the background transparent to show rounded corners
+    window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        btnAdd.setOnClickListener {
-            val name = etName.text.toString().trim()
-            val number = etNumber.text.toString().trim()
-            val avatarUrl = etAvatar.text.toString().trim()
+    setContentView(R.layout.dialog_add_contact)
 
-            if (name.isEmpty() || number.isEmpty()) {
-                Toast.makeText(context, "Name and number are required", Toast.LENGTH_SHORT).show()
-            } else if (!Patterns.PHONE.matcher(number).matches()) {
-                Toast.makeText(context, "Please enter a valid phone number", Toast.LENGTH_SHORT).show()
-            } else {
-                onAdd(name, number, avatarUrl)
-                dismiss()
-            }
+    val etName = findViewById<EditText>(R.id.et_contact_name)
+    val etNumber = findViewById<EditText>(R.id.et_contact_number)
+    val etAvatar = findViewById<EditText>(R.id.et_contact_avatar)
+    val btnAdd = findViewById<Button>(R.id.btn_add_contact)
+    val btnCancel = findViewById<Button>(R.id.btn_cancel_contact)
+
+    btnAdd.setOnClickListener {
+        val name = etName.text.toString().trim()
+        val number = etNumber.text.toString().trim()
+        val avatarUrl = etAvatar.text.toString().trim()
+
+        if (name.isEmpty() || number.isEmpty()) {
+            Toast.makeText(context, "Name and number are required", Toast.LENGTH_SHORT).show()
+        } else if (!Patterns.PHONE.matcher(number).matches()) {
+            Toast.makeText(context, "Please enter a valid phone number", Toast.LENGTH_SHORT).show()
+        } else {
+            onAdd(name, number, avatarUrl)
+            dismiss()
         }
-
-        btnCancel.setOnClickListener { dismiss() }
     }
+
+    btnCancel.setOnClickListener { dismiss() }
+}
+
 }
