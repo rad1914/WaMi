@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
-
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -14,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.MessageHistoryItem
 import com.radwrld.wami.network.SendRequest
 import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.MessageStorage
@@ -136,7 +136,6 @@ class ChatActivity : AppCompatActivity() {
         binding.rvMessages.scrollToPosition(messages.size - 1)
     }
 
-    // ## FIXED FUNCTION ##
     private fun sendMessageToServer(message: Message) {
         if (!isValidJid(jid)) {
             showToast("Cannot send message: Invalid JID format.")
@@ -149,22 +148,18 @@ class ChatActivity : AppCompatActivity() {
             try {
                 val response = api.sendMessage(SendRequest(jid, message.text, message.id))
                 
-                // Safely handle the nullable tempId from the response.
                 val tempIdFromResponse = response.tempId
                 if (tempIdFromResponse == null) {
                     Log.e("SendMessage", "Server response did not include a tempId. Cannot update message status.")
-                    // Mark the original message as failed since we can't confirm its status.
                     messageStorage.updateMessageStatus(jid, message.id, "failed")
                     updateMessageStatusInUI(message.id, "failed")
                     return@launch
                 }
 
                 if (response.success && response.messageId != null) {
-                    // At this point, tempIdFromResponse and response.messageId are non-null.
                     messageStorage.updateMessage(jid, tempIdFromResponse, response.messageId, "sent")
                     updateMessageStatusInUI(tempIdFromResponse, "sent", response.messageId)
                 } else {
-                    // Handle failure case using the non-null tempId from the response.
                     messageStorage.updateMessageStatus(jid, tempIdFromResponse, "failed")
                     updateMessageStatusInUI(tempIdFromResponse, "failed")
                     showToast("Error sending: ${response.error ?: "Unknown"}")
@@ -177,7 +172,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun loadAndSyncChatHistory() {
-        // **OFFLINE FIRST: Load messages from local storage immediately**
+        // 1. OFFLINE FIRST: Load local messages immediately for a responsive UI
         val localMessages = messageStorage.getMessages(jid)
         messages.clear()
         messages.addAll(localMessages)
@@ -186,29 +181,43 @@ class ChatActivity : AppCompatActivity() {
             binding.rvMessages.scrollToPosition(messages.size - 1)
         }
 
-        // Then, sync with the server in the background
+        // 2. SYNC: Fetch new history and merge it with local data
         lifecycleScope.launch {
             try {
-                val history = api.getHistory(jid)
-                val serverMessages = history.map {
+                val serverHistory = api.getHistory(jid)
+                val serverMessages = serverHistory.map {
                     Message(
-                        id = it.id,
-                        jid = it.jid,
-                        text = it.text,
-                        name = contactName,
-                        status = it.status,
-                        isOutgoing = (it.isOutgoing == 1),
-                        timestamp = it.timestamp
+                        id = it.id, jid = it.jid, text = it.text, name = contactName,
+                        status = it.status, isOutgoing = (it.isOutgoing == 1), timestamp = it.timestamp
                     )
                 }
-                // **OFFLINE SUPPORT: Save fresh history from server**
-                messageStorage.saveMessages(jid, serverMessages)
+
+                // --- MERGE LOGIC ---
+                // Get a fresh copy of local messages to avoid race conditions
+                val currentLocalMessages = messageStorage.getMessages(jid)
                 
-                // Refresh UI with synced data
+                // Keep any local messages that are still "sending" (i.e., not on the server yet)
+                val unsentLocalMessages = currentLocalMessages.filter { it.status == "sending" }
+
+                // Create a combined list, using server data as the source of truth
+                // and adding the unsent local messages back in.
+                val combinedMessages = mutableListOf<Message>()
+                combinedMessages.addAll(serverMessages)
+                combinedMessages.addAll(unsentLocalMessages)
+
+                // Remove duplicates by ID, ensuring the final list is unique, then sort by time
+                val finalList = combinedMessages.distinctBy { it.id }.sortedBy { it.timestamp }
+                
+                // Save the correct, merged history back to storage
+                messageStorage.saveMessages(jid, finalList)
+                
+                // Refresh UI with the fully synced data
                 messages.clear()
-                messages.addAll(serverMessages)
+                messages.addAll(finalList)
                 adapter.notifyDataSetChanged()
-                binding.rvMessages.scrollToPosition(messages.size - 1)
+                if (messages.isNotEmpty()) {
+                    binding.rvMessages.scrollToPosition(messages.size - 1)
+                }
             } catch (e: Exception) {
                 Log.e("ChatHistory", "Failed to sync history for JID: $jid. Using local cache.", e)
             }
@@ -251,7 +260,6 @@ class ChatActivity : AppCompatActivity() {
                             isOutgoing = false,
                             timestamp = msgJson.optLong("timestamp", System.currentTimeMillis())
                         )
-                        // **OFFLINE SUPPORT: Save incoming message**
                         messageStorage.addMessage(jid, newMessage)
                         addMessageToAdapter(newMessage)
                     }
@@ -269,7 +277,6 @@ class ChatActivity : AppCompatActivity() {
                 val messageId = data.optString("id")
                 val newStatus = data.optString("status")
                 
-                // **OFFLINE SUPPORT: Persist status update**
                 messageStorage.updateMessageStatus(jid, messageId, newStatus)
                 updateMessageStatusInUI(messageId, newStatus)
             } catch (e: Exception) {

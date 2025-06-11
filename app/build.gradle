@@ -32,20 +32,26 @@ android {
 
     buildFeatures {
         viewBinding true
-        dataBinding true
+        dataBinding true // Note: You have both viewBinding and dataBinding enabled. Ensure this is intentional.
     }
 }
 
+// It's a modern convention to define the kotlin version in one place
+// and use it for the toolchain, but your current setup is fine.
 kotlin {
     jvmToolchain(17)
 }
 
 dependencies {
+    // --- Add the Lifecycle ViewModel KTX dependency HERE ---
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0" // Or the latest version
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0" // Often useful with viewModelScope
+
     // ZXing core for QR generation
     implementation 'com.google.zxing:core:3.4.1'
 
     // Kotlin + AndroidX
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.10"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.10" // Consider updating to a newer Kotlin version if possible
     implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -65,9 +71,9 @@ dependencies {
     implementation "com.squareup.retrofit2:converter-scalars:2.9.0"
 
     // OkHttp / Okio
-    implementation("com.squareup.okhttp3:okhttp:4.10.0") {
-        exclude group: "com.squareup.okio", module: "okio"
-    }
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    // The explicit exclude/include for okio is generally not needed with recent gradle versions
+    // but is harmless if it resolves a specific dependency conflict in your project.
     implementation "com.squareup.okio:okio:3.5.0"
 
     // Logging Interceptor

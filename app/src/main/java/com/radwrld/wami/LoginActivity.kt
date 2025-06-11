@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
-
 package com.radwrld.wami
 
 import android.content.Intent
@@ -12,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
+import com.radwrld.wami.network.WhatsAppApi // FIXED: Corrected case to WhatsAppApi
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 class LoginActivity : AppCompatActivity() {
     private lateinit var qrImage: ImageView
     private lateinit var statusText: TextView
-    private lateinit var waApi: WaApi
+    private lateinit var waApi: WhatsAppApi // FIXED: Corrected case to WhatsAppApi
     private lateinit var config: ServerConfigStorage
     private val handler = Handler(Looper.getMainLooper())
     private val switchDelay = 12_000L
@@ -53,7 +53,7 @@ class LoginActivity : AppCompatActivity() {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(WaApi::class.java)
+            .create(WhatsAppApi::class.java) // FIXED: Corrected case to WhatsAppApi
 
         Toast.makeText(this, "Connecting to http://$server/", Toast.LENGTH_SHORT).show()
     }
@@ -71,14 +71,10 @@ class LoginActivity : AppCompatActivity() {
                     retryOrPoll()
                 }
             } catch (e: Exception) {
-                // **APPLIED: Handle specific offline exception**
                 if (e is UnknownHostException) {
-                    // This specifically means there's no internet connection.
                     statusText.text = "No internet connection.\nPlease connect to log in for the first time."
                     Toast.makeText(this@LoginActivity, "Please check your internet connection", Toast.LENGTH_LONG).show()
-                    // Stop the retry loop.
                 } else {
-                    // For other errors (e.g., server down), continue the retry logic.
                     retryOrPoll()
                 }
             }
@@ -104,13 +100,10 @@ class LoginActivity : AppCompatActivity() {
                 }
                 handler.postDelayed({ pollQr() }, 9_000L)
             } catch (e: Exception) {
-                // **APPLIED: Handle specific offline exception**
                 if (e is UnknownHostException) {
                     statusText.text = "Internet required to scan QR code.\nPlease connect and restart the app."
-                    // Do not schedule another poll, as it will just fail again.
                 } else {
                     statusText.text = "QR error: Could not reach server."
-                    // For other errors, keep polling.
                     handler.postDelayed({ pollQr() }, 10_000L)
                 }
             }
