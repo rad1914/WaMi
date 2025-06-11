@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/storage/ContactStorage.kt
-// app/src/main/java/com/radwrld/wami/storage/ContactStorage.kt
 package com.radwrld.wami.storage
 
 import android.content.Context
@@ -21,18 +20,27 @@ class ContactStorage(context: Context) {
 
     fun getContacts(): List<Contact> {
         val jsonString = sharedPreferences.getString("contacts", "[]")
-        return gson.fromJson(jsonString, Array<Contact>::class.java).toList()
+        // Handle potential parsing errors
+        return try {
+            gson.fromJson(jsonString, Array<Contact>::class.java).toList()
+        } catch (e: Exception) {
+            emptyList() // Return an empty list if the stored data is corrupt
+        }
     }
 
     fun addContact(newContact: Contact) {
         val currentContacts = getContacts().toMutableList()
-        currentContacts.add(0, newContact)
-        saveContacts(currentContacts)
+        // Prevent adding duplicates
+        if (currentContacts.none { it.id == newContact.id }) {
+            currentContacts.add(0, newContact)
+            saveContacts(currentContacts)
+        }
     }
 
     fun deleteContact(contactToDelete: Contact) {
         val currentContacts = getContacts().toMutableList()
-        val updatedContacts = currentContacts.filterNot { it.phoneNumber == contactToDelete.phoneNumber }
+        // Use the unique ID (JID) for deletion
+        val updatedContacts = currentContacts.filterNot { it.id == contactToDelete.id }
         saveContacts(updatedContacts)
     }
 }

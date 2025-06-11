@@ -1,31 +1,43 @@
 // @path: app/src/main/java/com/radwrld/wami/adapter/ConversationAdapter.kt
-// app/src/main/java/com/radwrld/wami/adapter/ConversationAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemConversationBinding
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.model.Contact // <<< CHANGE 1: Import Contact instead of Message
 
+//                                                                      vvvvvvv
 class ConversationAdapter(
-    private val conversations: List<Message>,
-    private val onItemClicked: (Message) -> Unit,
-    private val onItemLongClicked: (Message, Int) -> Unit
+    private val contacts: List<Contact>, // <<< CHANGE 2: The list now holds Contacts
+    private val onItemClicked: (Contact) -> Unit, // <<< CHANGE 3: The listener provides a Contact
+    private val onItemLongClicked: (Contact, Int) -> Unit // <<< CHANGE 4: This listener also provides a Contact
 ) : RecyclerView.Adapter<ConversationAdapter.ConversationViewHolder>() {
 
     inner class ConversationViewHolder(val binding: ItemConversationBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(message: Message) {
-            binding.tvContactName.text = message.name
-            binding.tvLastMessage.text = message.lastMessage
+        // This function now binds a Contact object to the view
+        fun bind(contact: Contact) {
+            binding.tvContactName.text = contact.name
+            // The Contact model doesn't have a "last message", so we use a placeholder.
+            binding.tvLastMessage.text = "Tap to start chatting"
+
+            // Use Glide to load the contact's avatar image
+            // Make sure you have an ImageView with the id 'ivAvatar' in your item_conversation.xml layout
+            Glide.with(binding.root.context)
+                .load(contact.avatarUrl)
+                .placeholder(R.drawable.ic_profile_placeholder) // IMPORTANT: Create a placeholder drawable
+                .error(R.drawable.ic_profile_placeholder)
+                .into(binding.ivAvatar) // Make sure this ID matches your layout XML
 
             binding.root.setOnClickListener {
-                onItemClicked(message)
+                onItemClicked(contact)
             }
 
             binding.root.setOnLongClickListener {
-                onItemLongClicked(message, adapterPosition)
+                onItemLongClicked(contact, adapterPosition)
                 true
             }
         }
@@ -37,8 +49,9 @@ class ConversationAdapter(
     }
 
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
-        holder.bind(conversations[position])
+        // Pass the Contact at the current position to the bind function
+        holder.bind(contacts[position]) // <<< CHANGE 5
     }
 
-    override fun getItemCount() = conversations.size
+    override fun getItemCount() = contacts.size // <<< CHANGE 6
 }

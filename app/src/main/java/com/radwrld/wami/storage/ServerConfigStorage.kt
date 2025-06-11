@@ -1,14 +1,18 @@
 // @path: app/src/main/java/com/radwrld/wami/storage/ServerConfigStorage.kt
-// ServerConfigStorage.kt
+
 package com.radwrld.wami.storage
 
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.radwrld.wami.SettingsActivity
 
-class ServerConfigStorage(context: Context) {
+class ServerConfigStorage(private val context: Context) {
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("server_config_pref", Context.MODE_PRIVATE)
+    private val settingsPrefs: SharedPreferences =
+        context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+
 
     private val PRIMARY_KEY = "server_primary"
     private val FALLBACK_KEY = "server_fallback"
@@ -30,6 +34,10 @@ class ServerConfigStorage(context: Context) {
     val fallbackServer: String
         get() = sharedPreferences.getString(FALLBACK_KEY, "127.0.0.1:3007") ?: "127.0.0.1:3007"
 
+    private val customServer: String?
+        get() = settingsPrefs.getString(SettingsActivity.CUSTOM_IP_KEY, null)
+
+
     fun saveServers(primary: String, fallback: String) {
         sharedPreferences.edit()
             .putString(PRIMARY_KEY, primary)
@@ -40,13 +48,30 @@ class ServerConfigStorage(context: Context) {
     }
 
     fun getCurrentServer(): String {
+        val useCustomIP = settingsPrefs.getBoolean(SettingsActivity.ENABLE_CUSTOM_IP_KEY, false)
+        if (useCustomIP) {
+            customServer?.let {
+                if (it.isNotBlank()) {
+                    Log.d("ServerConfigStorage", "Using custom server: $it")
+                    return it
+                }
+            }
+        }
+
         val idx = sharedPreferences.getInt(INDEX_KEY, 0)
         val server = if (idx == 0) primaryServer else fallbackServer
         Log.d("ServerConfigStorage", "Current server: $server (Index: $idx)")
         return server
     }
 
+
     fun moveToNextServer(): String {
+        val useCustomIP = settingsPrefs.getBoolean(SettingsActivity.ENABLE_CUSTOM_IP_KEY, false)
+        if (useCustomIP) {
+            // If custom IP is enabled, there's no next server to move to.
+            // We stick with the custom one.
+            return getCurrentServer()
+        }
         // Switch between primary and fallback servers
         val nextIdx = 1 - sharedPreferences.getInt(INDEX_KEY, 0)
         sharedPreferences.edit().putInt(INDEX_KEY, nextIdx).apply()

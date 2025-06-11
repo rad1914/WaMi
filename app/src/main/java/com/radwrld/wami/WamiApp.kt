@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/WamiApp.kt
-// app/src/main/java/com/radwrld/wami/WamiApp.kt
 package com.radwrld.wami
 
 import android.app.Application

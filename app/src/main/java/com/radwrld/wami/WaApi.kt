@@ -1,5 +1,6 @@
 // @path: app/src/main/java/com/radwrld/wami/WaApi.kt
-// /api/WaAPi.kt
+
+
 package com.radwrld.wami
 
 import com.google.gson.annotations.SerializedName

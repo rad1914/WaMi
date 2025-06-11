@@ -1,7 +1,6 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 // ChatActivity.kt
 
-
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -52,16 +51,18 @@ class ChatActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
+        contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
+
+        // **APPLIED SUGGESTION 1: Robust JID validation on start**
+        // Immediately stop if the JID is invalid to prevent any further issues.
         if (!isValidJid(jid)) {
             showToast("Error: Invalid or missing contact JID.")
-            finish()
-            return
+            finish() // Close the activity
+            return   // Stop further execution in onCreate
         }
 
-        contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
         // Set contact name in the header
         binding.tvContactName.text = contactName
-
         binding.tvLastSeen.visibility = View.GONE // As per your original logic
         binding.btnBack.setOnClickListener { finish() }
 
@@ -97,6 +98,8 @@ class ChatActivity : AppCompatActivity() {
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
                 val tempId = UUID.randomUUID().toString()
+                // The UI is updated optimistically, assuming the send will succeed.
+                // The status will be updated later based on the server response.
                 addMessageToUI(text, tempId)
                 sendMessageToServer(text, tempId)
             }
@@ -109,7 +112,7 @@ class ChatActivity : AppCompatActivity() {
             jid = jid,
             name = contactName,
             text = text,
-            status = "sending",
+            status = "sending", // Show as "sending" immediately
             isOutgoing = true,
             timestamp = System.currentTimeMillis()
         )
@@ -120,12 +123,28 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendMessageToServer(text: String, tempId: String) {
+        // **APPLIED SUGGESTION 2: Defensive check before sending**
+        // This is a fallback in case the activity was somehow started with a bad JID.
         if (!isValidJid(jid)) {
             showToast("Cannot send message: Invalid JID format.")
+            val messageIndex = messages.indexOfFirst { it.id == tempId }
+            if (messageIndex != -1) {
+                messages[messageIndex].status = "failed"
+                adapter.notifyItemChanged(messageIndex)
+            }
             return
         }
+
         lifecycleScope.launch {
             try {
+                // This toast for debugging can be removed in production
+                val rawRequestBody = JSONObject().apply {
+                    put("jid", jid)
+                    put("text", text)
+                    put("tempId", tempId)
+                }.toString()
+                showToast("Request: $rawRequestBody") // For debugging
+
                 val response = api.sendMessage(SendRequest(jid, text, tempId))
                 val messageIndex = messages.indexOfFirst { it.id == response.tempId }
                 if (messageIndex == -1) return@launch
@@ -161,7 +180,7 @@ class ChatActivity : AppCompatActivity() {
                         id = it.id,
                         jid = it.jid,
                         text = it.text,
-                        name = contactName,
+                        name = contactName, // Assuming history is for the same contact
                         status = it.status,
                         isOutgoing = (it.isOutgoing == 1),
                         timestamp = it.timestamp
@@ -201,6 +220,7 @@ class ChatActivity : AppCompatActivity() {
                 for (i in 0 until data.length()) {
                     val msgJson = data.getJSONObject(i)
                     val messageJid = msgJson.optString("jid")
+                    // Only add message if it belongs to the current chat and is not from me
                     if (messageJid == jid && !msgJson.optBoolean("fromMe")) {
                         messages.add(
                             Message(
@@ -241,12 +261,22 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * **APPLIED SUGGESTION: More robust JID validation.**
+     * Checks if the JID is not blank, contains the correct suffix,
+     * and does not start with '@', which would indicate a missing number.
+     * e.g., "1234567890@s.whatsapp.net" is valid.
+     * "@s.whatsapp.net" is invalid.
+     */
     private fun isValidJid(jid: String): Boolean {
-        return jid.isNotEmpty() && jid.contains("@s.whatsapp.net")
+        if (jid.isBlank()) return false
+        if (!jid.contains("@s.whatsapp.net")) return false
+        if (jid.startsWith("@")) return false // This catches cases where the number part is missing
+        return true
     }
 
     private fun showToast(msg: String) {
-        runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }
+        runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
     }
 
     override fun onDestroy() {
@@ -255,6 +285,6 @@ class ChatActivity : AppCompatActivity() {
             socket.off()
             socket.disconnect()
         }
-        _binding = null // Clear the binding reference
+        _binding = null // Clear the binding reference to avoid memory leaks
     }
 }

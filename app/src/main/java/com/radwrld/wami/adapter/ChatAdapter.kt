@@ -11,7 +11,22 @@ import com.radwrld.wami.R
 
 class ChatAdapter(private val messages: MutableList<Message>) : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
 
-    inner class MessageViewHolder(val binding: ItemChatMessageBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class MessageViewHolder(val binding: ItemChatMessageBinding) : RecyclerView.ViewHolder(binding.root) {
+        // To handle item clicks or other events, it's best practice to use an init block like this.
+        // Note the use of 'bindingAdapterPosition' which is the safe and modern replacement for the
+        // deprecated 'adapterPosition'. It correctly handles item position even during animations.
+        /*
+        init {
+            itemView.setOnClickListener {
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val clickedMessage = messages[position]
+                    // TODO: Implement click logic here
+                }
+            }
+        }
+        */
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         MessageViewHolder(ItemChatMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false))

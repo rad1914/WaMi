@@ -1,14 +1,12 @@
 <!-- @path: app/src/main/res/layout/dialog_add_contact.xml -->
-<!-- res/layout/dialog_add_contact.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layout_add_contact"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="29dp"
-    android:background="@drawable/rounded_dialog_bg">
+    android:background="#000000">
 
-    <!-- Contact Name -->
     <EditText
         android:id="@+id/et_contact_name"
         android:layout_width="match_parent"
@@ -18,7 +16,6 @@
         android:padding="12dp"
         android:layout_marginBottom="16dp" />
 
-    <!-- Phone Number -->
     <EditText
         android:id="@+id/et_contact_number"
         android:layout_width="match_parent"
@@ -28,7 +25,6 @@
         android:padding="12dp"
         android:layout_marginBottom="16dp" />
 
-    <!-- Avatar URL -->
     <EditText
         android:id="@+id/et_contact_avatar"
         android:layout_width="match_parent"
@@ -38,7 +34,6 @@
         android:padding="12dp"
         android:layout_marginBottom="24dp" />
 
-    <!-- Buttons Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
