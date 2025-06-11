@@ -48,6 +48,9 @@
         <activity
             android:name="com.radwrld.wami.SettingsActivity"
             android:exported="false" />
+        <activity
+            android:name="com.radwrld.wami.Contacts"
+            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

@@ -4,6 +4,10 @@
         "source": "com.radwrld.wami.app-main-40:/layout/item_message.xml"
     },
     {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_contacts.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/activity_contacts.xml"
+    },
+    {
         "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/dialog_add_contact.xml",
         "source": "com.radwrld.wami.app-main-40:/layout/dialog_add_contact.xml"
     },
@@ -14,6 +18,10 @@
     {
         "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_settings.xml",
         "source": "com.radwrld.wami.app-main-40:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/item_contact.xml",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_contact.xml"
     },
     {
         "merged": "com.radwrld.wami.app-mergeDebugResources-37:/layout/activity_login.xml",

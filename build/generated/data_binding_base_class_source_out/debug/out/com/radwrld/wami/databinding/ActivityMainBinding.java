@@ -32,15 +32,20 @@ public final class ActivityMainBinding implements ViewBinding {
   public final ImageView ivProfile;
 
   @NonNull
+  public final LinearLayout llContacts;
+
+  @NonNull
   public final RecyclerView rvMessages;
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
       @NonNull FloatingActionButton fabAdd, @NonNull LinearLayout header,
-      @NonNull ImageView ivProfile, @NonNull RecyclerView rvMessages) {
+      @NonNull ImageView ivProfile, @NonNull LinearLayout llContacts,
+      @NonNull RecyclerView rvMessages) {
     this.rootView = rootView;
     this.fabAdd = fabAdd;
     this.header = header;
     this.ivProfile = ivProfile;
+    this.llContacts = llContacts;
     this.rvMessages = rvMessages;
   }
 
@@ -89,6 +94,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.llContacts;
+      LinearLayout llContacts = ViewBindings.findChildViewById(rootView, id);
+      if (llContacts == null) {
+        break missingId;
+      }
+
       id = R.id.rvMessages;
       RecyclerView rvMessages = ViewBindings.findChildViewById(rootView, id);
       if (rvMessages == null) {
@@ -96,7 +107,7 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, fabAdd, header, ivProfile,
-          rvMessages);
+          llContacts, rvMessages);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

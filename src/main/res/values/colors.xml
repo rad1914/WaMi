@@ -1,48 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Primary Colors -->
-    <color name="primary">#4CAF50</color> <!-- Deep green for primary elements -->
-    <color name="onPrimary">#FFFFFF</color> <!-- White text on primary color -->
-    <color name="primaryContainer">#2E3B24</color> <!-- Darker green for containers -->
-    <color name="onPrimaryContainer">#E1E8B7</color> <!-- Soft yellow-green for readability on containers -->
+    <color name="primary">#4CAF50</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#2E3B24</color>
+    <color name="onPrimaryContainer">#E1E8B7</color>
 
-    <!-- Secondary Colors -->
-    <color name="secondary">#00B8A9</color> <!-- Vibrant cyan for secondary elements -->
-    <color name="onSecondary">#000000</color> <!-- Black text on secondary elements -->
+    <color name="secondary">#00B8A9</color>
+    <color name="onSecondary">#000000</color>
 
-    <!-- Surface Colors -->
-    <color name="surface">#000000</color> <!-- Deep earthy tone for surfaces -->
-    <color name="colorSurface">#000000</color> <!-- Deep earthy tone for surfaces -->
-    <color name="onSurface">#FFFFFF</color> <!-- White text on surface -->
-    <color name="surfaceVariant">#4C5733</color> <!-- Olive-toned variant for surfaces -->
-    <color name="onSurfaceVariant">#D1D68A</color> <!-- Muted yellow for contrast on surface variant -->
-    <color name="outline">#5A6235</color> <!-- Darker outline for separation -->
+    <color name="surface">#000000</color>
+    <color name="onSurface">#FFFFFF</color>
+    <color name="surfaceVariant">#4C5733</color>
+    <color name="onSurfaceVariant">#D1D68A</color>
+    <color name="outline">#5A6235</color>
 
-    <!-- Background Colors -->
-    <color name="background">#232921</color> <!-- Very dark green for background -->
-    <color name="onBackground">#FFFFFF</color> <!-- White text on background -->
+    <color name="background">#000000</color>
+    <color name="onBackground">#FFFFFF</color>
 
-    <!-- UI Elements -->
-    <color name="bg_header">@color/primaryContainer</color> <!-- Header background using primary container color -->
-    <color name="divider">@color/outline</color> <!-- Divider using outline color -->
-
-    <!-- Text Colors -->
-    <color name="text_primary">@color/onSurface</color> <!-- Primary text color (white on surface) -->
-    <color name="text_secondary">@color/onSurfaceVariant</color> <!-- Secondary text color (muted yellow-green) -->
-
-    <!-- Navigation -->
-    <color name="nav_item_active">@color/onSurface</color> <!-- Active navigation item (white on surface) -->
-    <color name="nav_item_inactive">@color/onSurfaceVariant</color> <!-- Inactive navigation item (muted yellow-green) -->
-
-    <!-- Accent Color -->
-    <color name="colorAccent">@color/secondary</color> <!-- Accent color for highlights -->
-
-    <!-- Status Indicators -->
-    <color name="online_indicator">#4CAF50</color> <!-- Green indicator for online status -->
-
-    <!-- Message Bubbles -->
-    <color name="bg_bubble_in">@color/surfaceVariant</color> <!-- Incoming message bubble (olive variant) -->
-    <color name="bg_bubble_out">#0084FF</color> <!-- Outgoing message bubble (blue) -->
+    <color name="colorAccent">@color/secondary</color>
+    <color name="text_primary">@color/onSurface</color>
+    <color name="text_secondary">@color/onSurfaceVariant</color>
 
 </resources>

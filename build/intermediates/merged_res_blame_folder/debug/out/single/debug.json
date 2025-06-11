@@ -44,6 +44,10 @@
         "source": "com.radwrld.wami.app-main-40:/layout/activity_chat.xml"
     },
     {
+        "merged": "com.radwrld.wami.app-merged_res-38:/layout_activity_contacts.xml.flat",
+        "source": "com.radwrld.wami.app-main-40:/layout/activity_contacts.xml"
+    },
+    {
         "merged": "com.radwrld.wami.app-merged_res-38:/mipmap-xhdpi_ic_launcher_round.webp.flat",
         "source": "com.radwrld.wami.app-main-40:/mipmap-xhdpi/ic_launcher_round.webp"
     },
@@ -78,6 +82,10 @@
     {
         "merged": "com.radwrld.wami.app-merged_res-38:/mipmap-hdpi_ic_launcher.webp.flat",
         "source": "com.radwrld.wami.app-main-40:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.radwrld.wami.app-merged_res-38:/layout_item_contact.xml.flat",
+        "source": "com.radwrld.wami.app-main-40:/layout/item_contact.xml"
     },
     {
         "merged": "com.radwrld.wami.app-merged_res-38:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
@@ -146,6 +154,10 @@
     {
         "merged": "com.radwrld.wami.app-merged_res-38:/mipmap-hdpi_ic_launcher_round.webp.flat",
         "source": "com.radwrld.wami.app-main-40:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.radwrld.wami.app-merged_res-38:/drawable_ic_arrow_left.xml.flat",
+        "source": "com.radwrld.wami.app-main-40:/drawable/ic_arrow_left.xml"
     },
     {
         "merged": "com.radwrld.wami.app-merged_res-38:/mipmap-mdpi_ic_launcher.webp.flat",

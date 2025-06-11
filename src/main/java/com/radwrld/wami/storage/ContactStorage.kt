@@ -23,10 +23,15 @@ class ContactStorage(context: Context) {
         return gson.fromJson(jsonString, Array<Contact>::class.java).toList()
     }
 
-    // --- APPLIED SUGGESTION: Added the missing addContact method ---
     fun addContact(newContact: Contact) {
         val currentContacts = getContacts().toMutableList()
-        currentContacts.add(0, newContact) // Add to the top of the list
+        currentContacts.add(0, newContact)
         saveContacts(currentContacts)
+    }
+
+    fun deleteContact(contactToDelete: Contact) {
+        val currentContacts = getContacts().toMutableList()
+        val updatedContacts = currentContacts.filterNot { it.phoneNumber == contactToDelete.phoneNumber }
+        saveContacts(updatedContacts)
     }
 }

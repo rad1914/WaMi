@@ -1,31 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Wami" parent="Theme.Material3.Dark.NoActionBar">
-        <!-- Primary Colors -->
-        <item name="colorPrimary">@color/primary</item> <!-- Should be bold and vibrant -->
-        <item name="colorOnPrimary">@color/onPrimary</item> <!-- Good contrast, typically white or light gray -->
+    <style name="Base.Theme.YourAppName" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryContainer">@color/primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/onPrimaryContainer</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/onSecondary</item>
 
-        <item name="colorPrimaryContainer">@color/primaryContainer</item> <!-- A slightly muted or lighter version of primary -->
-        <item name="colorOnPrimaryContainer">@color/onPrimaryContainer</item> <!-- Keep contrast high for readability -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/onSurface</item>
+        <item name="colorSurfaceVariant">@color/surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/onSurfaceVariant</item>
 
-        <!-- Secondary Colors -->
-        <item name="colorSecondary">@color/secondary</item> <!-- Can be complementary or analogous to primary -->
-        <item name="colorOnSecondary">@color/onSecondary</item> <!-- High contrast for legibility -->
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/onBackground</item>
 
-        <!-- Background and Surface Colors -->
-        <item name="android:colorBackground">@color/background</item> <!-- Typically a very dark tone -->
-        <item name="colorOnBackground">@color/onBackground</item> <!-- Light color for text, should stand out against background -->
-        
-        <item name="colorSurface">@color/surface</item> <!-- Slightly darker than background for card-like surfaces -->
-        <item name="colorOnSurface">@color/onSurface</item> <!-- High contrast text for readability on dark surfaces -->
-        
-        <item name="colorSurfaceVariant">@color/surfaceVariant</item> <!-- Optional, can be a lighter/darker shade for variation -->
-        <item name="colorOnSurfaceVariant">@color/onSurfaceVariant</item> <!-- Should contrast well for any text/icons on variant surfaces -->
-
-        <!-- Outline Color -->
-        <item name="colorOutline">@color/outline</item> <!-- Usually a subtle accent, used for borders -->
-
-        <!-- Status Bar -->
-        <item name="android:statusBarColor">?attr/colorSurface</item> <!-- Keep aligned with surface color or use a slightly darker shade -->
+        <item name="android:windowBackground">@color/surface</item>
     </style>
+
+    <style name="Theme.YourAppName" parent="Base.Theme.YourAppName" />
 </resources>

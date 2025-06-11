@@ -26,6 +26,7 @@
                 android:id="@+id/ivProfile"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
+                android:textColor="?attr/colorPrimaryContainer"
                 android:src="@drawable/ic_profile_placeholder"
                 android:contentDescription="User Profile Picture" />
 
@@ -34,7 +35,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Messages"
-                android:textColor="?attr/colorOnPrimaryContainer"
+                android:textColor="?attr/colorPrimaryContainer"
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:gravity="center" />
 
@@ -42,7 +43,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_magnifying_glass"
-                app:tint="?attr/colorOnPrimaryContainer"
+                app:tint="?attr/colorPrimaryContainer"
                 android:contentDescription="Search" />
         </LinearLayout>
 
@@ -97,11 +98,15 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/llContacts"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gravity="center">
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless">
 
                     <ImageView
                         android:layout_width="24dp"

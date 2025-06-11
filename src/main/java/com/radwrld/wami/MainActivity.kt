@@ -1,4 +1,3 @@
-// app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -11,8 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ConversationAdapter
 import com.radwrld.wami.databinding.ActivityMainBinding
-import com.radwrld.wami.model.Message
 import com.radwrld.wami.model.Contact
+import com.radwrld.wami.model.Message
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.ServerConfigStorage
 
@@ -38,32 +37,37 @@ class MainActivity : AppCompatActivity() {
 
         binding.header.setOnLongClickListener { showSetServersDialog(); true }
 
-        // Set an OnClickListener on the profile picture ImageView
         binding.ivProfile.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+            // TODO: Create and navigate to SettingsActivity if it exists
+            // startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        conversations.clear()
-        conversations.addAll(contactStorage.getContacts().map { contact ->
-            Message(
-                name = contact.name,
-                lastMessage = "Say hi!",
-                avatarUrl = contact.avatarUrl,
-                phoneNumber = contact.phoneNumber
-            )
-        })
-
-        conversationAdapter = ConversationAdapter(conversations) { conversation ->
-            startActivity(Intent(this, ChatActivity::class.java).apply {
-                putExtra("EXTRA_JID", "${conversation.phoneNumber}@s.whatsapp.net")
-                putExtra("EXTRA_NAME", conversation.name)
-            })
+        // The OnClickListener for the Contacts navigation element
+        binding.llContacts.setOnClickListener {
+            // This line launches the Contacts activity
+            startActivity(Intent(this, Contacts::class.java))
         }
+
+        loadConversationsFromStorage()
+
+        conversationAdapter = ConversationAdapter(
+            conversations,
+            onItemClicked = { conversation ->
+                startActivity(Intent(this, ChatActivity::class.java).apply {
+                    putExtra("EXTRA_JID", "${conversation.phoneNumber}@s.whatsapp.net")
+                    putExtra("EXTRA_NAME", conversation.name)
+                })
+            },
+            onItemLongClicked = { conversation, position ->
+                showDeleteConfirmationDialog(conversation, position)
+            }
+        )
 
         binding.rvMessages.layoutManager = LinearLayoutManager(this)
         binding.rvMessages.adapter = conversationAdapter
 
         binding.fabAdd.setOnClickListener {
+            // "Add Contact" functionality is now fully active
             AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(name, number, avatarUrl)
                 contactStorage.addContact(newContact)
@@ -81,10 +85,41 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadConversationsFromStorage() {
+        conversations.clear()
+        conversations.addAll(contactStorage.getContacts().map { contact ->
+            Message(
+                name = contact.name,
+                lastMessage = "Say hi!",
+                avatarUrl = contact.avatarUrl,
+                phoneNumber = contact.phoneNumber
+            )
+        })
+    }
+
+    private fun showDeleteConfirmationDialog(conversation: Message, position: Int) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Contact")
+            .setMessage("Are you sure you want to delete ${conversation.name} from your contacts?")
+            .setPositiveButton("Delete") { _, _ ->
+                val contactToDelete = Contact(
+                    name = conversation.name,
+                    phoneNumber = conversation.phoneNumber,
+                    avatarUrl = conversation.avatarUrl
+                )
+                contactStorage.deleteContact(contactToDelete)
+                conversations.removeAt(position)
+                conversationAdapter.notifyItemRemoved(position)
+                conversationAdapter.notifyItemRangeChanged(position, conversations.size)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun showSetServersDialog() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val padding = resources.getDimensionPixelSize(R.dimen.padding)
+            val padding = resources.getDimensionPixelSize(R.dimen.padding_standard) // Assumes you have a dimen resource
             setPadding(padding, padding, padding, padding)
         }
 

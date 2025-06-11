@@ -5,23 +5,27 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.radwrld.wami.databinding.ItemConversationBinding
-import com.radwrld.wami.model.Message // CHANGED: Import Message instead of Chat
+import com.radwrld.wami.model.Message
 
 class ConversationAdapter(
-    // CHANGED: The list now holds Message objects
     private val conversations: List<Message>,
-    private val onItemClicked: (Message) -> Unit
+    private val onItemClicked: (Message) -> Unit,
+    private val onItemLongClicked: (Message, Int) -> Unit
 ) : RecyclerView.Adapter<ConversationAdapter.ConversationViewHolder>() {
 
     inner class ConversationViewHolder(val binding: ItemConversationBinding) : RecyclerView.ViewHolder(binding.root) {
-        // CHANGED: The bind function now accepts a Message object
+
         fun bind(message: Message) {
-            // CHANGED: Use properties from the Message model
             binding.tvContactName.text = message.name
             binding.tvLastMessage.text = message.lastMessage
-            // Example for Glide/Picasso would now use message.avatarUrl
+
             binding.root.setOnClickListener {
                 onItemClicked(message)
+            }
+
+            binding.root.setOnLongClickListener {
+                onItemLongClicked(message, adapterPosition)
+                true
             }
         }
     }
@@ -32,8 +36,8 @@ class ConversationAdapter(
     }
 
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
-        holder.bind(conversations[position]) // CHANGED: Pass item from the new list
+        holder.bind(conversations[position])
     }
 
-    override fun getItemCount() = conversations.size // CHANGED: Get size of the new list
+    override fun getItemCount() = conversations.size
 }
