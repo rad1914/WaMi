@@ -1,0 +1,27 @@
+// settings.gradle
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+        maven { url 'https://repo1.maven.org/maven2' }
+    }
+    plugins {
+        id("org.jetbrains.kotlin.android") version "1.8.10"
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+        maven { url 'https://repo1.maven.org/maven2' }
+    }
+}
+
+rootProject.name = "WaMi"
+include ':app'

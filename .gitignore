@@ -1,16 +1,44 @@
-# Android and temp files
+# === ANDROID ===
 *.apk
+*.ap_ 
+*.dex
+*.class
+*.so
 *.log
 *.tmp
 *.bak
 *.swp
+
+/build/
+/app/build/
+/captures/
+/.gradle/
+/local.properties
+
+# === NODE ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log
+
+# === IDEs and Editors ===
+*.iml
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# === OS Files ===
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Node modules or Python cache (if applicable)
-node_modules/
-__pycache__/
+# === ENV & Runtime Files ===
 .env
+.env.*
 
-# Termux and system files
-/storage/*
+# === Termux/Device Paths ===
+/storage/

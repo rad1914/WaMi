@@ -1,0 +1,6 @@
+<!-- @path: app/src/main/res/values/dimens.xml -->
+<resources>
+    <!-- Padding para tus diálogos -->
+    <dimen name="padding">26dp</dimen>
+    <dimen name="padding_standard">26dp</dimen>
+</resources>
