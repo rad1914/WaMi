@@ -17,6 +17,8 @@ class ServerConfigStorage(private val context: Context) {
     private val PRIMARY_KEY = "server_primary"
     private val FALLBACK_KEY = "server_fallback"
     private val INDEX_KEY = "server_index"
+    // **APPLIED: Key for storing login state**
+    private val KEY_IS_LOGGED_IN = "is_logged_in"
 
     init {
         if (!sharedPreferences.contains(PRIMARY_KEY)) {
@@ -37,6 +39,18 @@ class ServerConfigStorage(private val context: Context) {
     private val customServer: String?
         get() = settingsPrefs.getString(SettingsActivity.CUSTOM_IP_KEY, null)
 
+    // **APPLIED: Method to check if the user is logged in**
+    fun isLoggedIn(): Boolean {
+        val loggedIn = sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
+        Log.d("ServerConfigStorage", "Checking login state: isLoggedIn=$loggedIn")
+        return loggedIn
+    }
+
+    // **APPLIED: Method to save the user's login state**
+    fun saveLoginState(isLoggedIn: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_IS_LOGGED_IN, isLoggedIn).apply()
+        Log.d("ServerConfigStorage", "Login state saved: isLoggedIn=$isLoggedIn")
+    }
 
     fun saveServers(primary: String, fallback: String) {
         sharedPreferences.edit()
@@ -63,7 +77,6 @@ class ServerConfigStorage(private val context: Context) {
         Log.d("ServerConfigStorage", "Current server: $server (Index: $idx)")
         return server
     }
-
 
     fun moveToNextServer(): String {
         val useCustomIP = settingsPrefs.getBoolean(SettingsActivity.ENABLE_CUSTOM_IP_KEY, false)

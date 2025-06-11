@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
-// ChatActivity.kt
 
 package com.radwrld.wami
 
@@ -17,6 +16,7 @@ import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.SendRequest
 import com.radwrld.wami.network.WhatsAppApi
+import com.radwrld.wami.storage.MessageStorage
 import io.socket.client.IO
 import io.socket.client.Socket
 import io.socket.emitter.Emitter
@@ -34,16 +34,17 @@ import java.util.UUID
 class ChatActivity : AppCompatActivity() {
 
     private var _binding: ActivityChatBinding? = null
-    private val binding get() = _binding!! // This property is only valid between onCreateView and onDestroyView
+    private val binding get() = _binding!!
 
     private lateinit var adapter: ChatAdapter
     private val messages = mutableListOf<Message>()
     private lateinit var api: WhatsAppApi
     private lateinit var socket: Socket
+    private lateinit var messageStorage: MessageStorage // Added for local persistence
     private lateinit var jid: String
     private lateinit var contactName: String
 
-    private val serverUrl = "http://22.ip.gl.ply.gg:18880/" // IMPORTANT: Use your server's public URL
+    private val serverUrl = "http://22.ip.gl.ply.gg:18880/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,18 +53,30 @@ class ChatActivity : AppCompatActivity() {
 
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
+        messageStorage = MessageStorage(this) // Initialize storage
 
-        // **APPLIED SUGGESTION 1: Robust JID validation on start**
-        // Immediately stop if the JID is invalid to prevent any further issues.
         if (!isValidJid(jid)) {
             showToast("Error: Invalid or missing contact JID.")
-            finish() // Close the activity
-            return   // Stop further execution in onCreate
+            finish()
+            return
         }
 
-        // Set contact name in the header
+        setupUI()
+        setupApi()
+        setupSocket()
+        loadAndSyncChatHistory() // Updated logic to load from cache then sync
+
+        binding.btnSend.setOnClickListener {
+            val text = binding.etMessage.text.toString().trim()
+            if (text.isNotEmpty()) {
+                sendMessage(text)
+            }
+        }
+    }
+    
+    private fun setupUI() {
         binding.tvContactName.text = contactName
-        binding.tvLastSeen.visibility = View.GONE // As per your original logic
+        binding.tvLastSeen.visibility = View.GONE
         binding.btnBack.setOnClickListener { finish() }
 
         adapter = ChatAdapter(messages)
@@ -81,7 +94,9 @@ class ChatActivity : AppCompatActivity() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+    }
 
+    private fun setupApi() {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
         api = Retrofit.Builder()
@@ -90,106 +105,112 @@ class ChatActivity : AppCompatActivity() {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(WhatsAppApi::class.java)
-
-        setupSocket()
-        loadChatHistory()
-
-        binding.btnSend.setOnClickListener {
-            val text = binding.etMessage.text.toString().trim()
-            if (text.isNotEmpty()) {
-                val tempId = UUID.randomUUID().toString()
-                // The UI is updated optimistically, assuming the send will succeed.
-                // The status will be updated later based on the server response.
-                addMessageToUI(text, tempId)
-                sendMessageToServer(text, tempId)
-            }
-        }
     }
-
-    private fun addMessageToUI(text: String, tempId: String) {
+    
+    private fun sendMessage(text: String) {
+        val tempId = UUID.randomUUID().toString()
         val message = Message(
             id = tempId,
             jid = jid,
             name = contactName,
             text = text,
-            status = "sending", // Show as "sending" immediately
+            status = "sending",
             isOutgoing = true,
             timestamp = System.currentTimeMillis()
         )
+
+        // **OFFLINE SUPPORT: Save message locally before sending**
+        messageStorage.addMessage(jid, message)
+
+        // Optimistically update UI
+        addMessageToAdapter(message)
+        binding.etMessage.text?.clear()
+
+        // Send to server
+        sendMessageToServer(message)
+    }
+
+    private fun addMessageToAdapter(message: Message) {
         messages.add(message)
         adapter.notifyItemInserted(messages.size - 1)
         binding.rvMessages.scrollToPosition(messages.size - 1)
-        binding.etMessage.text?.clear()
     }
 
-    private fun sendMessageToServer(text: String, tempId: String) {
-        // **APPLIED SUGGESTION 2: Defensive check before sending**
-        // This is a fallback in case the activity was somehow started with a bad JID.
+    // ## FIXED FUNCTION ##
+    private fun sendMessageToServer(message: Message) {
         if (!isValidJid(jid)) {
             showToast("Cannot send message: Invalid JID format.")
-            val messageIndex = messages.indexOfFirst { it.id == tempId }
-            if (messageIndex != -1) {
-                messages[messageIndex].status = "failed"
-                adapter.notifyItemChanged(messageIndex)
-            }
+            updateMessageStatusInUI(message.id, "failed")
+            messageStorage.updateMessageStatus(jid, message.id, "failed")
             return
         }
 
         lifecycleScope.launch {
             try {
-                // This toast for debugging can be removed in production
-                val rawRequestBody = JSONObject().apply {
-                    put("jid", jid)
-                    put("text", text)
-                    put("tempId", tempId)
-                }.toString()
-                showToast("Request: $rawRequestBody") // For debugging
-
-                val response = api.sendMessage(SendRequest(jid, text, tempId))
-                val messageIndex = messages.indexOfFirst { it.id == response.tempId }
-                if (messageIndex == -1) return@launch
+                val response = api.sendMessage(SendRequest(jid, message.text, message.id))
+                
+                // Safely handle the nullable tempId from the response.
+                val tempIdFromResponse = response.tempId
+                if (tempIdFromResponse == null) {
+                    Log.e("SendMessage", "Server response did not include a tempId. Cannot update message status.")
+                    // Mark the original message as failed since we can't confirm its status.
+                    messageStorage.updateMessageStatus(jid, message.id, "failed")
+                    updateMessageStatusInUI(message.id, "failed")
+                    return@launch
+                }
 
                 if (response.success && response.messageId != null) {
-                    messages[messageIndex].id = response.messageId
-                    messages[messageIndex].status = "sent"
+                    // At this point, tempIdFromResponse and response.messageId are non-null.
+                    messageStorage.updateMessage(jid, tempIdFromResponse, response.messageId, "sent")
+                    updateMessageStatusInUI(tempIdFromResponse, "sent", response.messageId)
                 } else {
-                    messages[messageIndex].status = "failed"
+                    // Handle failure case using the non-null tempId from the response.
+                    messageStorage.updateMessageStatus(jid, tempIdFromResponse, "failed")
+                    updateMessageStatusInUI(tempIdFromResponse, "failed")
                     showToast("Error sending: ${response.error ?: "Unknown"}")
                 }
-                adapter.notifyItemChanged(messageIndex)
-
             } catch (e: Exception) {
-                Log.e("SendMessage", "API call failed for tempId $tempId", e)
-                val messageIndex = messages.indexOfFirst { it.id == tempId }
-                if (messageIndex != -1) {
-                    messages[messageIndex].status = "failed"
-                    adapter.notifyItemChanged(messageIndex)
-                }
-                showToast("Error sending message: ${e.message}")
+                Log.e("SendMessage", "API call failed for tempId ${message.id}", e)
+                showToast("Connection error. Message will be sent later.")
             }
         }
     }
 
-    private fun loadChatHistory() {
+    private fun loadAndSyncChatHistory() {
+        // **OFFLINE FIRST: Load messages from local storage immediately**
+        val localMessages = messageStorage.getMessages(jid)
+        messages.clear()
+        messages.addAll(localMessages)
+        adapter.notifyDataSetChanged()
+        if (messages.isNotEmpty()) {
+            binding.rvMessages.scrollToPosition(messages.size - 1)
+        }
+
+        // Then, sync with the server in the background
         lifecycleScope.launch {
             try {
                 val history = api.getHistory(jid)
-                messages.clear()
-                messages.addAll(history.map {
+                val serverMessages = history.map {
                     Message(
                         id = it.id,
                         jid = it.jid,
                         text = it.text,
-                        name = contactName, // Assuming history is for the same contact
+                        name = contactName,
                         status = it.status,
                         isOutgoing = (it.isOutgoing == 1),
                         timestamp = it.timestamp
                     )
-                })
+                }
+                // **OFFLINE SUPPORT: Save fresh history from server**
+                messageStorage.saveMessages(jid, serverMessages)
+                
+                // Refresh UI with synced data
+                messages.clear()
+                messages.addAll(serverMessages)
                 adapter.notifyDataSetChanged()
                 binding.rvMessages.scrollToPosition(messages.size - 1)
             } catch (e: Exception) {
-                Log.e("ChatHistory", "Failed to load history for JID: $jid", e)
+                Log.e("ChatHistory", "Failed to sync history for JID: $jid. Using local cache.", e)
             }
         }
     }
@@ -212,7 +233,7 @@ class ChatActivity : AppCompatActivity() {
             Log.e("SocketIO", "Setup failed", e)
         }
     }
-
+    
     private val onNewMessage = Emitter.Listener { args ->
         runOnUiThread {
             try {
@@ -220,21 +241,19 @@ class ChatActivity : AppCompatActivity() {
                 for (i in 0 until data.length()) {
                     val msgJson = data.getJSONObject(i)
                     val messageJid = msgJson.optString("jid")
-                    // Only add message if it belongs to the current chat and is not from me
                     if (messageJid == jid && !msgJson.optBoolean("fromMe")) {
-                        messages.add(
-                            Message(
-                                id = msgJson.optString("id"),
-                                jid = messageJid,
-                                text = msgJson.optString("text"),
-                                name = contactName,
-                                status = "received",
-                                isOutgoing = false,
-                                timestamp = msgJson.optLong("timestamp", System.currentTimeMillis())
-                            )
+                        val newMessage = Message(
+                            id = msgJson.optString("id"),
+                            jid = messageJid,
+                            text = msgJson.optString("text"),
+                            name = contactName,
+                            status = "received",
+                            isOutgoing = false,
+                            timestamp = msgJson.optLong("timestamp", System.currentTimeMillis())
                         )
-                        adapter.notifyItemInserted(messages.size - 1)
-                        binding.rvMessages.scrollToPosition(messages.size - 1)
+                        // **OFFLINE SUPPORT: Save incoming message**
+                        messageStorage.addMessage(jid, newMessage)
+                        addMessageToAdapter(newMessage)
                     }
                 }
             } catch (e: Exception) {
@@ -249,29 +268,31 @@ class ChatActivity : AppCompatActivity() {
                 val data = args[0] as? JSONObject ?: return@runOnUiThread
                 val messageId = data.optString("id")
                 val newStatus = data.optString("status")
-
-                val messageIndex = messages.indexOfFirst { it.id == messageId }
-                if (messageIndex != -1) {
-                    messages[messageIndex].status = newStatus
-                    adapter.notifyItemChanged(messageIndex)
-                }
+                
+                // **OFFLINE SUPPORT: Persist status update**
+                messageStorage.updateMessageStatus(jid, messageId, newStatus)
+                updateMessageStatusInUI(messageId, newStatus)
             } catch (e: Exception) {
                 Log.e("StatusUpdate", "Failed to parse status update", e)
             }
         }
     }
 
-    /**
-     * **APPLIED SUGGESTION: More robust JID validation.**
-     * Checks if the JID is not blank, contains the correct suffix,
-     * and does not start with '@', which would indicate a missing number.
-     * e.g., "1234567890@s.whatsapp.net" is valid.
-     * "@s.whatsapp.net" is invalid.
-     */
+    private fun updateMessageStatusInUI(messageId: String, newStatus: String, newId: String? = null) {
+        val messageIndex = messages.indexOfFirst { it.id == messageId }
+        if (messageIndex != -1) {
+            messages[messageIndex].status = newStatus
+            if (newId != null) {
+                messages[messageIndex].id = newId
+            }
+            adapter.notifyItemChanged(messageIndex)
+        }
+    }
+
     private fun isValidJid(jid: String): Boolean {
         if (jid.isBlank()) return false
         if (!jid.contains("@s.whatsapp.net")) return false
-        if (jid.startsWith("@")) return false // This catches cases where the number part is missing
+        if (jid.startsWith("@")) return false
         return true
     }
 
@@ -285,6 +306,6 @@ class ChatActivity : AppCompatActivity() {
             socket.off()
             socket.disconnect()
         }
-        _binding = null // Clear the binding reference to avoid memory leaks
+        _binding = null
     }
 }

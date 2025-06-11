@@ -5,14 +5,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="@color/background"
     tools:context=".ChatActivity">
 
     <LinearLayout
         android:id="@+id/chat_header"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorSurface"
+        android:background="@color/background"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="4dp">
@@ -39,8 +39,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="?attr/colorOnSurface"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textStyle="bold"
-                tools:text="Sophia" />
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tv_last_seen"
@@ -79,7 +78,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:background="?attr/colorSurface"
+        android:background="@color/background"
         android:orientation="horizontal"
         android:padding="8dp"
         android:gravity="center_vertical">

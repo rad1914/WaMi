@@ -3,18 +3,26 @@ package com.radwrld.wami
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ContactAdapter
 import com.radwrld.wami.databinding.ActivityContactsBinding
-import com.radwrld.wami.model.Contact // Ensure your Contact model is being imported
+import com.radwrld.wami.model.Chat
+import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.ApiService
 import com.radwrld.wami.storage.ContactStorage
+import com.radwrld.wami.storage.ServerConfigStorage
+import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
-// Renamed class to follow standard Android convention (ContactsActivity)
 class ContactsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityContactsBinding
     private lateinit var contactStorage: ContactStorage
+    private lateinit var serverConfigStorage: ServerConfigStorage
     private lateinit var contactAdapter: ContactAdapter
     private val contactsList = mutableListOf<Contact>()
 
@@ -24,32 +32,25 @@ class ContactsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         contactStorage = ContactStorage(this)
-        setupRecyclerView()
+        serverConfigStorage = ServerConfigStorage(this)
 
-        // Handle the back button click to return to MainActivity
-        binding.ivBack.setOnClickListener {
-            finish()
-        }
+        setupRecyclerView()
+        loadLocalContacts()
+
+        binding.ivBack.setOnClickListener { finish() }
     }
 
     override fun onResume() {
         super.onResume()
-        // Load contacts in onResume to ensure the list is always fresh
-        // if you go back from another activity.
-        loadContacts()
+        syncContactsFromServer()
     }
 
     private fun setupRecyclerView() {
-        // Initialize the adapter with an empty list first.
         contactAdapter = ContactAdapter(contactsList) { contact ->
-            // When a contact is clicked, open the chat screen with their info.
-            val intent = Intent(this, ChatActivity::class.java).apply {
-                // **THE FIX: Use the 'id' field, which is the pre-formatted JID.**
-                // This ensures consistency with MainActivity and the rest of your app.
+            startActivity(Intent(this, ChatActivity::class.java).apply {
                 putExtra("EXTRA_JID", contact.id)
                 putExtra("EXTRA_NAME", contact.name)
-            }
-            startActivity(intent)
+            })
         }
 
         binding.rvContacts.apply {
@@ -58,9 +59,46 @@ class ContactsActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadContacts() {
-        contactsList.clear()
-        contactsList.addAll(contactStorage.getContacts())
-        contactAdapter.notifyDataSetChanged() // Update the adapter with the new data
+    private fun loadLocalContacts() {
+        updateContactList(contactStorage.getContacts())
+    }
+
+    private fun syncContactsFromServer() {
+        binding.progressBar.visibility = View.VISIBLE
+        lifecycleScope.launch {
+            try {
+                val retrofit = Retrofit.Builder()
+                    .baseUrl("http://${serverConfigStorage.getCurrentServer()}/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+                val response = retrofit.create(ApiService::class.java).getChats()
+
+                if (response.isSuccessful && response.body() != null) {
+                    val newContacts = mapChatsToContacts(response.body()!!)
+                    contactStorage.saveContacts(newContacts)
+                    updateContactList(newContacts)
+                }
+            } catch (_: Exception) {
+                // Log or handle as needed
+            } finally {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun mapChatsToContacts(chats: List<Chat>): List<Contact> {
+        return chats.map {
+            val phone = it.jid.substringBefore("@")
+            Contact(id = it.jid, name = it.name ?: phone, phoneNumber = phone)
+        }
+    }
+
+    private fun updateContactList(newContacts: List<Contact>) {
+        contactsList.apply {
+            clear()
+            addAll(newContacts)
+        }
+        contactAdapter.notifyDataSetChanged()
     }
 }

@@ -17,21 +17,20 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="24dp"/>
 
-<com.google.android.material.switchmaterial.SwitchMaterial
-    android:id="@+id/enable_custom_ip_switch"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="Enable custom IP"
-    android:textAppearance="?attr/textAppearanceBodyLarge"
-    android:contentDescription="Toggle custom IP setting"/>
-
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/enable_custom_ip_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enable custom IP"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:contentDescription="Toggle custom IP setting"/>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Once enabled, the app will connect to your custom Backend, allowing running it directly in your own machine for improved privacy"
         android:textAppearance="?attr/textAppearanceBody2"
-        android.layout_marginBottom="16dp"/>
+        android:layout_marginBottom="16dp"/>
 
     <TextView
         android:id="@+id/set_custom_ip_text"
@@ -45,5 +44,90 @@
         android:padding="8dp"
         android:visibility="gone"
         tools:visibility="visible"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Experimental Settings"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:textColor="?attr/colorAccent"
+        android:layout_marginBottom="16dp"/>
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/offline_mode_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Offline mode"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:contentDescription="Toggle offline mode"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Block all network requests from the app"
+        android:textAppearance="?attr/textAppearanceBody2"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/prune_app_data_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Prune app data"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
+
+    <TextView
+        android:id="@+id/remove_app_cache_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Remove app cache"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
+
+    <TextView
+        android:id="@+id/reset_hidden_conversations_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Reset hidden conversations"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
+
+    <TextView
+        android:id="@+id/kill_app_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Kill app"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
+
+    <TextView
+        android:id="@+id/reset_app_prefs_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Reset app preferences"
+        android:textAppearance="?attr/textAppearanceSubtitle1"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
 
 </LinearLayout>

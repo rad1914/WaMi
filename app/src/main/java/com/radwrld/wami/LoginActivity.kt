@@ -18,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 class LoginActivity : AppCompatActivity() {
@@ -62,11 +63,24 @@ class LoginActivity : AppCompatActivity() {
             try {
                 if (waApi.getStatus().connected) {
                     config.resetToPrimary()
+                    config.saveLoginState(true)
                     startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                     finish()
-                } else retryOrPoll()
-            } catch (_: Exception) {
-                retryOrPoll()
+                } else {
+                    config.saveLoginState(false)
+                    retryOrPoll()
+                }
+            } catch (e: Exception) {
+                // **APPLIED: Handle specific offline exception**
+                if (e is UnknownHostException) {
+                    // This specifically means there's no internet connection.
+                    statusText.text = "No internet connection.\nPlease connect to log in for the first time."
+                    Toast.makeText(this@LoginActivity, "Please check your internet connection", Toast.LENGTH_LONG).show()
+                    // Stop the retry loop.
+                } else {
+                    // For other errors (e.g., server down), continue the retry logic.
+                    retryOrPoll()
+                }
             }
         }
     }
@@ -82,8 +96,6 @@ class LoginActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val qr = waApi.getQr().qr
-                // APPLIED: Check if the string is blank instead of not-null.
-                // This resolves the warning and correctly handles cases where the API returns an empty string.
                 if (qr.isNotBlank()) {
                     drawQr(qr)
                     statusText.text = "Scan this with WhatsApp"
@@ -92,8 +104,15 @@ class LoginActivity : AppCompatActivity() {
                 }
                 handler.postDelayed({ pollQr() }, 9_000L)
             } catch (e: Exception) {
-                statusText.text = "QR error: ${e.localizedMessage}"
-                handler.postDelayed({ pollQr() }, 10_000L)
+                // **APPLIED: Handle specific offline exception**
+                if (e is UnknownHostException) {
+                    statusText.text = "Internet required to scan QR code.\nPlease connect and restart the app."
+                    // Do not schedule another poll, as it will just fail again.
+                } else {
+                    statusText.text = "QR error: Could not reach server."
+                    // For other errors, keep polling.
+                    handler.postDelayed({ pollQr() }, 10_000L)
+                }
             }
         }
     }

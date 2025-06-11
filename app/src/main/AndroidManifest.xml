@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/AndroidManifest.xml -->
-<!-- @path: AndroidManifest.xml -->
-<manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="MissingApplicationIcon">
 
@@ -42,7 +40,7 @@
             android:exported="false" />
             
         <activity
-            android:name=".Contacts"
+            android:name=".ContactsActivity"
             android:exported="false" />
 
     </application>

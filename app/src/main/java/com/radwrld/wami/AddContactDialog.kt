@@ -1,5 +1,5 @@
 // @path: app/src/main/java/com/radwrld/wami/AddContactDialog.kt
-// AddContactDialog.kt
+
 package com.radwrld.wami
 
 import android.app.Dialog
