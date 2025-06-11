@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -13,8 +12,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Conversation
 import com.radwrld.wami.network.MessageHistoryItem
-import com.radwrld.wami.network.SendRequest
+import com.radwrld.wami.network.SendResponse
+// import com.radwrld.wami.network.SendRequest // This is no longer used and has been removed
 import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.MessageStorage
 import io.socket.client.IO
@@ -40,7 +41,7 @@ class ChatActivity : AppCompatActivity() {
     private val messages = mutableListOf<Message>()
     private lateinit var api: WhatsAppApi
     private lateinit var socket: Socket
-    private lateinit var messageStorage: MessageStorage // Added for local persistence
+    private lateinit var messageStorage: MessageStorage
     private lateinit var jid: String
     private lateinit var contactName: String
 
@@ -53,7 +54,7 @@ class ChatActivity : AppCompatActivity() {
 
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
-        messageStorage = MessageStorage(this) // Initialize storage
+        messageStorage = MessageStorage(this)
 
         if (!isValidJid(jid)) {
             showToast("Error: Invalid or missing contact JID.")
@@ -64,7 +65,7 @@ class ChatActivity : AppCompatActivity() {
         setupUI()
         setupApi()
         setupSocket()
-        loadAndSyncChatHistory() // Updated logic to load from cache then sync
+        loadAndSyncChatHistory()
 
         binding.btnSend.setOnClickListener {
             val text = binding.etMessage.text.toString().trim()
@@ -119,14 +120,11 @@ class ChatActivity : AppCompatActivity() {
             timestamp = System.currentTimeMillis()
         )
 
-        // **OFFLINE SUPPORT: Save message locally before sending**
         messageStorage.addMessage(jid, message)
 
-        // Optimistically update UI
         addMessageToAdapter(message)
         binding.etMessage.text?.clear()
 
-        // Send to server
         sendMessageToServer(message)
     }
 
@@ -146,7 +144,11 @@ class ChatActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val response = api.sendMessage(SendRequest(jid, message.text, message.id))
+                val response = api.sendMessage(
+                    jid = jid,
+                    text = message.text,
+                    tempId = message.id
+                )
                 
                 val tempIdFromResponse = response.tempId
                 if (tempIdFromResponse == null) {
@@ -172,7 +174,6 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun loadAndSyncChatHistory() {
-        // 1. OFFLINE FIRST: Load local messages immediately for a responsive UI
         val localMessages = messageStorage.getMessages(jid)
         messages.clear()
         messages.addAll(localMessages)
@@ -181,7 +182,6 @@ class ChatActivity : AppCompatActivity() {
             binding.rvMessages.scrollToPosition(messages.size - 1)
         }
 
-        // 2. SYNC: Fetch new history and merge it with local data
         lifecycleScope.launch {
             try {
                 val serverHistory = api.getHistory(jid)
@@ -192,26 +192,15 @@ class ChatActivity : AppCompatActivity() {
                     )
                 }
 
-                // --- MERGE LOGIC ---
-                // Get a fresh copy of local messages to avoid race conditions
                 val currentLocalMessages = messageStorage.getMessages(jid)
-                
-                // Keep any local messages that are still "sending" (i.e., not on the server yet)
                 val unsentLocalMessages = currentLocalMessages.filter { it.status == "sending" }
-
-                // Create a combined list, using server data as the source of truth
-                // and adding the unsent local messages back in.
                 val combinedMessages = mutableListOf<Message>()
                 combinedMessages.addAll(serverMessages)
                 combinedMessages.addAll(unsentLocalMessages)
-
-                // Remove duplicates by ID, ensuring the final list is unique, then sort by time
                 val finalList = combinedMessages.distinctBy { it.id }.sortedBy { it.timestamp }
                 
-                // Save the correct, merged history back to storage
                 messageStorage.saveMessages(jid, finalList)
                 
-                // Refresh UI with the fully synced data
                 messages.clear()
                 messages.addAll(finalList)
                 adapter.notifyDataSetChanged()

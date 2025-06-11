@@ -1,8 +1,8 @@
-// @path: app/src/main/java/com/radwrld/wami/network/ApiModels.kt
 package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
 
+// Add this class back
 data class SendRequest(
     val jid: String,
     val text: String,

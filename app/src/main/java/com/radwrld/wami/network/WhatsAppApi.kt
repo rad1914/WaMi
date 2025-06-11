@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
 package com.radwrld.wami.network
 
 import retrofit2.Response
@@ -18,12 +17,16 @@ interface WhatsAppApi {
     suspend fun getHistory(
         @Path("jid", encoded = true) jid: String,
         @Query("limit") limit: Int = 200
-    ): List<MessageHistoryItem> // FIXED: Uses model from ApiModels.kt
+    ): List<MessageHistoryItem>
 
     // Send a message
-    @Headers("Content-Type: application/json")
+    @FormUrlEncoded
     @POST("send")
-    suspend fun sendMessage(@Body req: SendRequest): SendResponse // FIXED: Uses models from ApiModels.kt
+    suspend fun sendMessage(
+        @Field("jid") jid: String,
+        @Field("text") text: String,
+        @Field("tempId") tempId: String
+    ): SendResponse
 
     // Get current status of the connection
     @GET("status")
@@ -35,5 +38,5 @@ interface WhatsAppApi {
 
     // Get list of chat conversations
     @GET("chats")
-    suspend fun getConversations(): List<Conversation> // FIXED: Uses model from ApiModels.kt
+    suspend fun getConversations(): List<Conversation>
 }
