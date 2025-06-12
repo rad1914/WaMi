@@ -1,3 +1,5 @@
+// @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
+
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -12,11 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
-import com.radwrld.wami.network.Conversation
-import com.radwrld.wami.network.MessageHistoryItem
-import com.radwrld.wami.network.SendResponse
-// import com.radwrld.wami.network.SendRequest // This is no longer used and has been removed
 import com.radwrld.wami.network.WhatsAppApi
+import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.storage.MessageStorage
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -44,8 +43,9 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var messageStorage: MessageStorage
     private lateinit var jid: String
     private lateinit var contactName: String
+    private var isGroup: Boolean = false
 
-    private val serverUrl = "http://22.ip.gl.ply.gg:18880/"
+    private lateinit var serverConfigStorage: ServerConfigStorage
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +55,9 @@ class ChatActivity : AppCompatActivity() {
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
         messageStorage = MessageStorage(this)
+        isGroup = jid.endsWith("@g.us")
+        
+        serverConfigStorage = ServerConfigStorage(this)
 
         if (!isValidJid(jid)) {
             showToast("Error: Invalid or missing contact JID.")
@@ -74,7 +77,7 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun setupUI() {
         binding.tvContactName.text = contactName
         binding.tvLastSeen.visibility = View.GONE
@@ -100,14 +103,19 @@ class ChatActivity : AppCompatActivity() {
     private fun setupApi() {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
+        
+        val baseUrl = "http://${serverConfigStorage.getCurrentServer()}/"
+        // ADDED: Debugging toast for API URL
+        showToast("API Base URL: $baseUrl")
+
         api = Retrofit.Builder()
-            .baseUrl(serverUrl)
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(WhatsAppApi::class.java)
     }
-    
+
     private fun sendMessage(text: String) {
         val tempId = UUID.randomUUID().toString()
         val message = Message(
@@ -121,10 +129,8 @@ class ChatActivity : AppCompatActivity() {
         )
 
         messageStorage.addMessage(jid, message)
-
         addMessageToAdapter(message)
         binding.etMessage.text?.clear()
-
         sendMessageToServer(message)
     }
 
@@ -149,10 +155,12 @@ class ChatActivity : AppCompatActivity() {
                     text = message.text,
                     tempId = message.id
                 )
-                
+
                 val tempIdFromResponse = response.tempId
                 if (tempIdFromResponse == null) {
-                    Log.e("SendMessage", "Server response did not include a tempId. Cannot update message status.")
+                    val error = "Server response did not include a tempId."
+                    Log.e("SendMessage", error)
+                    showToast(error)
                     messageStorage.updateMessageStatus(jid, message.id, "failed")
                     updateMessageStatusInUI(message.id, "failed")
                     return@launch
@@ -167,8 +175,14 @@ class ChatActivity : AppCompatActivity() {
                     showToast("Error sending: ${response.error ?: "Unknown"}")
                 }
             } catch (e: Exception) {
+                // MODIFIED: Show detailed exception in toast and update UI status
+                val errorMsg = "API Error: ${e.javaClass.simpleName}\n${e.message}"
                 Log.e("SendMessage", "API call failed for tempId ${message.id}", e)
-                showToast("Connection error. Message will be sent later.")
+                showToast(errorMsg)
+                
+                // FIX: Update message status to 'failed' on exception
+                updateMessageStatusInUI(message.id, "failed")
+                messageStorage.updateMessageStatus(jid, message.id, "failed")
             }
         }
     }
@@ -185,10 +199,17 @@ class ChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val serverHistory = api.getHistory(jid)
+                
                 val serverMessages = serverHistory.map {
                     Message(
-                        id = it.id, jid = it.jid, text = it.text, name = contactName,
-                        status = it.status, isOutgoing = (it.isOutgoing == 1), timestamp = it.timestamp
+                        id = it.id,
+                        jid = it.jid,
+                        text = it.text,
+                        name = contactName,
+                        status = it.status,
+                        isOutgoing = (it.isOutgoing == 1),
+                        timestamp = it.timestamp,
+                        senderName = null
                     )
                 }
 
@@ -209,6 +230,7 @@ class ChatActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("ChatHistory", "Failed to sync history for JID: $jid. Using local cache.", e)
+                showToast("History sync failed: ${e.javaClass.simpleName}")
             }
         }
     }
@@ -220,15 +242,29 @@ class ChatActivity : AppCompatActivity() {
                 reconnection = true
                 transports = arrayOf(WebSocket.NAME)
             }
-            socket = IO.socket(serverUrl.trimEnd('/'), opts)
+            
+            val socketUrl = "http://${serverConfigStorage.getCurrentServer()}"
+            // ADDED: Debugging toast for Socket URL
+            showToast("Socket URL: $socketUrl")
+
+            socket = IO.socket(socketUrl.trimEnd('/'), opts)
             socket.on(Socket.EVENT_CONNECT) { runOnUiThread { Log.d("SocketIO", "Connected") } }
-            socket.on(Socket.EVENT_CONNECT_ERROR) { err -> runOnUiThread { Log.e("SocketIO", "Connection Error: ${err.firstOrNull()}") } }
+            // MODIFIED: Add verbose toast for connection errors
+            socket.on(Socket.EVENT_CONNECT_ERROR) { err ->
+                val error = err.firstOrNull()?.toString() ?: "Unknown error"
+                runOnUiThread {
+                    val errorMsg = "Socket Connect Error: $error"
+                    Log.e("SocketIO", errorMsg)
+                    showToast(errorMsg)
+                }
+            }
             socket.on(Socket.EVENT_DISCONNECT) { runOnUiThread { Log.d("SocketIO", "Disconnected") } }
             socket.on("whatsapp-message", onNewMessage)
             socket.on("whatsapp-message-status-update", onMessageStatusUpdate)
             socket.connect()
         } catch (e: URISyntaxException) {
             Log.e("SocketIO", "Setup failed", e)
+            showToast("Socket setup failed: ${e.message}")
         }
     }
     
@@ -239,7 +275,10 @@ class ChatActivity : AppCompatActivity() {
                 for (i in 0 until data.length()) {
                     val msgJson = data.getJSONObject(i)
                     val messageJid = msgJson.optString("jid")
+
                     if (messageJid == jid && !msgJson.optBoolean("fromMe")) {
+                        val senderName = if (isGroup) msgJson.optString("pushName", "Unknown") else null
+
                         val newMessage = Message(
                             id = msgJson.optString("id"),
                             jid = messageJid,
@@ -247,7 +286,8 @@ class ChatActivity : AppCompatActivity() {
                             name = contactName,
                             status = "received",
                             isOutgoing = false,
-                            timestamp = msgJson.optLong("timestamp", System.currentTimeMillis())
+                            timestamp = msgJson.optLong("timestamp", System.currentTimeMillis()),
+                            senderName = senderName
                         )
                         messageStorage.addMessage(jid, newMessage)
                         addMessageToAdapter(newMessage)
@@ -287,7 +327,7 @@ class ChatActivity : AppCompatActivity() {
 
     private fun isValidJid(jid: String): Boolean {
         if (jid.isBlank()) return false
-        if (!jid.contains("@s.whatsapp.net")) return false
+        if (!jid.endsWith("@s.whatsapp.net") && !jid.endsWith("@g.us")) return false
         if (jid.startsWith("@")) return false
         return true
     }

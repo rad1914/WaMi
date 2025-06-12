@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
 package com.radwrld.wami.network
 
 import retrofit2.Response

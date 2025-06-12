@@ -28,7 +28,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Once enabled, the app will connect to your custom Backend, allowing running it directly in your own machine for improved privacy"
+        android:text="Once enabled, you can set a custom API backend, allowing the app to run directly on your machine for improved privacy."
         android:textAppearance="?attr/textAppearanceBody2"
         android:layout_marginBottom="16dp"/>
 
@@ -36,7 +36,7 @@
         android:id="@+id/set_custom_ip_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Set custom IP >"
+        android:text="Set custom Backend >"
         android:textAppearance="?attr/textAppearanceSubtitle1"
         android:clickable="true"
         android:focusable="true"

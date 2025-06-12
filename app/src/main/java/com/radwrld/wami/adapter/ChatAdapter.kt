@@ -19,63 +19,48 @@ class ChatAdapter(private val messages: MutableList<Message>) : RecyclerView.Ada
     }
 
     inner class OutgoingMessageViewHolder(val binding: ItemOutgoingMessageBinding) : RecyclerView.ViewHolder(binding.root) {
-        
         init {
-            // The listener now controls the visibility of the info_container
             setupListeners(binding.bubbleLayout, binding.infoContainer)
         }
-
         fun bind(message: Message) {
             binding.tvMessage.text = message.text
-            // These views are now part of the hidden info_container, but their text still needs to be set
             binding.tvTimestamp.text = android.text.format.DateFormat.format("hh:mm a", message.timestamp)
             binding.tvStatus.text = message.status
         }
     }
 
     inner class IncomingMessageViewHolder(val binding: ItemIncomingMessageBinding) : RecyclerView.ViewHolder(binding.root) {
-        
         init {
-            // The listener now controls the visibility of the info_container
             setupListeners(binding.bubbleLayout, binding.infoContainer)
         }
-
         fun bind(message: Message) {
             binding.tvMessage.text = message.text
-            // This view is now part of the hidden info_container, but its text still needs to be set
             binding.tvTimestamp.text = android.text.format.DateFormat.format("hh:mm a", message.timestamp)
+            if (!message.senderName.isNullOrEmpty()) {
+                binding.tvSenderName.text = message.senderName
+                binding.tvSenderName.visibility = View.VISIBLE
+            } else {
+                binding.tvSenderName.visibility = View.GONE
+            }
         }
     }
 
-    /**
-     * A helper function to set up the required listeners on a message bubble.
-     * It toggles the visibility of the passed-in "infoView".
-     */
     @SuppressLint("ClickableViewAccessibility")
     private fun setupListeners(bubbleView: View, infoView: View) {
-        // Show the info view on a long press
         bubbleView.setOnLongClickListener {
             infoView.visibility = View.VISIBLE
-            true // Consume the long click event
+            true
         }
-
-        // Hide the info view when the touch is released
         bubbleView.setOnTouchListener { _, motionEvent ->
             if (motionEvent.action == MotionEvent.ACTION_UP || motionEvent.action == MotionEvent.ACTION_CANCEL) {
                 infoView.visibility = View.GONE
             }
-            // Return false so the event is not consumed and can be passed to other listeners
-            // like OnLongClickListener.
             false
         }
     }
 
-    override fun getItemViewType(position: Int): Int {
-        return if (messages[position].isOutgoing) {
-            VIEW_TYPE_OUTGOING
-        } else {
-            VIEW_TYPE_INCOMING
-        }
+    override fun getItemViewType(int: Int): Int {
+        return if (messages[int].isOutgoing) VIEW_TYPE_OUTGOING else VIEW_TYPE_INCOMING
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {

@@ -1,12 +1,10 @@
 // @path: app/src/main/java/com/radwrld/wami/model/Message.kt
-// app/src/main/java/com/radwrld/wami/model/Message.kt
 package com.radwrld.wami.model
 
 data class Message(
     val name: String,
     val text: String = "",
     var status: String = "",
-    // CHANGED: 'val' is now 'var' to allow updating the ID
     var id: String = "",
     val jid: String = "",
     val isOutgoing: Boolean = false,
@@ -14,5 +12,7 @@ data class Message(
     val lastMessage: String = "",
     val avatarUrl: String = "",
     val phoneNumber: String = "",
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    // Add this field to hold the name of the sender in a group
+    val senderName: String? = null
 )
