@@ -1,141 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/layout/activity_chat.xml -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="?attr/colorSurface"
     tools:context=".ChatActivity">
 
+    <ImageButton
+        android:id="@+id/btn_back"
+        style="@style/ChatHeaderButton"
+        android:contentDescription="@string/back"
+        android:src="?attr/homeAsUpIndicator"
+        app:layout_constraintBottom_toTopOf="@+id/rv_messages"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_contact_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textAppearance="?attr/textAppearanceTitleMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/tv_last_seen"
+        app:layout_constraintEnd_toStartOf="@+id/btn_video_call"
+        app:layout_constraintStart_toEndOf="@id/btn_back"
+        app:layout_constraintTop_toTopOf="@id/btn_back"
+        app:layout_constraintVertical_chainStyle="packed"
+        tools:text="Contact Name" />
+
+    <TextView
+        android:id="@+id/tv_last_seen"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        app:layout_constraintBottom_toBottomOf="@id/btn_back"
+        app:layout_constraintEnd_toEndOf="@id/tv_contact_name"
+        app:layout_constraintStart_toStartOf="@id/tv_contact_name"
+        app:layout_constraintTop_toBottomOf="@id/tv_contact_name"
+        tools:text="online" />
+
+    <ImageButton
+        android:id="@+id/btn_video_call"
+        style="@style/ChatHeaderButton"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="@string/video_call"
+        app:layout_constraintBottom_toBottomOf="@id/btn_back"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/btn_back"
+        app:srcCompat="@drawable/ic_videocam" />
+
+    <FrameLayout
+        android:id="@+id/action_button_container"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btn_send"
+            style="@style/ChatActionButton"
+            android:background="@drawable/send_button_background"
+            android:contentDescription="@string/send"
+            android:src="@android:drawable/ic_menu_send"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_mic"
+            style="@style/ChatActionButton"
+            android:background="@drawable/mic_button_background"
+            android:contentDescription="@string/voice_message"
+            android:src="@drawable/ic_microphone"
+            android:visibility="visible" />
+    </FrameLayout>
+
     <LinearLayout
-        android:id="@+id/chat_header"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/background"
-        android:orientation="horizontal"
+        android:id="@+id/input_field_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/message_input_background"
         android:gravity="center_vertical"
-        android:paddingHorizontal="4dp">
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
+        app:layout_constraintBottom_toBottomOf="@id/action_button_container"
+        app:layout_constraintEnd_toStartOf="@id/action_button_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/action_button_container">
 
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="?attr/homeAsUpIndicator"
-            app:tint="?attr/colorOnSurface"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Back" />
-
-        <LinearLayout
-            android:layout_width="0dp"
+        <EditText
+            android:id="@+id/et_message"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_contact_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurface"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_last_seen"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                tools:text="online" />
-
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/btn_video_call"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_media_play"
-            app:tint="?attr/colorOnSurface"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Video Call"
-            android:layout_marginEnd="8dp"/>
-
+            android:background="@android:color/transparent"
+            android:hint="@string/message_hint"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="5"
+            android:scrollbars="vertical"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_messages"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/chat_header"
-        android:layout_above="@+id/input_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:clipToPadding="false"
-        android:paddingVertical="8dp"
-        android:paddingHorizontal="16dp" />
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@id/action_button_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_back" />
 
-    <LinearLayout
-        android:id="@+id/input_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="@color/background"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:gravity="center_vertical">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:layout_weight="1"
-            android:background="@drawable/message_input_background"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="8dp">
-
-            <EditText
-                android:id="@+id/et_message"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:hint="Message"
-                android:textColorHint="?attr/colorOnSurfaceVariant"
-                android:textColor="?attr/colorOnSurface"
-                android:textAppearance="?attr/textAppearanceBodyLarge"
-                android:maxLines="5"
-                android:inputType="textMultiLine|textCapSentences"
-                android:scrollbars="vertical" />
-
-            </LinearLayout>
-
-        <FrameLayout
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp">
-
-            <ImageButton
-                android:id="@+id/btn_send"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@android:drawable/ic_menu_send"
-                android:background="@drawable/send_button_background"
-                android:contentDescription="Send"
-                app:tint="?attr/colorOnPrimaryContainer"
-                android:visibility="gone" />
-
-            <ImageButton
-                android:id="@+id/btn_mic"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@drawable/ic_microphone"
-                android:background="@drawable/mic_button_background"
-                android:contentDescription="Voice message"
-                app:tint="?attr/colorOnPrimaryContainer"
-                android:visibility="visible" />
-
-        </FrameLayout>
-    </LinearLayout>
-
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -3,9 +3,9 @@ package com.radwrld.wami
 
 import android.app.Application
 import android.util.Log
-import com.google.android.material.color.DynamicColors // <-- Make sure this import is present
+import androidx.appcompat.app.AppCompatDelegate
+import com.google.android.material.color.DynamicColors
 import java.io.File
-import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -15,7 +15,18 @@ class WamiApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Apply dynamic colors to the app theme for Material You
+        // --- Start of Merged Code ---
+        // Set the app's theme (Light/Dark) based on user preference from Settings.
+        // This runs first to establish the base theme.
+        val prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        val isDarkMode = prefs.getBoolean(SettingsActivity.DARK_MODE_KEY, true) // Default to dark mode is ON
+        AppCompatDelegate.setDefaultNightMode(
+            if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+        )
+        // --- End of Merged Code ---
+
+        // Apply dynamic colors (Material You) to the app theme.
+        // This will override the base theme's colors with wallpaper colors if available.
         DynamicColors.applyToActivitiesIfAvailable(this)
 
         // Your existing crash logging setup

@@ -15,4 +15,10 @@
     <string name="cd_voice_message">Record voice message</string>
     <string name="profile_picture">User profile picture</string>
     <string name="chat_warning_message">This is an experimental Android app still in development; Some features, like self-user message encryption, are being tested and may not work properly or could fail. Please report any issues or suggest improvements on GitHub: github.com/rad1914/WaMi</string>
+    <string name="back">Back</string>
+    <string name="video_call">Video Call</string>
+    <string name="message_hint">Message</string>
+    <string name="send">Send</string>
+    <string name="voice_message">Voice message</string>
+
 </resources>

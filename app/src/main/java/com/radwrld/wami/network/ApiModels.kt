@@ -3,9 +3,8 @@ package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
 
-/**
- * Represents the response from the POST /send endpoint.
- */
+// --- Request/Response Models ---
+
 data class SendResponse(
     val success: Boolean,
     val messageId: String?,
@@ -15,37 +14,39 @@ data class SendResponse(
 )
 
 /**
- * Represents a single message item from the GET /history/{jid} endpoint.
+ * UPDATED: Added nullable fields to handle media attachments and replies from the backend.
  */
 data class MessageHistoryItem(
-    val id: String,
+    @SerializedName("id") val id: String,
+    @SerializedName("jid") val jid: String,
+    @SerializedName("text") val text: String?, // Text can be null for media-only messages
+    @SerializedName("isOutgoing") val isOutgoing: Int,
+    @SerializedName("status") val status: String,
+    @SerializedName("timestamp") val timestamp: Long,
+    @SerializedName("media_url") val mediaUrl: String?,
+    @SerializedName("mimetype") val mimetype: String?,
+    @SerializedName("quoted_message_id") val quotedMessageId: String?,
+    @SerializedName("quoted_message_text") val quotedMessageText: String?
+)
+
+data class Conversation(
+    @SerializedName("jid") val jid: String,
+    @SerializedName("name") val name: String?,
+    @SerializedName("last_message") val lastMessage: String?,
+    @SerializedName("last_message_timestamp") val lastMessageTimestamp: Long?,
+    @SerializedName("unreadCount") val unreadCount: Int?
+)
+
+// --- Session & Status Models ---
+
+data class SessionResponse(val sessionId: String)
+
+data class StatusResponse(val connected: Boolean, val qr: String?)
+
+// --- Request Body Models ---
+
+data class SendMessageRequest(
     val jid: String,
     val text: String,
-    val isOutgoing: Int,
-    val status: String,
-    val timestamp: Long
+    val tempId: String
 )
-
-/**
- * Represents a single conversation item from the GET /chats endpoint.
- * This is the definitive model for your API.
- */
-data class Conversation(
-    @SerializedName("jid")
-    val jid: String,
-
-    @SerializedName("name")
-    val name: String?,
-
-    @SerializedName("last_message")
-    val lastMessage: String?,
-
-    @SerializedName("last_message_timestamp")
-    val lastMessageTimestamp: Long?,
-
-    // This field is required for the unread count feature.
-    // Ensure your server API includes this field in the response.
-    @SerializedName("unreadCount")
-    val unreadCount: Int?
-)
-

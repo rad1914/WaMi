@@ -17,14 +17,28 @@ data class Contact(
 
 /**
  * Represents a single message object used within the ChatActivity UI.
+ *
+ * UPDATED: Includes fields for media (images, videos) and replies (quoted messages).
+ * All properties are 'val' to make this an immutable data class.
+ * To update a message (e.g., changing its status), create a new instance
+ * using the .copy() method:
+ *
+ * val updatedMessage = originalMessage.copy(status = "sent")
+ *
  */
 data class Message(
-    var id: String, // ✅ CORRECTED: This must be 'var' to be changed later.
+    val id: String,
     val jid: String,
     val name: String, // Name of the contact/group
-    val text: String = "",
-    var status: String = "",
-    val isOutgoing: Boolean = false,
-    val timestamp: Long = 0L,
-    val senderName: String? = null // For showing the sender's name in a group chat
+    val text: String?, // Nullable to allow for media-only messages
+    val status: String,
+    val isOutgoing: Boolean,
+    val timestamp: Long,
+    val senderName: String? = null, // For showing the sender's name in a group chat
+
+    // --- ADDED: Fields for media and replies ---
+    val mediaUrl: String? = null,
+    val mimetype: String? = null,
+    val quotedMessageId: String? = null,
+    val quotedMessageText: String? = null
 )

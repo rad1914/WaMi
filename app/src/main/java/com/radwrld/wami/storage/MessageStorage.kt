@@ -32,21 +32,26 @@ class MessageStorage(context: Context) {
         saveMessages(jid, messages)
     }
 
+    // UPDATED: Use .copy() to create a new message instance instead of mutating the old one.
     fun updateMessage(jid: String, tempId: String, newId: String, newStatus: String) {
         val messages = getMessages(jid)
         val messageIndex = messages.indexOfFirst { it.id == tempId }
         if (messageIndex != -1) {
-            messages[messageIndex].id = newId // This now works because id is a 'var'
-            messages[messageIndex].status = newStatus
+            val originalMessage = messages[messageIndex]
+            val updatedMessage = originalMessage.copy(id = newId, status = newStatus)
+            messages[messageIndex] = updatedMessage // Replace the old message with the new one
             saveMessages(jid, messages)
         }
     }
-    
+
+    // UPDATED: Use .copy() here as well.
     fun updateMessageStatus(jid: String, messageId: String, newStatus: String) {
         val messages = getMessages(jid)
         val messageIndex = messages.indexOfFirst { it.id == messageId }
         if (messageIndex != -1) {
-            messages[messageIndex].status = newStatus
+            val originalMessage = messages[messageIndex]
+            val updatedMessage = originalMessage.copy(status = newStatus)
+            messages[messageIndex] = updatedMessage // Replace the old message with the new one
             saveMessages(jid, messages)
         }
     }

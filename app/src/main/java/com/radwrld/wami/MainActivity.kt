@@ -65,20 +65,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        binding.ivProfile.setOnClickListener {
+        // UPDATED: The profile icon is now the toolbar's navigation icon.
+        binding.toolbar.setNavigationOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // Add logout functionality on long-press
-        binding.ivProfile.setOnLongClickListener {
-            confirmLogout()
-            true // Consume the event
+        // NOTE: The long-press for logout was removed from the profile icon.
+        // This action is better placed inside the Settings screen itself.
+
+        // UPDATED: The contacts list is now an item in the BottomNavigationView.
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_contacts -> {
+                    startActivity(Intent(this, ContactsActivity::class.java))
+                    true // Consume the event
+                }
+                // Handle other items if needed
+                else -> false // Let the system handle other cases
+            }
         }
 
-        binding.llContacts.setOnClickListener {
-             startActivity(Intent(this, ContactsActivity::class.java))
-        }
-
+        // This FAB listener is unchanged, as the ID 'fabAdd' still exists.
         binding.fabAdd.setOnClickListener {
             val addContactDialog = AddContactDialog(this) { name, number, avatarUrl ->
                 val newContact = Contact(

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/SettingsActivity.kt
 package com.radwrld.wami
 
 import android.app.ActivityManager
@@ -13,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import com.radwrld.wami.databinding.ActivitySettingsBinding
 import com.radwrld.wami.network.ApiClient
@@ -37,6 +39,7 @@ class SettingsActivity : AppCompatActivity() {
 
     companion object {
         const val PREFS_NAME = "settings_prefs"
+        const val DARK_MODE_KEY = "dark_mode_key" // New Key
         const val ENABLE_CUSTOM_IP_KEY = "enable_custom_ip"
         const val CUSTOM_IP_KEY = "custom_ip"
         const val OFFLINE_MODE_KEY = "offline_mode"
@@ -57,6 +60,17 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        // New listener for Dark Mode
+        binding.darkModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(DARK_MODE_KEY, isChecked).apply()
+            val mode = if (isChecked) {
+                AppCompatDelegate.MODE_NIGHT_YES
+            } else {
+                AppCompatDelegate.MODE_NIGHT_NO
+            }
+            AppCompatDelegate.setDefaultNightMode(mode)
+        }
+        
         binding.enableCustomIpSwitch.setOnCheckedChangeListener { _, isChecked ->
             binding.setCustomIpText.visibility = if (isChecked) View.VISIBLE else View.GONE
             prefs.edit().putBoolean(ENABLE_CUSTOM_IP_KEY, isChecked).apply()
@@ -154,7 +168,8 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@SettingsActivity, "Exporting session...", Toast.LENGTH_SHORT).show()
-                val response = api.exportSession()
+                val downloadApi = ApiClient.getDownloadingInstance(this@SettingsActivity)
+                val response = downloadApi.exportSession()
 
                 if (response.isSuccessful && response.body() != null) {
                     withContext(Dispatchers.IO) {
@@ -175,6 +190,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
+        // Load Dark Mode setting
+        val isDarkMode = prefs.getBoolean(DARK_MODE_KEY, true) // Default is true
+        binding.darkModeSwitch.isChecked = isDarkMode
+
         val useCustomIP = prefs.getBoolean(ENABLE_CUSTOM_IP_KEY, false)
         binding.enableCustomIpSwitch.isChecked = useCustomIP
         binding.setCustomIpText.visibility = if (useCustomIP) View.VISIBLE else View.GONE

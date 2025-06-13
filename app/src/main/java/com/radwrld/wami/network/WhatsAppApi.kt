@@ -1,50 +1,52 @@
+// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
 package com.radwrld.wami.network
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
-/** --- Data Models for API Communication --- */
-data class SessionResponse(val sessionId: String)
-data class StatusResponse(val connected: Boolean, val qr: String?)
-
-/** --- Unified API Interface --- */
 interface WhatsAppApi {
-
-    // Creates a new user session
-    @POST("session/create")
-    suspend fun createSession(): SessionResponse
-
-    // Logs out the current user session
-    @POST("session/logout")
-    suspend fun logout(): Response<Void>
-
-    // Get current status of the connection (now includes QR)
-    @GET("status")
-    suspend fun getStatus(): StatusResponse
-
-    // Get list of chat conversations
-    @GET("chats")
-    suspend fun getConversations(): List<Conversation>
-
-    // Fetch message history with optional limit
     @GET("history/{jid}")
     suspend fun getHistory(
         @Path("jid", encoded = true) jid: String,
         @Query("limit") limit: Int = 200
     ): List<MessageHistoryItem>
 
-    // Send a message
-    @FormUrlEncoded
     @POST("send")
-    suspend fun sendMessage(
-        @Field("jid") jid: String,
-        @Field("text") text: String,
-        @Field("tempId") tempId: String
+    suspend fun sendMessage(@Body request: SendMessageRequest): SendResponse
+
+    /**
+     * ADDED: New endpoint to send media files like images, videos, and documents.
+     */
+    @Multipart
+    @POST("send/media")
+    suspend fun sendMedia(
+        @Part("jid") jid: RequestBody,
+        @Part("caption") caption: RequestBody?,
+        @Part file: MultipartBody.Part
     ): SendResponse
 
-    // Export the current session data as a zip file
+    @GET("status")
+    suspend fun getStatus(): StatusResponse
+
+    @POST("session/create")
+    suspend fun createSession(): SessionResponse
+
+    @POST("session/logout")
+    suspend fun logout(): Response<Void>
+
+
+
+    @GET("chats")
+    suspend fun getConversations(): List<Conversation>
+
     @Streaming
     @GET("session/export")
     suspend fun exportSession(): Response<ResponseBody>
+
+    @Multipart
+    @POST("session/import")
+    suspend fun importSession(@Part file: MultipartBody.Part): Response<Void>
 }

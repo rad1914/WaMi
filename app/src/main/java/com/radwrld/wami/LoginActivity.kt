@@ -1,25 +1,27 @@
+// @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
 import android.graphics.*
+import android.net.Uri
 import android.os.*
 import android.util.Log
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.launch
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.net.UnknownHostException
-import java.util.concurrent.TimeUnit
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var qrImage: ImageView
@@ -29,6 +31,10 @@ class LoginActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var isPolling = false
 
+    private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { importSession(it) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
@@ -37,59 +43,90 @@ class LoginActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         config = ServerConfigStorage(this)
 
-        config.saveServers("22.ip.gl.ply.gg:18880", "127.0.0.1:3007")
-        initApi(config.getCurrentServer())
+        waApi = ApiClient.getInstance(this)
 
-        // Start the authentication flow
+        setupClickListeners()
         startAuthFlow()
     }
 
-    private fun initApi(server: String) {
-        // Interceptor to add the Authorization header to every request
-        val authInterceptor = Interceptor { chain ->
-            val originalRequest = chain.request()
-            val sessionId = config.getSessionId()
-            if (sessionId.isNullOrEmpty()) {
-                return@Interceptor chain.proceed(originalRequest)
-            }
-            val newRequest = originalRequest.newBuilder()
-                .header("Authorization", "Bearer $sessionId")
-                .build()
-            chain.proceed(newRequest)
+    private fun setupClickListeners() {
+        findViewById<ImageButton>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
-
-        val client = OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
-            .addInterceptor(authInterceptor)
-            .callTimeout(15, TimeUnit.SECONDS)
-            .build()
-
-        waApi = Retrofit.Builder()
-            .baseUrl("http://$server/")
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(WhatsAppApi::class.java)
-
-        Toast.makeText(this, "Connecting to http://$server/", Toast.LENGTH_SHORT).show()
+        findViewById<TextView>(R.id.importSessionButton).setOnClickListener {
+            pickFileLauncher.launch("application/zip")
+        }
     }
 
+    private fun reinitApi() {
+        ApiClient.close() // Clear old instances
+        waApi = ApiClient.getInstance(this)
+    }
+
+    private fun importSession(uri: Uri) {
+        lifecycleScope.launch {
+            statusText.text = "Importing session..."
+            qrImage.setImageDrawable(null)
+            isPolling = false
+            handler.removeCallbacksAndMessages(null)
+
+            try {
+                // 1. Create a new empty session on the server
+                val sessionResponse = waApi.createSession()
+                val newSessionId = sessionResponse.sessionId
+                config.saveSessionId(newSessionId)
+                Log.d("LoginActivity", "Created new session for import: $newSessionId")
+                
+                // Re-initialize API client to use the new auth token for the next request
+                reinitApi()
+
+                // 2. Prepare the file for upload
+                val fileContent = contentResolver.openInputStream(uri)?.readBytes()
+                if (fileContent == null) {
+                    Toast.makeText(this@LoginActivity, "Failed to read file.", Toast.LENGTH_SHORT).show()
+                    startAuthFlow()
+                    return@launch
+                }
+                
+                val requestFile = fileContent.toRequestBody("application/zip".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("sessionFile", "session.zip", requestFile)
+
+                // 3. Upload to the import endpoint
+                val response = waApi.importSession(body)
+                if (response.isSuccessful) {
+                    Toast.makeText(this@LoginActivity, "Import successful. Connecting...", Toast.LENGTH_SHORT).show()
+                    pollStatus()
+                } else {
+                    val error = response.errorBody()?.string() ?: "Failed to import."
+                    Toast.makeText(this@LoginActivity, "Import failed: $error", Toast.LENGTH_LONG).show()
+                    config.saveSessionId(null)
+                    startAuthFlow()
+                }
+
+            } catch (e: Exception) {
+                Log.e("LoginActivity", "Import process failed", e)
+                Toast.makeText(this@LoginActivity, "Import error: ${e.message}", Toast.LENGTH_LONG).show()
+                config.saveSessionId(null)
+                startAuthFlow()
+            }
+        }
+    }
+    
     private fun startAuthFlow() {
         lifecycleScope.launch {
-            // Step 1: Ensure we have a session ID
             if (config.getSessionId().isNullOrEmpty()) {
                 statusText.text = "Creating new session..."
                 try {
                     val sessionResponse = waApi.createSession()
                     config.saveSessionId(sessionResponse.sessionId)
                     Log.d("LoginActivity", "New session created: ${sessionResponse.sessionId}")
+                    reinitApi()
                 } catch (e: Exception) {
                     statusText.text = "Failed to create session. Please restart."
                     Log.e("LoginActivity", "Session creation failed", e)
                     return@launch
                 }
             }
-            // Step 2: Start polling for status
             pollStatus()
         }
     }
@@ -110,9 +147,8 @@ class LoginActivity : AppCompatActivity() {
                         statusText.text = "Scan this with WhatsApp to log in"
                     } else {
                         qrImage.setImageDrawable(null)
-                        statusText.text = "Waiting for QR code..."
+                        statusText.text = "..."
                     }
-                    // Continue polling
                     handler.postDelayed({ isPolling = false; pollStatus() }, 5_000L)
                 }
             } catch (e: Exception) {
@@ -125,21 +161,18 @@ class LoginActivity : AppCompatActivity() {
     private fun handleApiError(e: Exception) {
         when {
             e is HttpException && e.code() == 401 -> {
-                // Unauthorized, session is likely invalid. Create a new one.
                 Log.w("LoginActivity", "Session token is invalid (401). Resetting.")
                 Toast.makeText(this, "Session expired. Creating a new one.", Toast.LENGTH_SHORT).show()
                 config.saveSessionId(null)
-                // Restart the authentication flow
                 handler.postDelayed({ startAuthFlow() }, 1000L)
             }
             e is UnknownHostException -> {
-                statusText.text = "Cannot connect to the server. Check your network."
+                statusText.text = "Cannot connect to the server.\nUse the settings icon to change the IP."
                 Toast.makeText(this@LoginActivity, "Please check your internet connection", Toast.LENGTH_LONG).show()
             }
             else -> {
                 statusText.text = "Error connecting to server. Retrying..."
                 Log.e("LoginActivity", "API Error", e)
-                // General retry
                 handler.postDelayed({ pollStatus() }, 10_000L)
             }
         }
@@ -153,7 +186,6 @@ class LoginActivity : AppCompatActivity() {
 
     private fun drawQr(data: String) {
         try {
-            // The data is already a data URL (e.g., "data:image/png;base64,...")
             val base64String = data.substring(data.indexOf(",") + 1)
             val decodedBytes = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
             val bmp = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)

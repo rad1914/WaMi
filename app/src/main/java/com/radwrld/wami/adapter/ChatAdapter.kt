@@ -2,33 +2,54 @@
 package com.radwrld.wami.adapter
 
 import android.annotation.SuppressLint
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.text.method.LinkMovementMethod
+import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.text.util.Linkify
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.color.MaterialColors
 import com.radwrld.wami.R
+import com.radwrld.wami.databinding.ItemDividerBinding
 import com.radwrld.wami.databinding.ItemIncomingMessageBinding
 import com.radwrld.wami.databinding.ItemOutgoingMessageBinding
+import com.radwrld.wami.databinding.ItemWarningBinding
 import com.radwrld.wami.model.Message
 import java.util.Calendar
 
-// Sealed class to represent different items in our chat list
+// Sealed class to represent different items in our chat list (unchanged)
 sealed class ChatListItem {
     object WarningItem : ChatListItem()
     data class MessageItem(val message: Message) : ChatListItem()
     data class DividerItem(val timestamp: Long, val isNewDay: Boolean) : ChatListItem()
 }
 
-class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+// DiffUtil callback for calculating list differences efficiently.
+class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
+    override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
+        return when {
+            oldItem is ChatListItem.MessageItem && newItem is ChatListItem.MessageItem ->
+                oldItem.message.id == newItem.message.id
+            oldItem is ChatListItem.DividerItem && newItem is ChatListItem.DividerItem ->
+                oldItem.timestamp == newItem.timestamp
+            oldItem is ChatListItem.WarningItem && newItem is ChatListItem.WarningItem ->
+                true // Only one type of warning item
+            else -> oldItem::class == newItem::class
+        }
+    }
+
+    override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
+        // Data classes have a built-in `equals` method that compares all properties.
+        return oldItem == newItem
+    }
+}
+
+// The adapter now extends ListAdapter, using the ChatDiffCallback.
+class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffCallback()) {
 
     companion object {
         private const val VIEW_TYPE_OUTGOING = 1
@@ -42,9 +63,21 @@ class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerVi
             setupListeners(binding.bubbleLayout, binding.infoContainer)
         }
         fun bind(message: Message) {
+            val context = binding.root.context
             binding.tvMessage.text = message.text
-            binding.tvTimestamp.text = android.text.format.DateFormat.format("hh:mm a", message.timestamp)
-            binding.tvStatus.text = message.status
+            // Respects user's 12/24 hour setting
+            binding.tvTimestamp.text = DateFormat.getTimeFormat(context).format(message.timestamp)
+            
+            // UPDATED: Display status with symbols for better UX.
+            // For an ideal implementation, you would use an ImageView with drawable assets.
+            binding.tvStatus.text = when (message.status) {
+                "read" -> "✓✓" // Should be a blue checkmark icon
+                "delivered" -> "✓✓" // Should be a grey checkmark icon
+                "sent" -> "✓" // Should be a single grey checkmark icon
+                "sending" -> "…" // Should be a clock icon
+                "failed" -> "!" // Should be a warning icon
+                else -> "" // Hide status otherwise
+            }
         }
     }
 
@@ -53,8 +86,11 @@ class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerVi
             setupListeners(binding.bubbleLayout, binding.infoContainer)
         }
         fun bind(message: Message) {
+            val context = binding.root.context
             binding.tvMessage.text = message.text
-            binding.tvTimestamp.text = android.text.format.DateFormat.format("hh:mm a", message.timestamp)
+            // Respects user's 12/24 hour setting
+            binding.tvTimestamp.text = DateFormat.getTimeFormat(context).format(message.timestamp)
+
             if (!message.senderName.isNullOrEmpty()) {
                 binding.tvSenderName.text = message.senderName
                 binding.tvSenderName.visibility = View.VISIBLE
@@ -64,23 +100,31 @@ class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerVi
         }
     }
 
-    inner class DividerViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    inner class DividerViewHolder(private val binding: ItemDividerBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ChatListItem.DividerItem) {
-            val textView = (itemView as ViewGroup).getChildAt(0) as TextView
-            textView.text = formatDividerTimestamp(item.timestamp, item.isNewDay)
+            binding.tvDivider.text = formatDividerTimestamp(item.timestamp, item.isNewDay)
         }
 
         private fun formatDividerTimestamp(timestamp: Long, isNewDay: Boolean): String {
+            val context = binding.root.context
             return if (isNewDay) {
                 DateUtils.getRelativeTimeSpanString(timestamp, Calendar.getInstance().timeInMillis, DateUtils.DAY_IN_MILLIS).toString()
             } else {
-                android.text.format.DateFormat.format("hh:mm a", timestamp).toString()
+                // Respects user's 12/24 hour setting
+                DateFormat.getTimeFormat(context).format(timestamp)
             }
         }
     }
 
-    inner class WarningViewHolder(view: View) : RecyclerView.ViewHolder(view)
-    
+    inner class WarningViewHolder(binding: ItemWarningBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            // Linkify URLs in the static warning message
+            Linkify.addLinks(binding.tvWarning, Linkify.WEB_URLS)
+            binding.tvWarning.movementMethod = LinkMovementMethod.getInstance()
+        }
+        // No bind method needed as the content is static from XML.
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupListeners(bubbleView: View, infoView: View) {
         bubbleView.setOnLongClickListener {
@@ -96,16 +140,16 @@ class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerVi
     }
 
     override fun getItemViewType(position: Int): Int {
-        return when (chatItems[position]) {
+        // Use getItem(position) from ListAdapter
+        return when (val item = getItem(position)) {
             is ChatListItem.WarningItem -> VIEW_TYPE_WARNING
             is ChatListItem.DividerItem -> VIEW_TYPE_DIVIDER
-            is ChatListItem.MessageItem -> if ((chatItems[position] as ChatListItem.MessageItem).message.isOutgoing) VIEW_TYPE_OUTGOING else VIEW_TYPE_INCOMING
+            is ChatListItem.MessageItem -> if (item.message.isOutgoing) VIEW_TYPE_OUTGOING else VIEW_TYPE_INCOMING
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        val context = parent.context
         return when (viewType) {
             VIEW_TYPE_OUTGOING -> {
                 val binding = ItemOutgoingMessageBinding.inflate(inflater, parent, false)
@@ -116,102 +160,38 @@ class ChatAdapter(private val chatItems: MutableList<ChatListItem>) : RecyclerVi
                 IncomingMessageViewHolder(binding)
             }
             VIEW_TYPE_DIVIDER -> {
-                val textView = TextView(context).apply {
-                    gravity = Gravity.CENTER
-                    val hPadding = (8 * resources.displayMetrics.density).toInt()
-                    val vPadding = (4 * resources.displayMetrics.density).toInt()
-                    setPadding(hPadding, vPadding, hPadding, vPadding)
-
-                    val textColor = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSecondaryContainer, Color.WHITE)
-                    setTextColor(textColor)
-
-                    val backgroundColor = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSecondaryContainer, Color.DKGRAY)
-                    val backgroundDrawable = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        setColor(backgroundColor)
-                        cornerRadius = 20 * resources.displayMetrics.density
-                    }
-                    background = backgroundDrawable
-                }
-                val wrapper = android.widget.FrameLayout(context).apply {
-                    layoutParams = RecyclerView.LayoutParams(
-                        RecyclerView.LayoutParams.MATCH_PARENT,
-                        RecyclerView.LayoutParams.WRAP_CONTENT
-                    ).apply{
-                        val verticalMargin = (8 * resources.displayMetrics.density).toInt()
-                        setMargins(0, verticalMargin, 0, verticalMargin)
-                    }
-                    addView(textView, android.widget.FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        Gravity.CENTER_HORIZONTAL
-                    ))
-                }
-                DividerViewHolder(wrapper)
+                // Inflate from XML instead of creating programmatically
+                val binding = ItemDividerBinding.inflate(inflater, parent, false)
+                DividerViewHolder(binding)
             }
             VIEW_TYPE_WARNING -> {
-                val textView = TextView(context).apply {
-                    layoutParams = RecyclerView.LayoutParams(
-                        RecyclerView.LayoutParams.MATCH_PARENT,
-                        RecyclerView.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        val margin = (8 * resources.displayMetrics.density).toInt()
-                        setMargins(margin, margin, margin, margin)
-                    }
-                    val padding = (12 * resources.displayMetrics.density).toInt()
-                    setPadding(padding, padding, padding, padding)
-                    
-                    val backgroundColor = MaterialColors.getColor(context, com.google.android.material.R.attr.colorTertiaryContainer, Color.YELLOW)
-                    val backgroundDrawable = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        setColor(backgroundColor)
-                        cornerRadius = (8 * resources.displayMetrics.density)
-                    }
-                    background = backgroundDrawable
-
-                    val textColor = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnTertiaryContainer, Color.BLACK)
-                    setTextColor(textColor)
-                    
-                    textSize = 14f
-                    text = context.getString(R.string.chat_warning_message)
-                    Linkify.addLinks(this, Linkify.WEB_URLS)
-                    movementMethod = LinkMovementMethod.getInstance()
-                }
-                WarningViewHolder(textView)
+                // Inflate from XML instead of creating programmatically
+                val binding = ItemWarningBinding.inflate(inflater, parent, false)
+                WarningViewHolder(binding)
             }
-            else -> throw IllegalArgumentException("Unknown view type")
+            else -> throw IllegalArgumentException("Unknown view type: $viewType")
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val item = chatItems[position]) {
+        // Use getItem(position) from ListAdapter
+        when (val item = getItem(position)) {
             is ChatListItem.MessageItem -> {
-                if (holder.itemViewType == VIEW_TYPE_OUTGOING) {
-                    (holder as OutgoingMessageViewHolder).bind(item.message)
-                } else {
-                    (holder as IncomingMessageViewHolder).bind(item.message)
+                if (holder is OutgoingMessageViewHolder) {
+                    holder.bind(item.message)
+                } else if (holder is IncomingMessageViewHolder) {
+                    holder.bind(item.message)
                 }
             }
             is ChatListItem.DividerItem -> {
                 (holder as DividerViewHolder).bind(item)
             }
             is ChatListItem.WarningItem -> {
-                // ViewHolder is static, no binding needed.
+                // No binding needed for the static warning view.
             }
         }
     }
-
-    override fun getItemCount() = chatItems.size
-
-    fun updateStatus(msgId: String, newStatus: String, newId: String? = null) {
-        val index = chatItems.indexOfFirst { it is ChatListItem.MessageItem && it.message.id == msgId }
-        if (index != -1) {
-            val item = chatItems[index] as ChatListItem.MessageItem
-            item.message.status = newStatus
-            if (newId != null) {
-                item.message.id = newId
-            }
-            notifyItemChanged(index)
-        }
-    }
+    
+    // No need for getItemCount(); ListAdapter handles it.
+    // No need for updateStatus(); submit a new list from your ViewModel/Activity instead.
 }
