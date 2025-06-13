@@ -1,17 +1,31 @@
-// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
 package com.radwrld.wami.network
 
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
-/** --- Data Models not defined in ApiModels.kt --- */
-// These were kept because they are used by the interface but were not in the ApiModels.kt file.
-data class StatusResponse(val connected: Boolean)
-data class QrResponse(val qr: String)
-
+/** --- Data Models for API Communication --- */
+data class SessionResponse(val sessionId: String)
+data class StatusResponse(val connected: Boolean, val qr: String?)
 
 /** --- Unified API Interface --- */
 interface WhatsAppApi {
+
+    // Creates a new user session
+    @POST("session/create")
+    suspend fun createSession(): SessionResponse
+
+    // Logs out the current user session
+    @POST("session/logout")
+    suspend fun logout(): Response<Void>
+
+    // Get current status of the connection (now includes QR)
+    @GET("status")
+    suspend fun getStatus(): StatusResponse
+
+    // Get list of chat conversations
+    @GET("chats")
+    suspend fun getConversations(): List<Conversation>
 
     // Fetch message history with optional limit
     @GET("history/{jid}")
@@ -29,15 +43,8 @@ interface WhatsAppApi {
         @Field("tempId") tempId: String
     ): SendResponse
 
-    // Get current status of the connection
-    @GET("status")
-    suspend fun getStatus(): StatusResponse
-
-    // Get current QR code for login
-    @GET("qrcode")
-    suspend fun getQr(): QrResponse
-
-    // Get list of chat conversations
-    @GET("chats")
-    suspend fun getConversations(): List<Conversation>
+    // Export the current session data as a zip file
+    @Streaming
+    @GET("session/export")
+    suspend fun exportSession(): Response<ResponseBody>
 }

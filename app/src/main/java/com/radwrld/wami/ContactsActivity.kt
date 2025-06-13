@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ContactsActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -12,15 +11,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ContactAdapter
 import com.radwrld.wami.databinding.ActivityContactsBinding
 import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.Conversation
 import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.HttpException
 
 class ContactsActivity : AppCompatActivity() {
 
@@ -36,10 +33,11 @@ class ContactsActivity : AppCompatActivity() {
         binding = ActivityContactsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Initialize storage and the centralized, authenticated API client
         contactStorage = ContactStorage(this)
         serverConfigStorage = ServerConfigStorage(this)
+        api = ApiClient.getInstance(this)
 
-        setupApi()
         setupRecyclerView()
         loadLocalContacts()
 
@@ -49,25 +47,6 @@ class ContactsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         syncContactsFromServer()
-    }
-
-    private fun setupApi() {
-        val serverUrl = serverConfigStorage.getCurrentServer()
-        if (serverUrl.isBlank()) {
-            // Handle case where server URL is not set
-            Toast.makeText(this, "Server not configured", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
-        val client = OkHttpClient.Builder().addInterceptor(logging).build()
-
-        api = Retrofit.Builder()
-            .baseUrl("http://$serverUrl/")
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(WhatsAppApi::class.java)
     }
 
     private fun setupRecyclerView() {
@@ -92,26 +71,23 @@ class ContactsActivity : AppCompatActivity() {
     }
 
     private fun syncContactsFromServer() {
-        // Ensure API is initialized before trying to use it
-        if (!::api.isInitialized) {
-            Log.w("ContactsSync", "API not initialized, skipping sync.")
-            return
-        }
-        
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                // Directly call the suspend function. Retrofit handles the background thread.
-                // The result is the body itself, or an exception is thrown on failure.
                 val conversations = api.getConversations()
-
                 val newContacts = mapConversationsToContacts(conversations)
                 contactStorage.saveContacts(newContacts)
                 updateContactList(newContacts)
 
             } catch (e: Exception) {
                 Log.e("ContactsSync", "Failed to sync contacts from server", e)
-                Toast.makeText(this@ContactsActivity, "Could not refresh contacts", Toast.LENGTH_SHORT).show()
+                if (e is HttpException && e.code() == 401) {
+                    // Unauthorized, token is likely invalid. Force logout.
+                    Toast.makeText(this@ContactsActivity, "Session expired. Please log in again.", Toast.LENGTH_LONG).show()
+                    logout()
+                } else {
+                    Toast.makeText(this@ContactsActivity, "Could not refresh contacts: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             } finally {
                 binding.progressBar.visibility = View.GONE
             }
@@ -120,7 +96,7 @@ class ContactsActivity : AppCompatActivity() {
 
     private fun mapConversationsToContacts(conversations: List<Conversation>): List<Contact> {
         return conversations.mapNotNull { conversation ->
-            // Filter out group chats, which may not have a simple name or phone number
+            // Filter out group chats, which are handled in the main conversation list
             if (conversation.jid.endsWith("@s.whatsapp.net")) {
                 val phone = conversation.jid.substringBefore("@")
                 Contact(id = conversation.jid, name = conversation.name ?: phone, phoneNumber = phone)
@@ -134,5 +110,23 @@ class ContactsActivity : AppCompatActivity() {
         contactsList.clear()
         contactsList.addAll(newContacts.sortedBy { it.name })
         contactAdapter.notifyDataSetChanged()
+    }
+
+    private fun logout() {
+        // This function doesn't need a coroutine context for this part
+        // but is kept inside one for consistency if server calls were needed.
+        lifecycleScope.launch {
+            // No need to call server logout as we are already unauthorized.
+            // Just perform client-side cleanup.
+            ApiClient.close()
+            serverConfigStorage.saveSessionId(null)
+            serverConfigStorage.saveLoginState(false)
+
+            // Navigate to LoginActivity and clear the back stack
+            val intent = Intent(this@ContactsActivity, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+        }
     }
 }

@@ -1,18 +1,27 @@
-// @path: app/src/main/java/com/radwrld/wami/SettingsActivity.kt
 package com.radwrld.wami
 
 import android.app.ActivityManager
+import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
+import android.util.Log
 import android.view.View
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.radwrld.wami.databinding.ActivitySettingsBinding
+import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.HiddenConversationStorage
 import com.radwrld.wami.storage.ServerConfigStorage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -20,6 +29,11 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var serverConfigStorage: ServerConfigStorage
     private lateinit var hiddenConversationStorage: HiddenConversationStorage
     private lateinit var prefs: SharedPreferences
+    private lateinit var api: WhatsAppApi
+
+    private val createFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
+        uri?.let { saveSessionToFile(it) }
+    }
 
     companion object {
         const val PREFS_NAME = "settings_prefs"
@@ -36,18 +50,17 @@ class SettingsActivity : AppCompatActivity() {
         serverConfigStorage = ServerConfigStorage(this)
         hiddenConversationStorage = HiddenConversationStorage(this)
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        api = ApiClient.getInstance(this)
 
         setupListeners()
         loadSettings()
     }
 
     private fun setupListeners() {
-        // Custom IP Listeners
         binding.enableCustomIpSwitch.setOnCheckedChangeListener { _, isChecked ->
             binding.setCustomIpText.visibility = if (isChecked) View.VISIBLE else View.GONE
             prefs.edit().putBoolean(ENABLE_CUSTOM_IP_KEY, isChecked).apply()
             if (!isChecked) {
-                // When disabled, ensure we fall back to the default primary server
                 serverConfigStorage.resetToPrimary()
             }
         }
@@ -56,7 +69,21 @@ class SettingsActivity : AppCompatActivity() {
             showSetCustomIPDialog()
         }
 
-        // Experimental Settings Listeners
+        binding.logoutText.setOnClickListener {
+            showConfirmationDialog(
+                "Logout?",
+                "This will log you out and delete your session from this device. You will need to scan a new QR code to log in again."
+            ) { logout() }
+        }
+
+        binding.exportSessionText.setOnClickListener {
+            exportSession()
+        }
+
+        binding.importSessionText.setOnClickListener {
+            Toast.makeText(this, "Import session feature is not yet implemented.", Toast.LENGTH_LONG).show()
+        }
+
         binding.offlineModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean(OFFLINE_MODE_KEY, isChecked).apply()
         }
@@ -94,6 +121,56 @@ class SettingsActivity : AppCompatActivity() {
                 "Reset App Preferences?",
                 "All application settings will be reset to their default values. The settings screen will reload."
             ) { resetAppPreferences() }
+        }
+    }
+
+    private fun logout() {
+        lifecycleScope.launch {
+            try {
+                api.logout()
+                Toast.makeText(this@SettingsActivity, "Logged out successfully.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("SettingsActivity", "Server logout failed, proceeding with client-side cleanup", e)
+            } finally {
+                ApiClient.close()
+                serverConfigStorage.saveSessionId(null)
+                serverConfigStorage.saveLoginState(false)
+
+                val intent = Intent(this@SettingsActivity, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
+        }
+    }
+    
+    private fun exportSession() {
+        val sessionId = serverConfigStorage.getSessionId()?.substring(0, 8) ?: "session"
+        val fileName = "wami-session-$sessionId.zip"
+        createFileLauncher.launch(fileName)
+    }
+
+    private fun saveSessionToFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(this@SettingsActivity, "Exporting session...", Toast.LENGTH_SHORT).show()
+                val response = api.exportSession()
+
+                if (response.isSuccessful && response.body() != null) {
+                    withContext(Dispatchers.IO) {
+                        contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            response.body()!!.byteStream().copyTo(outputStream)
+                        }
+                    }
+                    Toast.makeText(this@SettingsActivity, "Session exported successfully!", Toast.LENGTH_LONG).show()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Unknown error"
+                    Toast.makeText(this@SettingsActivity, "Export failed: $errorMsg", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsActivity", "Failed to export session", e)
+                Toast.makeText(this@SettingsActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -135,8 +212,6 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- Action Functions ---
-
     private fun resetHiddenConversations() {
         hiddenConversationStorage.clearAll()
         Toast.makeText(this, "All hidden conversations have been reset.", Toast.LENGTH_SHORT).show()
@@ -145,7 +220,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun pruneAppData() {
         try {
             (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)?.clearApplicationUserData()
-            // Note: This action will kill the app process and restart it with clean data.
         } catch (e: Exception) {
             Toast.makeText(this, "Failed to prune app data.", Toast.LENGTH_SHORT).show()
         }
@@ -168,7 +242,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun resetAppPreferences() {
         prefs.edit().clear().apply()
         Toast.makeText(this, "Preferences have been reset.", Toast.LENGTH_SHORT).show()
-        // Reload the activity to reflect the default settings
         recreate()
     }
 }

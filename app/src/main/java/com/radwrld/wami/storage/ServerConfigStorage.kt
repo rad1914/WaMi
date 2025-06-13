@@ -1,5 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/storage/ServerConfigStorage.kt
-
 package com.radwrld.wami.storage
 
 import android.content.Context
@@ -17,8 +15,9 @@ class ServerConfigStorage(private val context: Context) {
     private val PRIMARY_KEY = "server_primary"
     private val FALLBACK_KEY = "server_fallback"
     private val INDEX_KEY = "server_index"
-    // **APPLIED: Key for storing login state**
     private val KEY_IS_LOGGED_IN = "is_logged_in"
+    // Key for storing the multi-user session token
+    private val SESSION_ID_KEY = "session_id"
 
     init {
         if (!sharedPreferences.contains(PRIMARY_KEY)) {
@@ -29,6 +28,30 @@ class ServerConfigStorage(private val context: Context) {
                 .apply()
         }
     }
+    
+    // --- Session ID Methods ---
+    
+    /**
+     * Saves the session ID token to SharedPreferences.
+     * @param sessionId The token to save, or null to clear it.
+     */
+    fun saveSessionId(sessionId: String?) {
+        sharedPreferences.edit().putString(SESSION_ID_KEY, sessionId).apply()
+        Log.d("ServerConfigStorage", "Session ID saved: $sessionId")
+    }
+
+    /**
+     * Retrieves the session ID token from SharedPreferences.
+     * @return The saved session ID, or null if it doesn't exist.
+     */
+    fun getSessionId(): String? {
+        val sessionId = sharedPreferences.getString(SESSION_ID_KEY, null)
+        Log.d("ServerConfigStorage", "Retrieved Session ID: $sessionId")
+        return sessionId
+    }
+
+
+    // --- Existing Methods ---
 
     val primaryServer: String
         get() = sharedPreferences.getString(PRIMARY_KEY, "22.ip.gl.ply.gg:19071") ?: "22.ip.gl.ply.gg:19071"
@@ -39,14 +62,12 @@ class ServerConfigStorage(private val context: Context) {
     private val customServer: String?
         get() = settingsPrefs.getString(SettingsActivity.CUSTOM_IP_KEY, null)
 
-    // **APPLIED: Method to check if the user is logged in**
     fun isLoggedIn(): Boolean {
         val loggedIn = sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
         Log.d("ServerConfigStorage", "Checking login state: isLoggedIn=$loggedIn")
         return loggedIn
     }
 
-    // **APPLIED: Method to save the user's login state**
     fun saveLoginState(isLoggedIn: Boolean) {
         sharedPreferences.edit().putBoolean(KEY_IS_LOGGED_IN, isLoggedIn).apply()
         Log.d("ServerConfigStorage", "Login state saved: isLoggedIn=$isLoggedIn")
@@ -81,11 +102,8 @@ class ServerConfigStorage(private val context: Context) {
     fun moveToNextServer(): String {
         val useCustomIP = settingsPrefs.getBoolean(SettingsActivity.ENABLE_CUSTOM_IP_KEY, false)
         if (useCustomIP) {
-            // If custom IP is enabled, there's no next server to move to.
-            // We stick with the custom one.
             return getCurrentServer()
         }
-        // Switch between primary and fallback servers
         val nextIdx = 1 - sharedPreferences.getInt(INDEX_KEY, 0)
         sharedPreferences.edit().putInt(INDEX_KEY, nextIdx).apply()
         val nextServer = getCurrentServer()
