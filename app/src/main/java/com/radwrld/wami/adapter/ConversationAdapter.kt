@@ -7,37 +7,33 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemConversationBinding
-import com.radwrld.wami.model.Contact // <<< CHANGE 1: Import Contact instead of Message
+import com.radwrld.wami.model.Contact
 
-//                                                                      vvvvvvv
 class ConversationAdapter(
-    private val contacts: List<Contact>, // <<< CHANGE 2: The list now holds Contacts
-    private val onItemClicked: (Contact) -> Unit, // <<< CHANGE 3: The listener provides a Contact
-    private val onItemLongClicked: (Contact, Int) -> Unit // <<< CHANGE 4: This listener also provides a Contact
+    private val contacts: List<Contact>,
+    private val onItemClicked: (Contact) -> Unit,
+    private val onItemLongClicked: (Contact, Int) -> Unit
 ) : RecyclerView.Adapter<ConversationAdapter.ConversationViewHolder>() {
 
     inner class ConversationViewHolder(val binding: ItemConversationBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        // This function now binds a Contact object to the view
         fun bind(contact: Contact) {
             binding.tvContactName.text = contact.name
-            // The Contact model doesn't have a "last message", so we use a placeholder.
             binding.tvLastMessage.text = "Tap to start chatting"
 
-            // Use Glide to load the contact's avatar image
-            // Make sure you have an ImageView with the id 'ivAvatar' in your item_conversation.xml layout
             Glide.with(binding.root.context)
                 .load(contact.avatarUrl)
-                .placeholder(R.drawable.ic_profile_placeholder) // IMPORTANT: Create a placeholder drawable
+                .placeholder(R.drawable.ic_profile_placeholder)
                 .error(R.drawable.ic_profile_placeholder)
-                .into(binding.ivAvatar) // Make sure this ID matches your layout XML
+                .into(binding.ivAvatar)
 
             binding.root.setOnClickListener {
                 onItemClicked(contact)
             }
 
             binding.root.setOnLongClickListener {
-                onItemLongClicked(contact, adapterPosition)
+                // Use bindingAdapterPosition instead of the deprecated adapterPosition
+                onItemLongClicked(contact, bindingAdapterPosition)
                 true
             }
         }
@@ -49,9 +45,8 @@ class ConversationAdapter(
     }
 
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
-        // Pass the Contact at the current position to the bind function
-        holder.bind(contacts[position]) // <<< CHANGE 5
+        holder.bind(contacts[position])
     }
 
-    override fun getItemCount() = contacts.size // <<< CHANGE 6
+    override fun getItemCount() = contacts.size
 }

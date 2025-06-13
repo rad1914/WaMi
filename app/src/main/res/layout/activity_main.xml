@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/layout/activity_main.xml -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -33,13 +32,13 @@
                 android:focusable="true"
                 android:background="?attr/selectableItemBackgroundBorderless"/>
 
-<TextView
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:layout_weight="1"
-    android:text="Messages"
-    android:textSize="18sp"
-    android:gravity="center" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Messages"
+                android:textSize="18sp"
+                android:gravity="center" />
 
             <ImageView
                 android:id="@+id/ivSearch"
@@ -63,7 +62,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:paddingHorizontal="16dp"
-                tools:listitem="@layout/item_message" />
+                tools:listitem="@layout/item_conversation" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -94,32 +93,52 @@
                 android:paddingBottom="12dp"
                 android:paddingHorizontal="16dp">
 
-                <LinearLayout
-                    android:id="@+id/llMessages"
+                <FrameLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="8dp">
+                    android:layout_weight="1">
 
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_chat_circle_dots"
-                        app:tint="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:id="@+id/llMessages"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="8dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_chat_circle_dots"
+                            app:tint="?attr/colorOnSurface" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Messages"
+                            android:textAppearance="?attr/textAppearanceBody2"
+                            android:textColor="?attr/colorOnSurface"/>
+                    </LinearLayout>
 
                     <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Messages"
-                        android:textAppearance="?attr/textAppearanceBody2"
-                        android:textColor="?attr/colorOnSurface"/>
-                </LinearLayout>
+                        android:id="@+id/tvUnreadBadge"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|center_horizontal"
+                        android:layout_marginStart="12dp"
+                        android:background="@drawable/badge_background"
+                        android:gravity="center"
+                        android:textColor="@android:color/white"
+                        android:textSize="10sp"
+                        android:visibility="gone"
+                        tools:text="3"
+                        tools:visibility="visible"
+                        tools:ignore="SmallSp" />
 
+                </FrameLayout>
                 <LinearLayout
                     android:id="@+id/llContacts"
                     android:layout_width="0dp"

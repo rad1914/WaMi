@@ -1,3 +1,6 @@
+// @path: app/build.gradle
+// Apply the Google Services plugin at the top
+apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
@@ -36,22 +39,29 @@ android {
     }
 }
 
-// It's a modern convention to define the kotlin version in one place
-// and use it for the toolchain, but your current setup is fine.
 kotlin {
     jvmToolchain(17)
 }
 
 dependencies {
     // --- Add the Lifecycle ViewModel KTX dependency HERE ---
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0" // Or the latest version
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0" // Often useful with viewModelScope
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
+
+    // --- Import the Firebase BoM (Bill of Materials) ---
+    // This will manage the versions of all Firebase libraries.
+    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
+
+    // --- Firebase Messaging for Notifications ---
+    // Now you can declare the dependency without a version.
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
 
     // ZXing core for QR generation
     implementation 'com.google.zxing:core:3.4.1'
 
     // Kotlin + AndroidX
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.10" // Consider updating to a newer Kotlin version if possible
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.10"
     implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -72,8 +82,6 @@ dependencies {
 
     // OkHttp / Okio
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
-    // The explicit exclude/include for okio is generally not needed with recent gradle versions
-    // but is harmless if it resolves a specific dependency conflict in your project.
     implementation "com.squareup.okio:okio:3.5.0"
 
     // Logging Interceptor

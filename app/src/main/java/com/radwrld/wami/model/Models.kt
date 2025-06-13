@@ -1,32 +1,30 @@
 // @path: app/src/main/java/com/radwrld/wami/model/Models.kt
 package com.radwrld.wami.model
 
-import com.google.gson.annotations.SerializedName
-
 /**
- * Represents a chat conversation as returned by the server's /chats endpoint.
- * The field names are mapped to the JSON keys from the API to ensure correct parsing.
+ * Represents a contact/conversation object used within the UI (e.g., in MainActivity's list).
+ * This class is mapped from the network 'Conversation' model.
  */
-data class Chat(
-    @SerializedName("jid")
-    val jid: String,
-
-    @SerializedName("name")
-    val name: String?,
-
-    @SerializedName("last_message")
-    val lastMessage: String?,
-
-    @SerializedName("last_message_timestamp")
-    val lastMessageTimestamp: Long? // Note: Made this nullable to prevent crashes if the API ever sends a null value.
+data class Contact(
+    val id: String, // The JID from the server
+    val name: String,
+    val phoneNumber: String,
+    val avatarUrl: String? = null,
+    val lastMessage: String? = "Tap to start chatting", // To show in the list
+    val lastMessageTimestamp: Long? = 0L, // For sorting or display
+    val unreadCount: Int = 0 // For the notification dot
 )
 
 /**
- * Represents a contact object used within the UI and local storage.
+ * Represents a single message object used within the ChatActivity UI.
  */
-data class Contact(
-    val id: String,
-    val name: String,
-    val phoneNumber: String,
-    val avatarUrl: String? = null // Defaulting to null makes this optional
+data class Message(
+    var id: String, // ✅ CORRECTED: This must be 'var' to be changed later.
+    val jid: String,
+    val name: String, // Name of the contact/group
+    val text: String = "",
+    var status: String = "",
+    val isOutgoing: Boolean = false,
+    val timestamp: Long = 0L,
+    val senderName: String? = null // For showing the sender's name in a group chat
 )

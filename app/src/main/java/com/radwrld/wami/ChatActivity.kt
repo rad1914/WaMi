@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
-
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -12,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
+import com.radwrld.wami.adapter.ChatListItem
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.WhatsAppApi
@@ -29,7 +29,9 @@ import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.net.URISyntaxException
+import java.util.Calendar
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class ChatActivity : AppCompatActivity() {
 
@@ -37,7 +39,8 @@ class ChatActivity : AppCompatActivity() {
     private val binding get() = _binding!!
 
     private lateinit var adapter: ChatAdapter
-    private val messages = mutableListOf<Message>()
+    private val messages = mutableListOf<Message>() // Source of truth for messages
+    private val chatItemsForAdapter = mutableListOf<ChatListItem>() // List for the adapter
     private lateinit var api: WhatsAppApi
     private lateinit var socket: Socket
     private lateinit var messageStorage: MessageStorage
@@ -83,11 +86,12 @@ class ChatActivity : AppCompatActivity() {
         binding.tvLastSeen.visibility = View.GONE
         binding.btnBack.setOnClickListener { finish() }
 
-        adapter = ChatAdapter(messages)
+        adapter = ChatAdapter(chatItemsForAdapter)
         binding.rvMessages.layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true
         }
         binding.rvMessages.adapter = adapter
+        binding.rvMessages.itemAnimator = null // Avoid flickers on list updates
 
         binding.etMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -105,8 +109,6 @@ class ChatActivity : AppCompatActivity() {
         val client = OkHttpClient.Builder().addInterceptor(logging).build()
         
         val baseUrl = "http://${serverConfigStorage.getCurrentServer()}/"
-        // ADDED: Debugging toast for API URL
-        showToast("API Base URL: $baseUrl")
 
         api = Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -129,15 +131,63 @@ class ChatActivity : AppCompatActivity() {
         )
 
         messageStorage.addMessage(jid, message)
-        addMessageToAdapter(message)
+        messages.add(message)
+        processAndSubmitMessages(messages)
         binding.etMessage.text?.clear()
         sendMessageToServer(message)
     }
 
-    private fun addMessageToAdapter(message: Message) {
-        messages.add(message)
-        adapter.notifyItemInserted(messages.size - 1)
-        binding.rvMessages.scrollToPosition(messages.size - 1)
+    private fun processAndSubmitMessages(messageList: List<Message>) {
+        val newChatItems = createListWithDividers(messageList)
+        val shouldScroll = if (binding.rvMessages.layoutManager is LinearLayoutManager) {
+            val layoutManager = binding.rvMessages.layoutManager as LinearLayoutManager
+            layoutManager.findLastVisibleItemPosition() == adapter.itemCount - 1
+        } else {
+            true
+        }
+        
+        chatItemsForAdapter.clear()
+        chatItemsForAdapter.addAll(newChatItems)
+        adapter.notifyDataSetChanged()
+
+        if (shouldScroll) {
+            binding.rvMessages.scrollToPosition(chatItemsForAdapter.size - 1)
+        }
+    }
+
+    private fun createListWithDividers(messages: List<Message>): List<ChatListItem> {
+        val items = mutableListOf<ChatListItem>()
+        // Add the static warning item at the very top
+        items.add(ChatListItem.WarningItem)
+
+        if (messages.isEmpty()) return items // Return list with only the warning
+
+        var lastTimestamp: Long = 0
+
+        messages.forEach { message ->
+            if (shouldShowDivider(lastTimestamp, message.timestamp)) {
+                val isNewDay = isDifferentDay(lastTimestamp, message.timestamp)
+                items.add(ChatListItem.DividerItem(message.timestamp, isNewDay))
+            }
+            items.add(ChatListItem.MessageItem(message))
+            lastTimestamp = message.timestamp
+        }
+        return items
+    }
+
+    private fun shouldShowDivider(prevTs: Long, currentTs: Long): Boolean {
+        if (prevTs == 0L) return true // Always show divider for the first message
+        if (isDifferentDay(prevTs, currentTs)) return true
+        val diffMillis = currentTs - prevTs
+        return diffMillis > TimeUnit.MINUTES.toMillis(30) // 30 minutes
+    }
+
+    private fun isDifferentDay(ts1: Long, ts2: Long): Boolean {
+        if (ts1 == 0L) return true
+        val cal1 = Calendar.getInstance().apply { timeInMillis = ts1 }
+        val cal2 = Calendar.getInstance().apply { timeInMillis = ts2 }
+        return cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR) ||
+               cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)
     }
 
     private fun sendMessageToServer(message: Message) {
@@ -175,12 +225,8 @@ class ChatActivity : AppCompatActivity() {
                     showToast("Error sending: ${response.error ?: "Unknown"}")
                 }
             } catch (e: Exception) {
-                // MODIFIED: Show detailed exception in toast and update UI status
-                val errorMsg = "API Error: ${e.javaClass.simpleName}\n${e.message}"
                 Log.e("SendMessage", "API call failed for tempId ${message.id}", e)
-                showToast(errorMsg)
-                
-                // FIX: Update message status to 'failed' on exception
+                showToast("Failed to send message.")
                 updateMessageStatusInUI(message.id, "failed")
                 messageStorage.updateMessageStatus(jid, message.id, "failed")
             }
@@ -191,10 +237,7 @@ class ChatActivity : AppCompatActivity() {
         val localMessages = messageStorage.getMessages(jid)
         messages.clear()
         messages.addAll(localMessages)
-        adapter.notifyDataSetChanged()
-        if (messages.isNotEmpty()) {
-            binding.rvMessages.scrollToPosition(messages.size - 1)
-        }
+        processAndSubmitMessages(messages)
 
         lifecycleScope.launch {
             try {
@@ -224,13 +267,10 @@ class ChatActivity : AppCompatActivity() {
                 
                 messages.clear()
                 messages.addAll(finalList)
-                adapter.notifyDataSetChanged()
-                if (messages.isNotEmpty()) {
-                    binding.rvMessages.scrollToPosition(messages.size - 1)
-                }
+                processAndSubmitMessages(finalList)
             } catch (e: Exception) {
                 Log.e("ChatHistory", "Failed to sync history for JID: $jid. Using local cache.", e)
-                showToast("History sync failed: ${e.javaClass.simpleName}")
+                showToast("Failed to sync chat history.")
             }
         }
     }
@@ -244,18 +284,13 @@ class ChatActivity : AppCompatActivity() {
             }
             
             val socketUrl = "http://${serverConfigStorage.getCurrentServer()}"
-            // ADDED: Debugging toast for Socket URL
-            showToast("Socket URL: $socketUrl")
 
             socket = IO.socket(socketUrl.trimEnd('/'), opts)
             socket.on(Socket.EVENT_CONNECT) { runOnUiThread { Log.d("SocketIO", "Connected") } }
-            // MODIFIED: Add verbose toast for connection errors
             socket.on(Socket.EVENT_CONNECT_ERROR) { err ->
                 val error = err.firstOrNull()?.toString() ?: "Unknown error"
                 runOnUiThread {
-                    val errorMsg = "Socket Connect Error: $error"
-                    Log.e("SocketIO", errorMsg)
-                    showToast(errorMsg)
+                    Log.e("SocketIO", "Socket Connect Error: $error")
                 }
             }
             socket.on(Socket.EVENT_DISCONNECT) { runOnUiThread { Log.d("SocketIO", "Disconnected") } }
@@ -264,7 +299,7 @@ class ChatActivity : AppCompatActivity() {
             socket.connect()
         } catch (e: URISyntaxException) {
             Log.e("SocketIO", "Setup failed", e)
-            showToast("Socket setup failed: ${e.message}")
+            showToast("Failed to establish a connection.")
         }
     }
     
@@ -272,11 +307,14 @@ class ChatActivity : AppCompatActivity() {
         runOnUiThread {
             try {
                 val data = args[0] as? JSONArray ?: return@runOnUiThread
+                var messageAdded = false
                 for (i in 0 until data.length()) {
                     val msgJson = data.getJSONObject(i)
                     val messageJid = msgJson.optString("jid")
 
                     if (messageJid == jid && !msgJson.optBoolean("fromMe")) {
+                         if (messages.any { it.id == msgJson.optString("id") }) continue
+
                         val senderName = if (isGroup) msgJson.optString("pushName", "Unknown") else null
 
                         val newMessage = Message(
@@ -290,8 +328,12 @@ class ChatActivity : AppCompatActivity() {
                             senderName = senderName
                         )
                         messageStorage.addMessage(jid, newMessage)
-                        addMessageToAdapter(newMessage)
+                        messages.add(newMessage)
+                        messageAdded = true
                     }
+                }
+                if(messageAdded) {
+                    processAndSubmitMessages(messages.sortedBy { it.timestamp })
                 }
             } catch (e: Exception) {
                 Log.e("OnNewMessage", "Error processing new message", e)
@@ -315,14 +357,14 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateMessageStatusInUI(messageId: String, newStatus: String, newId: String? = null) {
-        val messageIndex = messages.indexOfFirst { it.id == messageId }
-        if (messageIndex != -1) {
-            messages[messageIndex].status = newStatus
+        val sourceMessage = messages.find { it.id == messageId }
+        sourceMessage?.let {
+            it.status = newStatus
             if (newId != null) {
-                messages[messageIndex].id = newId
+                it.id = newId
             }
-            adapter.notifyItemChanged(messageIndex)
         }
+        adapter.updateStatus(newId ?: messageId, newStatus, newId)
     }
 
     private fun isValidJid(jid: String): Boolean {

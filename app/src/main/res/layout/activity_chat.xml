@@ -129,7 +129,7 @@
                 android:id="@+id/btn_mic"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:src="@android:drawable/ic_btn_speak_now"
+                android:src="@drawable/ic_microphone"
                 android:background="@drawable/mic_button_background"
                 android:contentDescription="Voice message"
                 app:tint="?attr/colorOnPrimaryContainer"

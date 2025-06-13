@@ -1,33 +1,34 @@
 // @path: app/src/main/java/com/radwrld/wami/adapter/MessageAdapter.kt
-// MessageAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.radwrld.wami.R
-import com.radwrld.wami.databinding.ItemMessageBinding
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.databinding.ItemMessageBinding // This binding might need renaming to ItemConversationBinding
+import com.radwrld.wami.model.Contact // This adapter now correctly uses the Contact model
 import com.squareup.picasso.Picasso
 
 class MessageAdapter(
-    private val items: List<Message>,
-    private val itemClickListener: ((Message) -> Unit)? = null
+    private val items: List<Contact>,
+    private val itemClickListener: ((Contact) -> Unit)? = null
 ) : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() {
 
     inner class MessageViewHolder(private val binding: ItemMessageBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(message: Message) {
-            binding.tvName.text = message.name
-            binding.tvLastMessage.text = message.lastMessage
-            if (message.avatarUrl.isNotBlank()) {
-                Picasso.get().load(message.avatarUrl).into(binding.avatarImageView)
+        
+        fun bind(contact: Contact) {
+            binding.tvName.text = contact.name
+            binding.tvLastMessage.text = contact.lastMessage
+            
+            if (!contact.avatarUrl.isNullOrBlank()) {
+                Picasso.get().load(contact.avatarUrl).into(binding.avatarImageView)
             } else {
-                binding.avatarImageView.setImageResource(R.drawable.ic_placeholder_avatar)
+                binding.avatarImageView.setImageResource(R.drawable.ic_profile_placeholder)
             }
 
             binding.root.setOnClickListener {
-                itemClickListener?.invoke(message)
+                itemClickListener?.invoke(contact)
             }
         }
     }
