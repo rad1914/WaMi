@@ -2,17 +2,19 @@
 package com.radwrld.wami.adapter
 
 import android.annotation.SuppressLint
-import android.text.method.LinkMovementMethod
 import android.text.format.DateFormat
 import android.text.format.DateUtils
+import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemDividerBinding
 import com.radwrld.wami.databinding.ItemIncomingMessageBinding
@@ -28,7 +30,7 @@ sealed class ChatListItem {
     data class DividerItem(val timestamp: Long, val isNewDay: Boolean) : ChatListItem()
 }
 
-// DiffUtil callback for calculating list differences efficiently.
+// DiffUtil callback for calculating list differences efficiently. (Unchanged)
 class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
     override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
         return when {
@@ -36,20 +38,20 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
                 oldItem.message.id == newItem.message.id
             oldItem is ChatListItem.DividerItem && newItem is ChatListItem.DividerItem ->
                 oldItem.timestamp == newItem.timestamp
-            oldItem is ChatListItem.WarningItem && newItem is ChatListItem.WarningItem ->
-                true // Only one type of warning item
+            oldItem is ChatListItem.WarningItem && newItem is ChatListItem.WarningItem -> true
             else -> oldItem::class == newItem::class
         }
     }
 
     override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
-        // Data classes have a built-in `equals` method that compares all properties.
         return oldItem == newItem
     }
 }
 
-// The adapter now extends ListAdapter, using the ChatDiffCallback.
+
 class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffCallback()) {
+
+    var onMediaClickListener: ((Message) -> Unit)? = null
 
     companion object {
         private const val VIEW_TYPE_OUTGOING = 1
@@ -64,19 +66,52 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
         }
         fun bind(message: Message) {
             val context = binding.root.context
-            binding.tvMessage.text = message.text
-            // Respects user's 12/24 hour setting
+            // Reset visibility for recycled views
+            binding.mediaContainer.visibility = View.GONE
+            binding.replyLayout.visibility = View.GONE
+
+            // --- 1. Bind Media ---
+            if (message.mediaUrl != null) {
+                binding.mediaContainer.visibility = View.VISIBLE
+                binding.ivPlayIcon.visibility = if (message.mimetype?.startsWith("video/") == true) View.VISIBLE else View.GONE
+                
+                binding.mediaContainer.setOnClickListener {
+                    onMediaClickListener?.invoke(message)
+                }
+
+                // Load media with Glide
+                Glide.with(context)
+                    .load(message.mediaUrl)
+                    // FIXED: Use standard Android system drawables to prevent build errors
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.stat_notify_error)
+                    .into(binding.ivMedia)
+            }
+
+            // --- 2. Bind Text / Caption ---
+            if (!message.text.isNullOrEmpty()) {
+                binding.tvMessage.visibility = View.VISIBLE
+                binding.tvMessage.text = message.text
+            } else {
+                binding.tvMessage.visibility = View.GONE
+            }
+
+            // --- 3. Bind Quoted Reply ---
+            if (message.quotedMessageText != null) {
+                binding.replyLayout.visibility = View.VISIBLE
+                binding.tvReplySender.text = "You"
+                binding.tvReplyText.text = message.quotedMessageText
+            }
+
+            // --- 4. Bind Info (Timestamp & Status) ---
             binding.tvTimestamp.text = DateFormat.getTimeFormat(context).format(message.timestamp)
-            
-            // UPDATED: Display status with symbols for better UX.
-            // For an ideal implementation, you would use an ImageView with drawable assets.
             binding.tvStatus.text = when (message.status) {
-                "read" -> "✓✓" // Should be a blue checkmark icon
-                "delivered" -> "✓✓" // Should be a grey checkmark icon
-                "sent" -> "✓" // Should be a single grey checkmark icon
-                "sending" -> "…" // Should be a clock icon
-                "failed" -> "!" // Should be a warning icon
-                else -> "" // Hide status otherwise
+                "read" -> "✓✓"
+                "delivered" -> "✓✓"
+                "sent" -> "✓"
+                "sending" -> "…"
+                "failed" -> "!"
+                else -> ""
             }
         }
     }
@@ -87,16 +122,45 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
         }
         fun bind(message: Message) {
             val context = binding.root.context
-            binding.tvMessage.text = message.text
-            // Respects user's 12/24 hour setting
-            binding.tvTimestamp.text = DateFormat.getTimeFormat(context).format(message.timestamp)
+            binding.mediaContainer.visibility = View.GONE
+            binding.replyLayout.visibility = View.GONE
 
-            if (!message.senderName.isNullOrEmpty()) {
-                binding.tvSenderName.text = message.senderName
-                binding.tvSenderName.visibility = View.VISIBLE
-            } else {
-                binding.tvSenderName.visibility = View.GONE
+            // --- 1. Bind Media ---
+            if (message.mediaUrl != null) {
+                binding.mediaContainer.visibility = View.VISIBLE
+                binding.ivPlayIcon.visibility = if (message.mimetype?.startsWith("video/") == true) View.VISIBLE else View.GONE
+                
+                binding.mediaContainer.setOnClickListener {
+                    onMediaClickListener?.invoke(message)
+                }
+
+                Glide.with(context)
+                    .load(message.mediaUrl)
+                    // FIXED: Use standard Android system drawables
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.stat_notify_error)
+                    .into(binding.ivMedia)
             }
+
+            // --- 2. Bind Text / Caption ---
+            if (!message.text.isNullOrEmpty()) {
+                binding.tvMessage.visibility = View.VISIBLE
+                binding.tvMessage.text = message.text
+            } else {
+                binding.tvMessage.visibility = View.GONE
+            }
+
+            // --- 3. Bind Quoted Reply ---
+            if (message.quotedMessageText != null) {
+                binding.replyLayout.visibility = View.VISIBLE
+                binding.tvReplySender.text = message.name
+                binding.tvReplyText.text = message.quotedMessageText
+            }
+            
+            // --- 4. Bind Info (Sender, Timestamp) ---
+            binding.tvSenderName.isVisible = !message.senderName.isNullOrEmpty()
+            binding.tvSenderName.text = message.senderName
+            binding.tvTimestamp.text = DateFormat.getTimeFormat(context).format(message.timestamp)
         }
     }
 
@@ -110,7 +174,6 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
             return if (isNewDay) {
                 DateUtils.getRelativeTimeSpanString(timestamp, Calendar.getInstance().timeInMillis, DateUtils.DAY_IN_MILLIS).toString()
             } else {
-                // Respects user's 12/24 hour setting
                 DateFormat.getTimeFormat(context).format(timestamp)
             }
         }
@@ -118,11 +181,9 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
 
     inner class WarningViewHolder(binding: ItemWarningBinding) : RecyclerView.ViewHolder(binding.root) {
         init {
-            // Linkify URLs in the static warning message
             Linkify.addLinks(binding.tvWarning, Linkify.WEB_URLS)
             binding.tvWarning.movementMethod = LinkMovementMethod.getInstance()
         }
-        // No bind method needed as the content is static from XML.
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -140,7 +201,6 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
     }
 
     override fun getItemViewType(position: Int): Int {
-        // Use getItem(position) from ListAdapter
         return when (val item = getItem(position)) {
             is ChatListItem.WarningItem -> VIEW_TYPE_WARNING
             is ChatListItem.DividerItem -> VIEW_TYPE_DIVIDER
@@ -160,12 +220,10 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
                 IncomingMessageViewHolder(binding)
             }
             VIEW_TYPE_DIVIDER -> {
-                // Inflate from XML instead of creating programmatically
                 val binding = ItemDividerBinding.inflate(inflater, parent, false)
                 DividerViewHolder(binding)
             }
             VIEW_TYPE_WARNING -> {
-                // Inflate from XML instead of creating programmatically
                 val binding = ItemWarningBinding.inflate(inflater, parent, false)
                 WarningViewHolder(binding)
             }
@@ -174,7 +232,6 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        // Use getItem(position) from ListAdapter
         when (val item = getItem(position)) {
             is ChatListItem.MessageItem -> {
                 if (holder is OutgoingMessageViewHolder) {
@@ -187,11 +244,8 @@ class ChatAdapter : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffC
                 (holder as DividerViewHolder).bind(item)
             }
             is ChatListItem.WarningItem -> {
-                // No binding needed for the static warning view.
+                // No binding needed
             }
         }
     }
-    
-    // No need for getItemCount(); ListAdapter handles it.
-    // No need for updateStatus(); submit a new list from your ViewModel/Activity instead.
 }

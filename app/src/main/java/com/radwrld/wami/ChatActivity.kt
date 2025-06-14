@@ -1,13 +1,18 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 package com.radwrld.wami
 
+import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -25,6 +30,9 @@ import io.socket.emitter.Emitter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.HttpException
@@ -42,19 +50,16 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var contactName: String
     private var isGroup: Boolean = false
 
-    // --- Data & Network Dependencies ---
-    // In an MVVM architecture, these would be injected into a ViewModel via a Repository.
     private lateinit var api: WhatsAppApi
     private var socket: Socket? = null
     private lateinit var messageStorage: MessageStorage
     private lateinit var serverConfigStorage: ServerConfigStorage
 
-    // --- State Management ---
-    // This state would live in a ViewModel to survive configuration changes (e.g., screen rotation).
+    private lateinit var filePickerLauncher: ActivityResultLauncher<Intent>
+
     private val messageIds = mutableSetOf<String>()
 
     companion object {
-        // Using constants for status strings prevents typos and improves code readability.
         const val STATUS_SENDING = "sending"
         const val STATUS_SENT = "sent"
         const val STATUS_DELIVERED = "delivered"
@@ -65,16 +70,14 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Corrected view binding property names to match the XML
         _binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // --- ViewModel Responsibility: Initialization ---
-        // A ViewModel would handle this initialization logic.
         jid = intent.getStringExtra("EXTRA_JID") ?: ""
         contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
         isGroup = jid.endsWith("@g.us")
 
-        // --- Dependency Injection would provide these instances ---
         messageStorage = MessageStorage(this)
         serverConfigStorage = ServerConfigStorage(this)
         api = ApiClient.getInstance(this)
@@ -86,34 +89,46 @@ class ChatActivity : AppCompatActivity() {
             return
         }
 
+        filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.data?.also { uri ->
+                    sendMediaMessage(uri)
+                }
+            }
+        }
+
         setupUI()
         setupSocketListeners()
-
-        // The ViewModel would expose a Flow or LiveData<List<Message>> that the Activity observes.
-        // It would be responsible for triggering this initial data load.
         loadAndSyncChatHistory()
 
         binding.btnSend.setOnClickListener {
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
-                // The Activity calls a method on the ViewModel, e.g., viewModel.sendMessage(text).
                 sendMessage(text)
             }
+        }
+
+        // The reference binding.btnAttach will now resolve correctly.
+        binding.btnAttach.setOnClickListener {
+            val intent = Intent(Intent.ACTION_GET_CONTENT)
+            intent.type = "*/*"
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            filePickerLauncher.launch(intent)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // This could be managed by a lifecycle-aware component.
         ApiClient.connectSocket()
     }
 
     private fun setupUI() {
+        // Use the correct view binding property names (camelCase)
         binding.tvContactName.text = contactName
         binding.tvLastSeen.visibility = View.GONE
         binding.btnBack.setOnClickListener { finish() }
 
-        adapter = ChatAdapter() // The adapter would be initialized once.
+        adapter = ChatAdapter()
         binding.rvMessages.layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true
         }
@@ -124,22 +139,18 @@ class ChatActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val hasText = !s.isNullOrBlank()
+                // FIXED: Correctly manage visibility of all action buttons
                 binding.btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
                 binding.btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
+                
+                // The attachment button is inside the input container, so its visibility isn't
+                // tied to the mic/send button container, but we can hide it when there is text.
+                binding.btnAttach.visibility = if (hasText) View.GONE else View.VISIBLE
             }
             override fun afterTextChanged(s: Editable?) {}
         })
     }
 
-    /**
-     * --- ViewModel & Repository Responsibility ---
-     * This entire function represents the core business logic for sending a message.
-     * In MVVM:
-     * 1. The ViewModel would have a `sendMessage(text: String)` method.
-     * 2. It would create the temporary message object.
-     * 3. It would call a `repository.sendMessage(message)` method.
-     * 4. The Repository would handle both saving to local storage and making the API call.
-     */
     private fun sendMessage(text: String) {
         val tempId = UUID.randomUUID().toString()
         val message = Message(
@@ -151,8 +162,7 @@ class ChatActivity : AppCompatActivity() {
             isOutgoing = true,
             timestamp = System.currentTimeMillis()
         )
-
-        // Optimistically update the UI. A ViewModel would update its StateFlow/LiveData.
+        
         messageStorage.addMessage(jid, message)
         val currentMessages = adapter.currentList.mapNotNull { (it as? ChatListItem.MessageItem)?.message }
         val updatedMessages = currentMessages + message
@@ -162,28 +172,17 @@ class ChatActivity : AppCompatActivity() {
         sendMessageToServer(message)
     }
 
-    /**
-     * --- UI / Data Processing Responsibility ---
-     * This logic processes a list of messages for display, including adding dividers.
-     * It's good practice to have this kind of mapping logic inside a ViewModel or a dedicated mapper class.
-     */
     private fun processAndSubmitMessages(messageList: List<Message>) {
-        // PERFORMANCE: Populate the set of known IDs for quick lookups.
         messageIds.clear()
         messageList.forEach { messageIds.add(it.id) }
-
         val newChatItems = createListWithDividers(messageList.sortedBy { it.timestamp })
         
         val shouldScroll = if (binding.rvMessages.layoutManager is LinearLayoutManager) {
             val layoutManager = binding.rvMessages.layoutManager as LinearLayoutManager
             val lastVisible = layoutManager.findLastVisibleItemPosition()
-            // Scroll if user is at the bottom or the list is new (or a message from self was sent).
             lastVisible == -1 || lastVisible >= adapter.itemCount - 2
-        } else {
-            true
-        }
+        } else { true }
 
-        // The Activity observes data from the ViewModel and submits it to the adapter.
         adapter.submitList(newChatItems) {
             if (shouldScroll) {
                 binding.rvMessages.scrollToPosition(newChatItems.size - 1)
@@ -191,7 +190,6 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    // This is pure data transformation logic, perfect for a helper or mapper class.
     private fun createListWithDividers(messages: List<Message>): List<ChatListItem> {
         val items = mutableListOf<ChatListItem>()
         items.add(ChatListItem.WarningItem)
@@ -206,7 +204,7 @@ class ChatActivity : AppCompatActivity() {
         }
         return items
     }
-
+    
     private fun shouldShowDivider(prevTs: Long, currentTs: Long): Boolean {
         if (prevTs == 0L) return true
         if (isDifferentDay(prevTs, currentTs)) return true
@@ -221,10 +219,6 @@ class ChatActivity : AppCompatActivity() {
                cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)
     }
 
-    /**
-     * --- Repository Responsibility ---
-     * This function should live in the Repository. The ViewModel would just call `repository.sendMessage(...)`.
-     */
     private fun sendMessageToServer(message: Message) {
         if (!isValidJid(jid)) {
             showToast("Cannot send message: Invalid JID format.")
@@ -259,12 +253,75 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
+    
+    private fun sendMediaMessage(fileUri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val jidRequestBody = jid.toRequestBody("text/plain".toMediaTypeOrNull())
+                // Captions can be added here from a dialog in the future
+                val captionRequestBody = "".toRequestBody("text/plain".toMediaTypeOrNull())
 
-    /**
-     * --- Repository & ViewModel Responsibility ---
-     * The Repository would be responsible for fetching from local and remote sources and merging them.
-     * The ViewModel would trigger this and expose the final, combined list to the UI.
-     */
+                val fileStream = contentResolver.openInputStream(fileUri)
+                val fileBytes = fileStream?.readBytes()
+                fileStream?.close()
+
+                if (fileBytes == null) {
+                    showToast("Error reading file.")
+                    return@launch
+                }
+
+                val mimeType = contentResolver.getType(fileUri) ?: "application/octet-stream"
+                val fileName = getFileName(fileUri)
+
+                val requestFile = fileBytes.toRequestBody(mimeType.toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("file", fileName, requestFile)
+                
+                showToast("Uploading media...")
+                val response = api.sendMedia(jidRequestBody, captionRequestBody, body)
+
+                if (response.success) {
+                    showToast("Media sent successfully.")
+                    // Refresh history to see the new media message
+                    loadAndSyncChatHistory()
+                } else {
+                    showToast("Failed to send media: ${response.error}")
+                }
+            } catch (e: Exception) {
+                Log.e("SendMedia", "Failed to send media file", e)
+                if (e is HttpException && e.code() == 401) {
+                    forceLogout()
+                } else {
+                    showToast("An error occurred while sending the file.")
+                }
+            }
+        }
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    val columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if(columnIndex >= 0) result = cursor.getString(columnIndex)
+                }
+            } finally {
+                cursor?.close()
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != null && cut != -1) {
+                // FIXED: Use non-null asserted call (!!) because the `if` condition
+                // guarantees `result` is not null at this point.
+                result = result!!.substring(cut + 1)
+            }
+        }
+        return result ?: "unknown_file"
+    }
+
     private fun loadAndSyncChatHistory() {
         val localMessages = messageStorage.getMessages(jid)
         processAndSubmitMessages(localMessages)
@@ -272,7 +329,6 @@ class ChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val serverHistory = api.getHistory(jid)
-                // APPLIED: Mapping now includes media and reply fields.
                 val serverMessages = serverHistory.map {
                     Message(
                         id = it.id,
@@ -282,7 +338,7 @@ class ChatActivity : AppCompatActivity() {
                         status = it.status,
                         isOutgoing = (it.isOutgoing == 1),
                         timestamp = it.timestamp,
-                        senderName = null, // This could be enriched later for groups
+                        senderName = null,
                         mediaUrl = it.mediaUrl,
                         mimetype = it.mimetype,
                         quotedMessageId = it.quotedMessageId,
@@ -304,11 +360,9 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-
-    // --- Socket Listeners ---
-    // In MVVM, the Repository would listen to the socket and expose new messages/updates via a Flow.
+    
     private val onNewMessage = Emitter.Listener { args ->
-        lifecycleScope.launch(Dispatchers.Default) { // Move JSON parsing off the main thread
+        lifecycleScope.launch(Dispatchers.Default) {
             try {
                 val data = args[0] as? JSONArray ?: return@launch
                 val newMessages = mutableListOf<Message>()
@@ -319,23 +373,21 @@ class ChatActivity : AppCompatActivity() {
 
                     if (messageJid == jid && !msgJson.optBoolean("fromMe")) {
                         val messageId = msgJson.optString("id")
-                        // PERFORMANCE: Use the Set for an O(1) duplicate check
                         if (messageId.isNullOrEmpty() || !messageIds.add(messageId)) continue
-
-                        // APPLIED: Parsing now includes media and reply fields.
+                        
                         val newMessage = Message(
                             id = messageId,
                             jid = messageJid,
-                            text = msgJson.optString("text"),
+                            text = msgJson.optString("text", null),
                             name = contactName,
                             status = STATUS_RECEIVED,
                             isOutgoing = false,
                             timestamp = msgJson.optLong("timestamp", System.currentTimeMillis()),
-                            senderName = if (isGroup) msgJson.optString("pushName", "Unknown") else null,
-                            mediaUrl = msgJson.optString("media_url"),
-                            mimetype = msgJson.optString("mimetype"),
-                            quotedMessageId = msgJson.optString("quoted_message_id"),
-                            quotedMessageText = msgJson.optString("quoted_message_text")
+                            senderName = if (isGroup) msgJson.optString("pushName", null) else null,
+                            mediaUrl = msgJson.optString("media_url", null),
+                            mimetype = msgJson.optString("mimetype", null),
+                            quotedMessageId = msgJson.optString("quoted_message_id", null),
+                            quotedMessageText = msgJson.optString("quoted_message_text", null)
                         )
                         messageStorage.addMessage(jid, newMessage)
                         newMessages.add(newMessage)
@@ -412,11 +464,8 @@ class ChatActivity : AppCompatActivity() {
         finish()
     }
 
-
-
     override fun onDestroy() {
         super.onDestroy()
-        // A Repository listening to a socket would manage its own lifecycle.
         socket?.off("whatsapp-message", onNewMessage)
         socket?.off("whatsapp-message-status-update", onMessageStatusUpdate)
         _binding = null

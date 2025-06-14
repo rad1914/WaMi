@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ContactsActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -26,7 +25,6 @@ class ContactsActivity : AppCompatActivity() {
     private lateinit var contactStorage: ContactStorage
     private lateinit var serverConfigStorage: ServerConfigStorage
     private lateinit var contactAdapter: ContactAdapter
-    private val contactsList = mutableListOf<Contact>()
     private lateinit var api: WhatsAppApi
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +32,6 @@ class ContactsActivity : AppCompatActivity() {
         binding = ActivityContactsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize storage and the centralized, authenticated API client
         contactStorage = ContactStorage(this)
         serverConfigStorage = ServerConfigStorage(this)
         api = ApiClient.getInstance(this)
@@ -51,7 +48,7 @@ class ContactsActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        contactAdapter = ContactAdapter(contactsList) { contact ->
+        contactAdapter = ContactAdapter { contact ->
             startActivity(Intent(this, ChatActivity::class.java).apply {
                 putExtra("EXTRA_JID", contact.id)
                 putExtra("EXTRA_NAME", contact.name)
@@ -81,9 +78,7 @@ class ContactsActivity : AppCompatActivity() {
                 updateContactList(newContacts)
 
             } catch (e: Exception) {
-                Log.e("ContactsSync", "Failed to sync contacts from server", e)
                 if (e is HttpException && e.code() == 401) {
-                    // Unauthorized, token is likely invalid. Force logout.
                     Toast.makeText(this@ContactsActivity, "Session expired. Please log in again.", Toast.LENGTH_LONG).show()
                     logout()
                 } else {
@@ -97,7 +92,6 @@ class ContactsActivity : AppCompatActivity() {
 
     private fun mapConversationsToContacts(conversations: List<Conversation>): List<Contact> {
         return conversations.mapNotNull { conversation ->
-            // Filter out group chats, which are handled in the main conversation list
             if (conversation.jid.endsWith("@s.whatsapp.net")) {
                 val phone = conversation.jid.substringBefore("@")
                 Contact(id = conversation.jid, name = conversation.name ?: phone, phoneNumber = phone)
@@ -108,22 +102,16 @@ class ContactsActivity : AppCompatActivity() {
     }
 
     private fun updateContactList(newContacts: List<Contact>) {
-        contactsList.clear()
-        contactsList.addAll(newContacts.sortedBy { it.name })
-        contactAdapter.notifyDataSetChanged()
+        val sortedContacts = newContacts.sortedBy { it.name }
+        contactAdapter.submitList(sortedContacts)
     }
 
     private fun logout() {
-        // This function doesn't need a coroutine context for this part
-        // but is kept inside one for consistency if server calls were needed.
         lifecycleScope.launch {
-            // No need to call server logout as we are already unauthorized.
-            // Just perform client-side cleanup.
             ApiClient.close()
             serverConfigStorage.saveSessionId(null)
             serverConfigStorage.saveLoginState(false)
 
-            // Navigate to LoginActivity and clear the back stack
             val intent = Intent(this@ContactsActivity, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
