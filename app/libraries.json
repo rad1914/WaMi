@@ -1,0 +1,79 @@
+[
+  {
+    "artifactId": "kotlin-stdlib",
+    "excludes": [],
+    "groupId": "org.jetbrains.kotlin",
+    "scope": "compile",
+    "versionName": "1.5.21"
+  },
+  {
+    "artifactId": "material",
+    "excludes": [],
+    "groupId": "com.google.android.material",
+    "scope": "compile",
+    "versionName": "1.11.0"
+  },
+  {
+    "artifactId": "core-ktx",
+    "excludes": [],
+    "groupId": "androidx.core",
+    "scope": "compile",
+    "versionName": "1.10.1"
+  },
+  {
+    "artifactId": "lifecycle-runtime-ktx",
+    "excludes": [],
+    "groupId": "androidx.lifecycle",
+    "scope": "compile",
+    "versionName": "2.6.1"
+  },
+  {
+    "artifactId": "activity-ktx",
+    "excludes": [],
+    "groupId": "androidx.activity",
+    "scope": "compile",
+    "versionName": "1.8.0"
+  },
+  {
+    "artifactId": "fragment-ktx",
+    "excludes": [],
+    "groupId": "androidx.fragment",
+    "scope": "compile",
+    "versionName": "1.5.7"
+  },
+  {
+    "artifactId": "navigation-fragment-ktx",
+    "excludes": [],
+    "groupId": "androidx.navigation",
+    "scope": "compile",
+    "versionName": "2.7.0"
+  },
+  {
+    "artifactId": "appcompat",
+    "excludes": [],
+    "groupId": "androidx.appcompat",
+    "scope": "compile",
+    "versionName": "1.4.1"
+  },
+  {
+    "artifactId": "constraintlayout",
+    "excludes": [],
+    "groupId": "androidx.constraintlayout",
+    "scope": "compile",
+    "versionName": "2.1.3"
+  },
+  {
+    "artifactId": "navigation-ui-ktx",
+    "excludes": [],
+    "groupId": "androidx.navigation",
+    "scope": "compile",
+    "versionName": "2.7.0"
+  },
+  {
+    "artifactId": "lifecycle-viewmodel-ktx",
+    "excludes": [],
+    "groupId": "androidx.lifecycle",
+    "scope": "compile",
+    "versionName": "2.6.1"
+  }
+]

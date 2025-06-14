@@ -1,0 +1,10 @@
+<!-- @path: app/src/main/res/drawable/ic_placeholder_avatar.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="?attr/colorOnSurfaceVariant"
+        android:pathData="M24,2c12.15,0 22,9.85 22,22s-9.85,22 -22,22S2,36.15 2,24S11.85,2 24,2zM24,10c-4.42,0 -8,3.58 -8,8s3.58,8 8,8s8,-3.58 8,-8s-3.58,-8 -8,-8zM24,42c8.28,0 15.6,-4.72 18.9,-11.4c-0.08,-5.9 -11.88,-9.14 -18.9,-9.14c-7.02,0 -18.82,3.24 -18.9,9.14C8.4,37.28 15.72,42 24,42z"/>
+</vector>

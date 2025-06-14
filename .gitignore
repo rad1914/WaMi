@@ -1,0 +1,44 @@
+# === ANDROID ===
+*.apk
+*.ap_ 
+*.dex
+*.class
+*.so
+*.log
+*.tmp
+*.bak
+*.swp
+
+/build/
+/app/build/
+/captures/
+/.gradle/
+/local.properties
+
+# === NODE ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log
+
+# === IDEs and Editors ===
+*.iml
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === ENV & Runtime Files ===
+.env
+.env.*
+
+# === Termux/Device Paths ===
+/storage/

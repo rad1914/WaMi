@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "517796199795",
+    "project_id": "wami-7cb1b",
+    "storage_bucket": "wami-7cb1b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517796199795:android:ce39733ca59d2e2ce21906",
+        "android_client_info": {
+          "package_name": "com.radwrld.wami"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCR59CZLs8g1fOp29aoRqXgRIGCF73brAI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,98 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+
+android {
+    namespace "com.radwrld.wami"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.radwrld.wami"
+        minSdk 27
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        viewBinding true
+        dataBinding true
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    // --- Lifecycle KTX ---
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
+
+    // --- Firebase BoM (Bill of Materials) ---
+    implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // --- QR Generation ---
+    implementation 'com.google.zxing:core:3.4.1'
+
+    // --- Kotlin + AndroidX ---
+    // [FIX] Aligned Kotlin standard library with the downgraded plugin.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.10"
+    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    // [FIX] Reverting to an older Material library compatible with this toolchain.
+    implementation 'com.google.android.material:material:1.9.0'
+
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.0'
+    implementation 'androidx.annotation:annotation:1.7.1'
+    implementation 'com.squareup.picasso:picasso:2.8'
+
+    // --- Image Loading (Glide) ---
+    implementation 'com.github.bumptech.glide:glide:4.15.1'
+    kapt 'com.github.bumptech.glide:compiler:4.15.1'
+    implementation 'de.hdodenhof:circleimageview:3.1.0'
+
+
+    implementation 'com.github.chrisbanes:PhotoView:2.3.0'
+
+
+    // --- Networking (Retrofit & OkHttp) ---
+    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+    implementation "com.squareup.retrofit2:converter-scalars:2.9.0"
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
+    implementation "com.squareup.okio:okio:3.5.0"
+
+    // --- Socket.IO Client ---
+    implementation("io.socket:socket.io-client:2.0.1") {
+        exclude group: 'org.json', module: 'json'
+    }
+
+    // --- Testing ---
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+}
+
+apply plugin: 'com.google.gms.google-services'
+

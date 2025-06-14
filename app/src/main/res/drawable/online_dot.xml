@@ -1,0 +1,5 @@
+<!-- @path: app/src/main/res/drawable/online_dot.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="12dp" android:height="12dp"/>
+    <solid android:color="@color/online_indicator"/>
+</shape>

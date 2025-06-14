@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @path: app/src/main/res/values-night/colors.xml -->
+<resources>
+    <color name="primary">#B4D5B4</color>
+    <color name="onPrimary">#1E3624</color>
+    <color name="primaryContainer">#354D39</color>
+    <color name="onPrimaryContainer">#D0F1CF</color>
+    <color name="secondary">#B8CCB5</color>
+    <color name="onSecondary">#243424</color>
+    <color name="secondaryContainer">#3A4B3A</color>
+    <color name="onSecondaryContainer">#D4E8D1</color>
+    <color name="tertiary">#A2CFD9</color>
+    <color name="onTertiary">#02363F</color>
+    <color name="tertiaryContainer">#204D56</color>
+    <color name="onTertiaryContainer">#BEEBF5</color>
+    <color name="error">#FFB4AB</color>
+    <color name="onError">#690005</color>
+    <color name="errorContainer">#93000A</color>
+    <color name="onErrorContainer">#FFDAD6</color>
+    <color name="background">#1A1C19</color>
+    <color name="onBackground">#E2E3DD</color>
+    <color name="surface">#1A1C19</color>
+    <color name="onSurface">#E2E3DD</color>
+    <color name="surfaceVariant">#424940</color>
+    <color name="onSurfaceVariant">#C2C9BE</color>
+    <color name="outline">#8C9389</color>
+
+    <color name="divider">@color/outline</color>
+    <color name="online_indicator">@color/primary</color>
+
+    <color name="bg_header">@color/primaryContainer</color>
+    <color name="text_primary">@color/onSurface</color>
+    <color name="text_secondary">@color/onSurfaceVariant</color>
+</resources>

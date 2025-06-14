@@ -1,0 +1,5 @@
+<!-- @path: app/src/main/res/drawable/bg_incoming.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="?attr/colorSurfaceVariant"/>
+    <corners android:radius="8dp"/>
+</shape>

@@ -1,0 +1,24 @@
+<!-- @path: app/src/main/res/values/strings.xml -->
+<resources>
+    <string name="app_name">WaMi</string>
+    <string name="add_contact">Add Contact</string>
+
+    <string name="cd_back">Back</string>
+    <string name="cd_video_call">Video call</string>
+    <string name="cd_voice_call">Voice call</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_emoji">Emoji picker</string>
+    <string name="hint_message">Type a message</string>
+    <string name="cd_attach">Attach file</string>
+    <string name="cd_camera">Open camera</string>
+    <string name="cd_send">Send message</string>
+    <string name="cd_voice_message">Record voice message</string>
+    <string name="profile_picture">User profile picture</string>
+    <string name="chat_warning_message">This is an experimental Android app still in development; Some features, like self-user message encryption, are being tested and may not work properly or could fail. Please report any issues or suggest improvements on GitHub: github.com/rad1914/WaMi</string>
+    <string name="back">Back</string>
+    <string name="video_call">Video Call</string>
+    <string name="message_hint">Message</string>
+    <string name="send">Send</string>
+    <string name="voice_message">Voice message</string>
+
+</resources>

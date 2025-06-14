@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @path: app/src/main/res/menu/bottom_nav_menu.xml -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/navigation_messages"
+        android:icon="@drawable/ic_chat_circle_dots"
+        android:title="Messages" />
+    <item
+        android:id="@+id/navigation_contacts"
+        android:icon="@drawable/ic_users"
+        android:title="Contacts" />
+</menu>
