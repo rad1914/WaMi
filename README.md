@@ -100,4 +100,7 @@ This is a client-side application only. To be fully functional, WaMi requires a 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/wami-android-client.git
+   git clone https://github.com/rad1914/WaMi.git
+
+2. (Optional) Build your own Private Server:
+   https://github.com/rad1914/WaMi-Backend
