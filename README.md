@@ -104,3 +104,7 @@ This is a client-side application only. To be fully functional, WaMi requires a 
 
 2. (Optional) Build your own Private Server:
    https://github.com/rad1914/WaMi-Backend
+   
+---
+
+~ Made with <3 by @RADWrld
