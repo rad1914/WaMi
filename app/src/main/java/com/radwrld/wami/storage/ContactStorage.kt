@@ -20,17 +20,15 @@ class ContactStorage(context: Context) {
 
     fun getContacts(): List<Contact> {
         val jsonString = sharedPreferences.getString("contacts", "[]")
-        // Handle potential parsing errors
         return try {
             gson.fromJson(jsonString, Array<Contact>::class.java).toList()
         } catch (e: Exception) {
-            emptyList() // Return an empty list if the stored data is corrupt
+            emptyList()
         }
     }
 
     fun addContact(newContact: Contact) {
         val currentContacts = getContacts().toMutableList()
-        // Prevent adding duplicates
         if (currentContacts.none { it.id == newContact.id }) {
             currentContacts.add(0, newContact)
             saveContacts(currentContacts)
@@ -39,7 +37,6 @@ class ContactStorage(context: Context) {
 
     fun deleteContact(contactToDelete: Contact) {
         val currentContacts = getContacts().toMutableList()
-        // Use the unique ID (JID) for deletion
         val updatedContacts = currentContacts.filterNot { it.id == contactToDelete.id }
         saveContacts(updatedContacts)
     }

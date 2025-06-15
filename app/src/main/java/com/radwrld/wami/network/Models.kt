@@ -1,11 +1,8 @@
-// @path: app/src/main/java/com/radwrld/wami/model/Models.kt
+// @path: app/src/main/java/com/radwrld/wami/network/Models.kt
 package com.radwrld.wami.model
 
 import java.util.UUID
 
-/**
- * FINAL UNIFIED VERSION
- */
 data class Contact(
     val id: String,
     val name: String,
@@ -21,6 +18,7 @@ data class Message(
     val jid: String,
     val text: String?,
     val isOutgoing: Boolean,
+    val type: String? = "conversation",
     val status: String = "sending",
     val timestamp: Long = System.currentTimeMillis(),
     val name: String? = null,

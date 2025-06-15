@@ -32,21 +32,16 @@ class SocketManager(private val context: Context) {
                 try {
                     gson.fromJson<List<MessageHistoryItem>>(args[0].toString(), type)
                         .firstOrNull()?.let { msgDto ->
-                            // Always emit to the flow for UI updates
                             _incomingMessages.tryEmit(mapToMessage(msgDto))
 
-                            // Don't show notifications for your own outgoing messages
                             if (msgDto.isOutgoing > 0) {
                                 return@let
                             }
 
-                            // Show a notification for the incoming message
                             NotificationUtils.showNotification(
                                 context = context,
                                 jid = msgDto.jid,
-                                // Use the new 'name' field, with the JID as a fallback
                                 contactName = msgDto.name ?: msgDto.jid,
-                                // Provide default text for media messages
                                 message = msgDto.text ?: "New media received",
                                 messageId = msgDto.id
                             )
@@ -56,12 +51,16 @@ class SocketManager(private val context: Context) {
                 }
             }
 
+            // UPDATED: Aligned to use Gson for type-safe parsing
             on("whatsapp-message-status-update") { args ->
                 Log.d("SocketManager", "Status update: ${args[0]}")
-                (args[0] as? JSONObject)?.let {
+                try {
+                    val updateDto = gson.fromJson(args[0].toString(), MessageStatusUpdateDto::class.java)
                     _messageStatusUpdates.tryEmit(
-                        MessageStatusUpdate(it.getString("id"), it.getString("status"))
+                        MessageStatusUpdate(updateDto.id, updateDto.status)
                     )
+                } catch (e: Exception) {
+                    Log.e("SocketManager", "Error processing 'whatsapp-message-status-update'", e)
                 }
             }
 
@@ -74,18 +73,19 @@ class SocketManager(private val context: Context) {
     fun connect() { if (socket?.connected() == false) ApiClient.connectSocket() }
     fun disconnect() { ApiClient.disconnectSocket() }
 
+    // UPDATED: Now correctly maps the 'type' field
     private fun mapToMessage(dto: MessageHistoryItem): Message {
-        // FIXED: Construct absolute media URL
         val baseUrl = serverConfigStorage.getCurrentServer().removeSuffix("/")
         return Message(
             id = dto.id,
             jid = dto.jid,
             text = dto.text,
             isOutgoing = dto.isOutgoing > 0,
+            type = dto.type, // <-- FIXED: Map the message type.
             status = dto.status,
             timestamp = dto.timestamp,
-            name = dto.name, // Populate name field
-            senderName = dto.name, // Populate senderName field
+            name = dto.name,
+            senderName = dto.name,
             mediaUrl = dto.mediaUrl?.let { url -> "$baseUrl$url" },
             mimetype = dto.mimetype,
             quotedMessageId = dto.quotedMessageId,

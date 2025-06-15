@@ -1,5 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
-// @path: app/src/main/java/com/radwrld/wami/network/WhatsAppApi.kt
+// @path: app/src/main/java/com/radwrld/wami/network/WhatsappApi.kt
 package com.radwrld.wami.network
 
 import okhttp3.MultipartBody
@@ -18,9 +17,6 @@ interface WhatsAppApi {
     @POST("send")
     suspend fun sendMessage(@Body request: SendMessageRequest): SendResponse
 
-    /**
-     * ADDED: New endpoint to send media files like images, videos, and documents.
-     */
     @Multipart
     @POST("send/media")
     suspend fun sendMedia(
@@ -28,6 +24,9 @@ interface WhatsAppApi {
         @Part("caption") caption: RequestBody?,
         @Part file: MultipartBody.Part
     ): SendResponse
+
+    @POST("send/reaction")
+    suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
 
     @GET("status")
     suspend fun getStatus(): StatusResponse
@@ -37,8 +36,6 @@ interface WhatsAppApi {
 
     @POST("session/logout")
     suspend fun logout(): Response<Void>
-
-
 
     @GET("chats")
     suspend fun getConversations(): List<Conversation>

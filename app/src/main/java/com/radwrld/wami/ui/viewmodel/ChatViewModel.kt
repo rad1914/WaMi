@@ -1,75 +1,166 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/ChatViewModel.kt
-// ChatViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
+import android.net.Uri
+import androidx.lifecycle.*
 import com.radwrld.wami.model.Message
-import com.radwrld.wami.network.SocketManager
+import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.*
 
-class ChatViewModel(app: Application) : AndroidViewModel(app) {
+class ChatViewModel(
+    application: Application,
+    private val jid: String,
+    private val contactName: String
+) : AndroidViewModel(application) {
 
-    private val repo  = WhatsAppRepository(app)
-    private val store = MessageStorage(app)
-    private val sock  = SocketManager(app)
+    private val repo = WhatsAppRepository(application)
+    private val messageStorage = MessageStorage(application)
+    private val socketManager = ApiClient.getSocketManager(application)
 
-    private val _ui = MutableStateFlow(Ui())
-    val ui         = _ui.asStateFlow()
+    private val _uiState = MutableStateFlow(UiState())
+    val uiState = _uiState.asStateFlow()
 
     init {
-        sock.connect()
-        sock.incomingMessages
-            .filter { it.jid == ui.value.jid }
-            .onEach { msg ->
-                append(msg)
-                store.addMessage(msg.jid, msg)
-            }
-            .launchIn(viewModelScope)
+        loadAndSyncHistory()
+        observeSocketEvents()
     }
 
-    fun load(jid: String) = viewModelScope.launch {
-        _ui.update { it.copy(isLoading = true, jid = jid) }
-        repo.getMessageHistory(jid)
-            .onSuccess { msgs ->
-                _ui.update { it.copy(isLoading = false, messages = msgs) }
-            }
-            .onFailure { e ->
-                _ui.update { s -> s.copy(isLoading = false, error = e.message) }
-            }
-    }
-
-    fun sendText(text: String) {
-        val jid = ui.value.jid ?: return
-        val msg = Message(jid = jid, text = text, isOutgoing = true)
-
-        append(msg)
-        store.addMessage(jid, msg)
-
+    private fun loadAndSyncHistory() {
         viewModelScope.launch {
-            repo.sendTextMessage(jid, text, msg.id)
-                .onFailure { e ->
-                    _ui.update { s -> s.copy(error = e.message) }
+            _uiState.update { state -> state.copy(isLoading = true) }
+            val localMessages = messageStorage.getMessages(jid)
+            _uiState.update { state -> state.copy(messages = localMessages) }
+
+            repo.getMessageHistory(jid)
+                .onSuccess { serverMessages ->
+                    val combined = (serverMessages + localMessages).distinctBy { message -> message.id }.sortedBy { message -> message.timestamp }
+                    messageStorage.saveMessages(jid, combined)
+                    _uiState.update { state -> state.copy(isLoading = false, messages = combined, error = null) }
+                }
+                .onFailure { error ->
+                    _uiState.update { state -> state.copy(isLoading = false, error = error.message) }
                 }
         }
     }
 
-    private fun append(m: Message) {
-        _ui.update { it.copy(messages = it.messages + m) }
+    private fun observeSocketEvents() {
+        socketManager.incomingMessages
+            .filter { message -> message.jid == jid }
+            .onEach { message ->
+                val currentMessages = _uiState.value.messages
+                if (currentMessages.none { msg -> msg.id == message.id }) {
+                    val updatedMessages = (currentMessages + message).sortedBy { msg -> msg.timestamp }
+                    messageStorage.addMessage(jid, message)
+                    _uiState.update { state -> state.copy(messages = updatedMessages) }
+                }
+            }
+            .launchIn(viewModelScope)
+
+        socketManager.messageStatusUpdates
+            .onEach { update ->
+                updateMessageStatus(update.id, update.status)
+            }
+            .launchIn(viewModelScope)
     }
 
-    override fun onCleared() {
-        sock.disconnect()
+    fun sendTextMessage(text: String) {
+        val tempId = UUID.randomUUID().toString()
+        val message = Message(
+            id = tempId,
+            jid = jid,
+            name = contactName,
+            text = text,
+            isOutgoing = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        val updatedMessages = (_uiState.value.messages + message).sortedBy { msg -> msg.timestamp }
+        _uiState.update { state -> state.copy(messages = updatedMessages) }
+        messageStorage.addMessage(jid, message)
+
+        viewModelScope.launch {
+            repo.sendTextMessage(jid, text, tempId)
+                .onSuccess { response ->
+                    val finalId = response.messageId ?: tempId
+                    messageStorage.updateMessage(jid, tempId, finalId, "sent")
+                    updateMessageStatus(tempId, "sent", newId = finalId)
+                }
+                .onFailure { error ->
+                    messageStorage.updateMessageStatus(jid, tempId, "failed")
+                    updateMessageStatus(tempId, "failed")
+                    _uiState.update { state -> state.copy(error = "Failed to send: ${error.message}") }
+                }
+        }
     }
 
-    data class Ui(
+    fun sendMediaMessage(uri: Uri) {
+        viewModelScope.launch {
+            repo.sendMediaMessage(jid, uri, null)
+                .onSuccess {
+                    loadAndSyncHistory()
+                }
+                .onFailure { error ->
+                    _uiState.update { state -> state.copy(error = "Failed to send media: ${error.message}") }
+                }
+        }
+    }
+    
+    fun sendReaction(message: Message, emoji: String) {
+        viewModelScope.launch {
+            try {
+                ApiClient.getInstance(getApplication()).sendReaction(
+                    SendReactionRequest(
+                        jid = message.jid,
+                        messageId = message.id,
+                        fromMe = message.isOutgoing,
+                        emoji = emoji
+                    )
+                )
+            } catch (e: Exception) {
+                _uiState.update { state -> state.copy(error = "Reaction failed") }
+            }
+        }
+    }
+
+    private fun updateMessageStatus(messageId: String, newStatus: String, newId: String? = null) {
+        val currentMessages = _uiState.value.messages
+        val messageIndex = currentMessages.indexOfFirst { message -> message.id == messageId }
+
+        if (messageIndex != -1) {
+            val updatedMessages = currentMessages.toMutableList()
+            val originalMessage = updatedMessages[messageIndex]
+            val updatedMessage = originalMessage.copy(
+                status = newStatus,
+                id = newId ?: originalMessage.id
+            )
+            updatedMessages[messageIndex] = updatedMessage
+            _uiState.update { state -> state.copy(messages = updatedMessages) }
+        }
+    }
+
+    data class UiState(
         val isLoading: Boolean = false,
-        val jid: String? = null,
         val messages: List<Message> = emptyList(),
         val error: String? = null
     )
+}
+
+class ChatViewModelFactory(
+    private val application: Application,
+    private val jid: String,
+    private val contactName: String
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ChatViewModel(application, jid, contactName) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }

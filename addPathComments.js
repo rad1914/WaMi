@@ -2,6 +2,12 @@
 // @path: addPathComments.js
 // @path: addPathComments.js
 // @path: addPathComments.js
+// @path: addPathComments.js
+// @path: addPathComments.js
+// @path: addPathComments.js
+// @path: addPathComments.js
+// @path: addPathComments.js
+// @path: addPathComments.js
 
 import { promises as fs } from "fs";
 import { resolve, relative, extname } from "path";

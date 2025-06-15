@@ -1,12 +1,12 @@
-// @path: app/src/main/java/com/radwrld/wami/repository/WhatsappRepository.kt
+// @path: app/src/main/java/com/radwrld/wami/adapter/WhatsappRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.radwrld.wami.model.Contact
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.network.Conversation
 import com.radwrld.wami.network.SendMessageRequest
 import com.radwrld.wami.storage.MessageStorage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -20,21 +20,36 @@ class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
     private val storage = MessageStorage(context)
 
+    // MODIFIED: This function now fetches conversations and maps them to the local `Contact` model.
     suspend fun getConversations() = runCatching {
-        api.getConversations()
+        val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
+        api.getConversations().map { conversation ->
+            // Map the Conversation network model to the Contact local model
+            Contact(
+                id = conversation.jid,
+                name = conversation.name ?: "Unknown",
+                phoneNumber = conversation.jid.split('@').first(),
+                lastMessage = conversation.lastMessage,
+                lastMessageTimestamp = conversation.lastMessageTimestamp,
+                unreadCount = conversation.unreadCount ?: 0,
+                // Prepend the base server URL to the avatar path
+                avatarUrl = conversation.avatarUrl?.let { path -> "$serverUrl$path" }
+            )
+        }
     }.onFailure { Log.e("Repo", "getConversations", it) }
 
     suspend fun getMessageHistory(jid: String) = runCatching {
         val encoded = URLEncoder.encode(jid, "UTF-8")
-        val msgs = api.getHistory(encoded).map {
+        val msgs = api.getHistory(encoded, limit = 1000).map {
             Message(
                 id                = it.id,
                 jid               = it.jid,
                 text              = it.text,
+                type              = it.type,
                 isOutgoing        = it.isOutgoing > 0,
                 status            = it.status,
                 timestamp         = it.timestamp,
-                name              = it.name, // ADDED: Map the sender's name.
+                name              = it.name,
                 mediaUrl          = it.mediaUrl,
                 mimetype          = it.mimetype,
                 quotedMessageId   = it.quotedMessageId,

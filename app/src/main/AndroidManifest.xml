@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/AndroidManifest.xml -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -42,6 +41,12 @@
         <activity
             android:name=".ContactsActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".MediaViewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
 
         <service
             android:name=".services.FirebaseService"

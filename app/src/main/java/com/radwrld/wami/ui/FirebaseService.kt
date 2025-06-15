@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/services/FirebaseService.kt
+// @path: app/src/main/java/com/radwrld/wami/adapter/FirebaseService.kt
 package com.radwrld.wami.services
 
 import android.util.Log

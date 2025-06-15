@@ -19,6 +19,8 @@ object ApiClient {
     private var retrofit: Retrofit? = null
     private var downloadRetrofit: Retrofit? = null
     private var socket: Socket? = null
+    // ADDED: Singleton instance for the SocketManager
+    private var socketManager: SocketManager? = null
 
     private fun authInterceptor(context: Context) = Interceptor { chain ->
         val token = ServerConfigStorage(context).getSessionId()
@@ -47,11 +49,15 @@ object ApiClient {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+            
+    fun getBaseUrl(context: Context): String {
+        return ServerConfigStorage(context).getCurrentServer()
+    }
 
     fun getInstance(context: Context): WhatsAppApi {
         if (retrofit == null) {
             retrofit = buildRetrofit(
-                ServerConfigStorage(context).getCurrentServer(),
+                getBaseUrl(context),
                 buildClient(context, HttpLoggingInterceptor.Level.BODY)
             )
         }
@@ -61,7 +67,7 @@ object ApiClient {
     fun getDownloadingInstance(context: Context): WhatsAppApi {
         if (downloadRetrofit == null) {
             downloadRetrofit = buildRetrofit(
-                ServerConfigStorage(context).getCurrentServer(),
+                getBaseUrl(context),
                 buildClient(context, HttpLoggingInterceptor.Level.NONE, timeouts = true)
             )
         }
@@ -84,12 +90,22 @@ object ApiClient {
         }
     }
 
+    // ADDED: Function to provide a singleton SocketManager instance.
+    fun getSocketManager(context: Context): SocketManager {
+        if (socketManager == null) {
+            initializeSocket(context.applicationContext)
+            socketManager = SocketManager(context.applicationContext)
+        }
+        return socketManager!!
+    }
+
     fun getSocket(): Socket? = socket
     fun connectSocket() = socket?.takeIf { !it.connected() }?.connect()
     fun disconnectSocket() = socket?.disconnect()
     fun close() {
         disconnectSocket()
         socket = null
+        socketManager = null
         retrofit = null
         downloadRetrofit = null
     }

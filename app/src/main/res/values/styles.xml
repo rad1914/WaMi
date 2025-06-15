@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values/styles.xml -->
 <resources>
-    <style name="ChatHeaderButton" parent="Widget.AppCompat.ImageButton">
+    <style name="ChatHeaderButton" parent="Widget.Material3.Button.IconButton">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>
-        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
         <item name="tint">?attr/colorOnSurface</item>
     </style>
 
-    <style name="ChatActionButton" parent="Widget.AppCompat.ImageButton">
+    <style name="ChatActionButton" parent="Widget.Material3.Button.IconButton">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
         <item name="tint">?attr/colorOnPrimaryContainer</item>

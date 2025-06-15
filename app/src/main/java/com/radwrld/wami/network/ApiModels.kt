@@ -1,10 +1,8 @@
 // @path: app/src/main/java/com/radwrld/wami/network/ApiModels.kt
-// @path: app/src/main/java/com/radwrld/wami/network/ApiModels.kt
 package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
-
-// --- Request/Response Models ---
+import retrofit2.Response
 
 data class SendResponse(
     val success: Boolean,
@@ -18,6 +16,7 @@ data class MessageHistoryItem(
     @SerializedName("id") val id: String,
     @SerializedName("jid") val jid: String,
     @SerializedName("text") val text: String?,
+    @SerializedName("type") val type: String?,
     @SerializedName("isOutgoing") val isOutgoing: Int,
     @SerializedName("status") val status: String,
     @SerializedName("timestamp") val timestamp: Long,
@@ -28,26 +27,34 @@ data class MessageHistoryItem(
     @SerializedName("quoted_message_text") val quotedMessageText: String?
 )
 
-// MODIFIED: Added avatarUrl to align with the updated backend response.
 data class Conversation(
     @SerializedName("jid") val jid: String,
     @SerializedName("name") val name: String?,
     @SerializedName("last_message") val lastMessage: String?,
     @SerializedName("last_message_timestamp") val lastMessageTimestamp: Long?,
     @SerializedName("unreadCount") val unreadCount: Int?,
-    @SerializedName("avatarUrl") val avatarUrl: String? // ADDED
+    @SerializedName("avatarUrl") val avatarUrl: String?
 )
-
-// --- Session & Status Models ---
 
 data class SessionResponse(val sessionId: String)
 
 data class StatusResponse(val connected: Boolean, val qr: String?)
 
-// --- Request Body Models ---
-
 data class SendMessageRequest(
     val jid: String,
     val text: String,
     val tempId: String
+)
+
+data class SendReactionRequest(
+    val jid: String,
+    val messageId: String,
+    val fromMe: Boolean,
+    val emoji: String
+)
+
+// ADDED: Data class for type-safe parsing of status update socket events
+data class MessageStatusUpdateDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("status") val status: String
 )

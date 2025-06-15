@@ -22,10 +22,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
+        android:textIsSelectable="true"
         android:textAppearance="?attr/textAppearanceTitleMedium"
         android:textColor="?attr/colorOnSurface"
         android:textStyle="bold"
-        android:textIsSelectable="true"
         app:layout_constraintBottom_toTopOf="@+id/tv_last_seen"
         app:layout_constraintEnd_toStartOf="@+id/btn_video_call"
         app:layout_constraintStart_toEndOf="@id/btn_back"
@@ -37,9 +37,9 @@
         android:id="@+id/tv_last_seen"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:textIsSelectable="true"
         android:textAppearance="?attr/textAppearanceBodySmall"
         android:textColor="?attr/colorOnSurfaceVariant"
-        android:textIsSelectable="true"
         app:layout_constraintBottom_toBottomOf="@id/btn_back"
         app:layout_constraintEnd_toEndOf="@id/tv_contact_name"
         app:layout_constraintStart_toStartOf="@id/tv_contact_name"
@@ -112,16 +112,18 @@
             android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnSurface"
             android:textColorHint="?attr/colorOnSurfaceVariant" />
-            
+
         <ImageButton
             android:id="@+id/btn_attach"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Attach file"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
             android:padding="4dp"
             android:src="@android:drawable/ic_menu_camera"
-            android:contentDescription="Attach file"
-            tools:ignore="TouchTargetSizeCheck" />
+            tools:ignore="HardcodedText" />
 
     </LinearLayout>
 

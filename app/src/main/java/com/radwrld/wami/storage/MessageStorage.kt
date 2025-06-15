@@ -28,8 +28,11 @@ class MessageStorage(context: Context) {
 
     fun addMessage(jid: String, message: Message) {
         val messages = getMessages(jid)
-        messages.add(message)
-        saveMessages(jid, messages)
+        // Avoid adding duplicates
+        if (messages.none { it.id == message.id }) {
+            messages.add(message)
+            saveMessages(jid, messages)
+        }
     }
 
     // UPDATED: Use .copy() to create a new message instance instead of mutating the old one.
@@ -44,7 +47,7 @@ class MessageStorage(context: Context) {
         }
     }
 
-    // UPDATED: Use .copy() here as well.
+    // UPDATED: Use .copy() here as well for immutability and safety.
     fun updateMessageStatus(jid: String, messageId: String, newStatus: String) {
         val messages = getMessages(jid)
         val messageIndex = messages.indexOfFirst { it.id == messageId }
