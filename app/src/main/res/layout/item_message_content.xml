@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- @path: app/src/main/res/layout/item_message_content.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -13,12 +15,16 @@
         android:visibility="gone"
         tools:visibility="visible">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_media"
-            android:layout_width="240dp"
-            android:layout_height="240dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
             android:contentDescription="Media message preview"
+            android:maxWidth="260dp"
+            android:maxHeight="260dp"
             android:scaleType="centerCrop"
+            app:shapeAppearance="@style/ShapeAppearance.Wami.MediumComponent"
             tools:ignore="HardcodedText"
             tools:src="@tools:sample/backgrounds/scenic" />
 
@@ -28,10 +34,12 @@
             android:layout_height="48dp"
             android:layout_gravity="center"
             android:contentDescription="Play video button"
-            android:src="@android:drawable/ic_media_play"
+            android:src="@drawable/ic_play_arrow"
             android:visibility="gone"
+            app:tint="@android:color/white"
             tools:ignore="HardcodedText"
             tools:visibility="visible" />
+
     </FrameLayout>
 
     <TextView
@@ -39,8 +47,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
+        android:textIsSelectable="true"
         android:textAppearance="?attr/textAppearanceBodyLarge"
-        android:textColor="?attr/colorPrimary"
         tools:text="This is the main message or caption." />
 
 </LinearLayout>

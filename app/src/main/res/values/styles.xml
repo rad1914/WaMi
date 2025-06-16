@@ -4,16 +4,40 @@
     <style name="ChatHeaderButton" parent="Widget.Material3.Button.IconButton">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>
-        <item name="tint">?attr/colorOnSurface</item>
+        <item name="iconTint">?attr/colorOnSurface</item>
     </style>
 
     <style name="ChatActionButton" parent="Widget.Material3.Button.IconButton">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
-        <item name="tint">?attr/colorOnPrimaryContainer</item>
+        <item name="iconTint">?attr/colorOnPrimaryContainer</item>
     </style>
 
     <style name="Widget.Wami.Switch" parent="Widget.Material3.CompoundButton.Switch">
         <item name="android:minHeight">48dp</item>
+        <item name="switchPadding">16dp</item>
+    </style>
+    
+    <style name="TextAppearance.Wami" parent="TextAppearance.Material3.BodyMedium" />
+
+    <style name="TextAppearance.Wami.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+        </style>
+    <style name="TextAppearance.Wami.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium"/>
+    <style name="TextAppearance.Wami.TitleLarge" parent="TextAppearance.Material3.TitleLarge"/>
+    <style name="TextAppearance.Wami.BodyLarge" parent="TextAppearance.Material3.BodyLarge"/>
+    <style name="TextAppearance.Wami.BodyMedium" parent="TextAppearance.Material3.BodyMedium"/>
+
+    <style name="ShapeAppearance.Wami" parent="ShapeAppearance.Material3.MediumComponent"/>
+
+    <style name="ShapeAppearance.Wami.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Wami.MediumComponent" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Wami.LargeComponent" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSize">24dp</item>
     </style>
 </resources>

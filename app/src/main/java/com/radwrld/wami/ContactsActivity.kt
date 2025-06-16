@@ -3,7 +3,6 @@ package com.radwrld.wami
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -37,12 +36,7 @@ class ContactsActivity : AppCompatActivity() {
         api = ApiClient.getInstance(this)
 
         setupRecyclerView()
-        
-        // NOTE: We load local contacts first for a quick UI update,
-        // then refresh from the server in onResume.
         updateContactList(contactStorage.getContacts())
-
-        binding.ivBack.setOnClickListener { finish() }
     }
 
     override fun onResume() {
@@ -52,9 +46,6 @@ class ContactsActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         contactAdapter = ContactAdapter { contact ->
-            // NOTE: The name and avatar are primarily for the contact list UI.
-            // The ChatActivity will re-fetch details if needed, but passing them
-            // provides a smoother immediate experience.
             startActivity(Intent(this, ChatActivity::class.java).apply {
                 putExtra("EXTRA_JID", contact.id)
                 putExtra("EXTRA_NAME", contact.name)
@@ -69,14 +60,12 @@ class ContactsActivity : AppCompatActivity() {
     }
 
     private fun syncContactsFromServer() {
-        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val conversations = api.getConversations()
                 val newContacts = mapConversationsToContacts(conversations)
                 contactStorage.saveContacts(newContacts)
                 updateContactList(newContacts)
-
             } catch (e: Exception) {
                 if (e is HttpException && e.code() == 401) {
                     Toast.makeText(this@ContactsActivity, "Session expired. Please log in again.", Toast.LENGTH_LONG).show()
@@ -84,45 +73,42 @@ class ContactsActivity : AppCompatActivity() {
                 } else {
                     Toast.makeText(this@ContactsActivity, "Could not refresh contacts: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-            } finally {
-                binding.progressBar.visibility = View.GONE
             }
         }
     }
 
-    // MODIFIED: This function now maps all relevant fields from the Conversation object
-    // to the Contact object and includes both individual and group chats.
     private fun mapConversationsToContacts(conversations: List<Conversation>): List<Contact> {
+        val serverUrl = serverConfigStorage.getCurrentServer().removeSuffix("/")
         return conversations.map { conversation ->
-            val identifier = conversation.jid.substringBefore("@")
             Contact(
                 id = conversation.jid,
-                name = conversation.name ?: identifier,
-                phoneNumber = if (conversation.jid.endsWith("@s.whatsapp.net")) identifier else conversation.jid,
+                name = conversation.name ?: conversation.jid.split('@').first(),
+                isGroup = conversation.isGroup,
+                phoneNumber = if (conversation.isGroup) null else conversation.jid.split('@').first(),
                 lastMessage = conversation.lastMessage,
                 lastMessageTimestamp = conversation.lastMessageTimestamp,
                 unreadCount = conversation.unreadCount ?: 0,
-                avatarUrl = conversation.avatarUrl
+                // ++ Applied suggestion: Align with the repository and construct the URL to the new
+                //    /avatar/:jid endpoint for asynchronous loading.
+                avatarUrl = "$serverUrl/avatar/${conversation.jid}"
             )
         }
     }
-
-    // MODIFIED: The list is now sorted by the last message timestamp in descending order,
-    // which is the standard behavior for chat applications.
+    
     private fun updateContactList(contacts: List<Contact>) {
-        val sortedContacts = contacts.sortedByDescending { it.lastMessageTimestamp }
-        contactAdapter.submitList(sortedContacts)
+        val (groups, individuals) = contacts.partition { it.isGroup }
+        val sortedIndividuals = individuals.sortedBy { it.name.lowercase() }
+        val sortedGroups = groups.sortedBy { it.name.lowercase() }
+        contactAdapter.submitList(sortedIndividuals + sortedGroups)
     }
 
     private fun logout() {
         lifecycleScope.launch {
-            // Attempt to log out from the server first.
             try { api.logout() } catch (e: Exception) { /* Ignore errors */ }
-
             ApiClient.close()
             serverConfigStorage.saveSessionId(null)
             serverConfigStorage.saveLoginState(false)
-            contactStorage.saveContacts(emptyList()) // Clear local contacts on logout
+            contactStorage.saveContacts(emptyList())
 
             val intent = Intent(this@ContactsActivity, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

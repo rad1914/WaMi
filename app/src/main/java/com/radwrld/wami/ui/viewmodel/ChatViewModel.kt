@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.lifecycle.*
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.flow.*
@@ -30,21 +29,37 @@ class ChatViewModel(
         loadAndSyncHistory()
         observeSocketEvents()
     }
+    
+    // Helper function to filter messages that should be visible
+    private fun getVisibleMessages(messages: List<Message>): List<Message> {
+        return messages.filter { message ->
+            !message.text.isNullOrBlank() ||
+            !message.mediaUrl.isNullOrBlank() ||
+            !message.quotedMessageText.isNullOrBlank()
+        }
+    }
 
     private fun loadAndSyncHistory() {
         viewModelScope.launch {
-            _uiState.update { state -> state.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true) }
             val localMessages = messageStorage.getMessages(jid)
-            _uiState.update { state -> state.copy(messages = localMessages) }
+            _uiState.update { it.copy(messages = localMessages, visibleMessages = getVisibleMessages(localMessages)) }
 
             repo.getMessageHistory(jid)
                 .onSuccess { serverMessages ->
-                    val combined = (serverMessages + localMessages).distinctBy { message -> message.id }.sortedBy { message -> message.timestamp }
+                    val combined = (serverMessages + localMessages).distinctBy { it.id }.sortedBy { it.timestamp }
                     messageStorage.saveMessages(jid, combined)
-                    _uiState.update { state -> state.copy(isLoading = false, messages = combined, error = null) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            messages = combined,
+                            visibleMessages = getVisibleMessages(combined),
+                            error = null
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _uiState.update { state -> state.copy(isLoading = false, error = error.message) }
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
                 }
         }
     }
@@ -55,9 +70,14 @@ class ChatViewModel(
             .onEach { message ->
                 val currentMessages = _uiState.value.messages
                 if (currentMessages.none { msg -> msg.id == message.id }) {
-                    val updatedMessages = (currentMessages + message).sortedBy { msg -> msg.timestamp }
+                    val updatedMessages = (currentMessages + message).sortedBy { it.timestamp }
                     messageStorage.addMessage(jid, message)
-                    _uiState.update { state -> state.copy(messages = updatedMessages) }
+                    _uiState.update {
+                        it.copy(
+                            messages = updatedMessages,
+                            visibleMessages = getVisibleMessages(updatedMessages)
+                        )
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -70,6 +90,8 @@ class ChatViewModel(
     }
 
     fun sendTextMessage(text: String) {
+        if (text.isBlank()) return
+
         val tempId = UUID.randomUUID().toString()
         val message = Message(
             id = tempId,
@@ -80,8 +102,8 @@ class ChatViewModel(
             timestamp = System.currentTimeMillis()
         )
 
-        val updatedMessages = (_uiState.value.messages + message).sortedBy { msg -> msg.timestamp }
-        _uiState.update { state -> state.copy(messages = updatedMessages) }
+        val updatedMessages = (_uiState.value.messages + message).sortedBy { it.timestamp }
+        _uiState.update { it.copy(messages = updatedMessages, visibleMessages = getVisibleMessages(updatedMessages)) }
         messageStorage.addMessage(jid, message)
 
         viewModelScope.launch {
@@ -94,59 +116,57 @@ class ChatViewModel(
                 .onFailure { error ->
                     messageStorage.updateMessageStatus(jid, tempId, "failed")
                     updateMessageStatus(tempId, "failed")
-                    _uiState.update { state -> state.copy(error = "Failed to send: ${error.message}") }
+                    _uiState.update { it.copy(error = "Failed to send: ${error.message}") }
                 }
         }
     }
 
     fun sendMediaMessage(uri: Uri) {
         viewModelScope.launch {
+            // This is optimistic. A better implementation would create a temporary local message.
+            _uiState.update { it.copy(isLoading = true) }
             repo.sendMediaMessage(jid, uri, null)
-                .onSuccess {
-                    loadAndSyncHistory()
-                }
+                .onSuccess { loadAndSyncHistory() } // Reload history to get the new message
                 .onFailure { error ->
-                    _uiState.update { state -> state.copy(error = "Failed to send media: ${error.message}") }
+                    _uiState.update { it.copy(isLoading = false, error = "Failed to send media: ${error.message}") }
                 }
         }
     }
     
     fun sendReaction(message: Message, emoji: String) {
         viewModelScope.launch {
-            try {
-                ApiClient.getInstance(getApplication()).sendReaction(
-                    SendReactionRequest(
-                        jid = message.jid,
-                        messageId = message.id,
-                        fromMe = message.isOutgoing,
-                        emoji = emoji
-                    )
-                )
-            } catch (e: Exception) {
-                _uiState.update { state -> state.copy(error = "Reaction failed") }
-            }
+            repo.sendReaction(jid = message.jid, messageId = message.id, fromMe = message.isOutgoing, emoji = emoji)
+                .onFailure {
+                     _uiState.update { state -> state.copy(error = "Reaction failed") }
+                }
         }
     }
 
     private fun updateMessageStatus(messageId: String, newStatus: String, newId: String? = null) {
-        val currentMessages = _uiState.value.messages
-        val messageIndex = currentMessages.indexOfFirst { message -> message.id == messageId }
+        val currentMessages = _uiState.value.messages.toMutableList()
+        val messageIndex = currentMessages.indexOfFirst { it.id == messageId }
 
         if (messageIndex != -1) {
-            val updatedMessages = currentMessages.toMutableList()
-            val originalMessage = updatedMessages[messageIndex]
+            val originalMessage = currentMessages[messageIndex]
             val updatedMessage = originalMessage.copy(
                 status = newStatus,
                 id = newId ?: originalMessage.id
             )
-            updatedMessages[messageIndex] = updatedMessage
-            _uiState.update { state -> state.copy(messages = updatedMessages) }
+            currentMessages[messageIndex] = updatedMessage
+            _uiState.update {
+                it.copy(
+                    messages = currentMessages,
+                    visibleMessages = getVisibleMessages(currentMessages)
+                )
+            }
         }
     }
 
+    // ++ Applied suggestion: The state now holds both the full message list and the visible (filtered) list.
     data class UiState(
         val isLoading: Boolean = false,
         val messages: List<Message> = emptyList(),
+        val visibleMessages: List<Message> = emptyList(),
         val error: String? = null
     )
 }

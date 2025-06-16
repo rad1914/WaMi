@@ -59,10 +59,18 @@ class ConversationAdapter(
                 text = contact.unreadCount.toString()
             }
             tvTimestamp.text = contact.lastMessageTimestamp?.let(::formatTimestamp).orEmpty()
+
+            // ++ Applied suggestion: Use the contact's isGroup flag to determine the correct placeholder.
+            val placeholder = if (contact.isGroup) {
+                R.drawable.ic_group_placeholder
+            } else {
+                R.drawable.ic_profile_placeholder
+            }
+            
             Glide.with(root.context)
                 .load(contact.avatarUrl)
-                .placeholder(R.drawable.ic_profile_placeholder)
-                .error(R.drawable.ic_profile_placeholder)
+                .placeholder(placeholder)
+                .error(placeholder)
                 .circleCrop()
                 .into(ivAvatar)
 

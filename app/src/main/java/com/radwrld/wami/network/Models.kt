@@ -6,11 +6,12 @@ import java.util.UUID
 data class Contact(
     val id: String,
     val name: String,
-    val phoneNumber: String,
+    val phoneNumber: String?, // MODIFIED: Made nullable to accommodate groups.
     val lastMessage: String? = null,
     val lastMessageTimestamp: Long? = null,
     val unreadCount: Int = 0,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val isGroup: Boolean = false // ADDED: To differentiate contacts from groups for sorting.
 )
 
 data class Message(
@@ -26,5 +27,8 @@ data class Message(
     val mediaUrl: String? = null,
     val mimetype: String? = null,
     val quotedMessageId: String? = null,
-    val quotedMessageText: String? = null
+    val quotedMessageText: String? = null,
+
+    // ★★★ THIS IS THE NEWLY ADDED LINE ★★★
+    val reactions: Map<String, Int> = emptyMap()
 )

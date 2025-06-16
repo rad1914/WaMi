@@ -2,7 +2,6 @@
 package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
-import retrofit2.Response
 
 data class SendResponse(
     val success: Boolean,
@@ -24,17 +23,21 @@ data class MessageHistoryItem(
     @SerializedName("media_url") val mediaUrl: String?,
     @SerializedName("mimetype") val mimetype: String?,
     @SerializedName("quoted_message_id") val quotedMessageId: String?,
-    @SerializedName("quoted_message_text") val quotedMessageText: String?
+    @SerializedName("quoted_message_text") val quotedMessageText: String?,
+    @SerializedName("reactions") val reactions: Map<String, Int>?
 )
 
 data class Conversation(
     @SerializedName("jid") val jid: String,
     @SerializedName("name") val name: String?,
+    @SerializedName("is_group") val isGroupInt: Int = 0,
     @SerializedName("last_message") val lastMessage: String?,
     @SerializedName("last_message_timestamp") val lastMessageTimestamp: Long?,
-    @SerializedName("unreadCount") val unreadCount: Int?,
-    @SerializedName("avatarUrl") val avatarUrl: String?
-)
+    @SerializedName("unreadCount") val unreadCount: Int?
+) {
+    val isGroup: Boolean
+        get() = isGroupInt == 1
+}
 
 data class SessionResponse(val sessionId: String)
 
@@ -53,7 +56,6 @@ data class SendReactionRequest(
     val emoji: String
 )
 
-// ADDED: Data class for type-safe parsing of status update socket events
 data class MessageStatusUpdateDto(
     @SerializedName("id") val id: String,
     @SerializedName("status") val status: String

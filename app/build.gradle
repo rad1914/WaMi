@@ -1,3 +1,4 @@
+// @path: app/build.gradle
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
@@ -71,10 +72,12 @@ dependencies {
     kapt 'com.github.bumptech.glide:compiler:4.15.1'
     implementation 'de.hdodenhof:circleimageview:3.1.0'
 
-
+    // --- PhotoView ---
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
     implementation("androidx.activity:activity-ktx:1.9.0")
 
+    // ★★★ ADD THIS LINE FOR REACTION LAYOUTS ★★★
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
 
     // --- Networking (Retrofit & OkHttp) ---
     implementation "com.squareup.retrofit2:retrofit:2.9.0"
@@ -96,4 +99,3 @@ dependencies {
 }
 
 apply plugin: 'com.google.gms.google-services'
-

@@ -10,7 +10,6 @@ import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.util.NotificationUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import org.json.JSONObject
 
 class SocketManager(private val context: Context) {
 
@@ -21,6 +20,10 @@ class SocketManager(private val context: Context) {
 
     private val _messageStatusUpdates = MutableSharedFlow<MessageStatusUpdate>()
     val messageStatusUpdates = _messageStatusUpdates.asSharedFlow()
+    
+    // ++ Applied suggestion: Added a flow for broadcasting reaction updates to the UI.
+    private val _reactionUpdates = MutableSharedFlow<ReactionUpdate>()
+    val reactionUpdates = _reactionUpdates.asSharedFlow()
 
     private val socket = ApiClient.getSocket() ?: ApiClient.initializeSocket(context).let { ApiClient.getSocket() }
 
@@ -51,7 +54,6 @@ class SocketManager(private val context: Context) {
                 }
             }
 
-            // UPDATED: Aligned to use Gson for type-safe parsing
             on("whatsapp-message-status-update") { args ->
                 Log.d("SocketManager", "Status update: ${args[0]}")
                 try {
@@ -61,6 +63,17 @@ class SocketManager(private val context: Context) {
                     )
                 } catch (e: Exception) {
                     Log.e("SocketManager", "Error processing 'whatsapp-message-status-update'", e)
+                }
+            }
+            
+            // ++ Applied suggestion: Added a listener for real-time reaction events.
+            on("whatsapp-reaction-update") { args ->
+                Log.d("SocketManager", "Reaction update: ${args[0]}")
+                try {
+                    val update = gson.fromJson(args[0].toString(), ReactionUpdate::class.java)
+                    _reactionUpdates.tryEmit(update)
+                } catch (e: Exception) {
+                    Log.e("SocketManager", "Error processing 'whatsapp-reaction-update'", e)
                 }
             }
 
@@ -73,7 +86,7 @@ class SocketManager(private val context: Context) {
     fun connect() { if (socket?.connected() == false) ApiClient.connectSocket() }
     fun disconnect() { ApiClient.disconnectSocket() }
 
-    // UPDATED: Now correctly maps the 'type' field
+    // ++ Applied suggestion: The mapper now correctly handles the new reactions field.
     private fun mapToMessage(dto: MessageHistoryItem): Message {
         val baseUrl = serverConfigStorage.getCurrentServer().removeSuffix("/")
         return Message(
@@ -81,7 +94,7 @@ class SocketManager(private val context: Context) {
             jid = dto.jid,
             text = dto.text,
             isOutgoing = dto.isOutgoing > 0,
-            type = dto.type, // <-- FIXED: Map the message type.
+            type = dto.type,
             status = dto.status,
             timestamp = dto.timestamp,
             name = dto.name,
@@ -89,9 +102,13 @@ class SocketManager(private val context: Context) {
             mediaUrl = dto.mediaUrl?.let { url -> "$baseUrl$url" },
             mimetype = dto.mimetype,
             quotedMessageId = dto.quotedMessageId,
-            quotedMessageText = dto.quotedMessageText
+            quotedMessageText = dto.quotedMessageText,
+            reactions = dto.reactions ?: emptyMap()
         )
     }
 
     data class MessageStatusUpdate(val id: String, val status: String)
+    
+    // ++ Applied suggestion: Data class for deserializing reaction update events.
+    data class ReactionUpdate(val id: String, val jid: String, val reactions: Map<String, Int>)
 }

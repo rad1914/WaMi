@@ -1,11 +1,11 @@
-// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
-// MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -36,8 +36,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         serverConfigStorage = ServerConfigStorage(this)
-        ApiClient.initializeSocket(this)
-
+        
         setupClickListeners()
         setupRecyclerView()
         observeViewModel()
@@ -45,8 +44,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        ApiClient.connectSocket()
+        // ++ Applied suggestion: Restore the call to load data. This ensures that
+        //    conversations are fetched every time the activity becomes active,
+        //    guaranteeing the list is populated and fresh.
         viewModel.load()
+        
+        ApiClient.connectSocket() 
     }
 
     override fun onPause() {
@@ -62,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.navigation_contacts -> {
-                    Toast.makeText(this, "Contacts clicked", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this, ContactsActivity::class.java))
                     true
                 }
                 else -> false
@@ -70,9 +73,39 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.fabAdd.setOnClickListener {
-            Toast.makeText(this, "New Chat clicked", Toast.LENGTH_SHORT).show()
+            showFastContactDialog()
         }
     }
+
+    private fun showFastContactDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Fast Contact")
+        builder.setMessage("Enter a phone number to start a new chat.")
+
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_PHONE
+            hint = "e.g., 15551234567"
+        }
+        builder.setView(input)
+
+        builder.setPositiveButton("Chat") { dialog, _ ->
+            val number = input.text.toString().trim()
+            if (number.isNotEmpty()) {
+                val jid = "$number@s.whatsapp.net"
+                val intent = Intent(this, ChatActivity::class.java).apply {
+                    putExtra("EXTRA_JID", jid)
+                    putExtra("EXTRA_NAME", number)
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Phone number cannot be empty.", Toast.LENGTH_SHORT).show()
+            }
+            dialog.dismiss()
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+        builder.show()
+    }
+
 
     private fun setupRecyclerView() {
         conversationAdapter = ConversationAdapter(
@@ -95,15 +128,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    // FIXED: Removed reference to binding.progressBar to prevent a crash
-                    // if the ID does not exist in your activity_main.xml layout.
-                    // You can add a ProgressBar with id="progressBar" to your XML to re-enable this.
-                    // binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+                    binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
 
-                    // Update Conversation List
                     conversationAdapter.submitList(state.conversations)
 
-                    // Show Error Messages
                     state.error?.let { errorMsg ->
                         Toast.makeText(this@MainActivity, "Error: $errorMsg", Toast.LENGTH_LONG).show()
                         if (errorMsg.contains("401")) {
