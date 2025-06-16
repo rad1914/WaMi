@@ -54,22 +54,17 @@ class LoginActivity : AppCompatActivity() {
             pickFileLauncher.launch("application/zip")
         }
 
-        // --- Offline-First Logic ---
-        // 1. Check for a valid, existing session saved locally.
-        if (config.isLoggedIn() && !config.getSessionId().isNullOrEmpty()) {
-            // If session is valid, go directly to MainActivity. No network required.
-            statusText.text = "Loading from local storage..."
-            launchMainActivity()
-        }
-        // 2. If no local session, check for an internet connection.
-        else if (!isNetworkAvailable()) {
+        // --- Online-First Logic ---
+        // 1. An internet connection is required to start.
+        if (!isNetworkAvailable()) {
             // If offline, inform the user they need to connect.
             statusText.text = "Please connect to the internet to log in."
             qrImage.isVisible = false
             importButton.isVisible = false
         }
-        // 3. If no local session AND online, start the remote authentication process.
+        // 2. If online, start the remote authentication process.
         else {
+            // This will use an existing session ID to check status or create a new session.
             startAuthFlow()
         }
     }
