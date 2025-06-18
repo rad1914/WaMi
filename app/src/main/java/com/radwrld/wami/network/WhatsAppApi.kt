@@ -14,6 +14,10 @@ interface WhatsAppApi {
         @Query("limit") limit: Int = 200
     ): List<MessageHistoryItem>
 
+    @Streaming
+    @GET
+    suspend fun downloadFile(@Url url: String): Response<ResponseBody>
+
     @POST("send")
     suspend fun sendMessage(@Body request: SendMessageRequest): SendResponse
 

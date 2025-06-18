@@ -19,20 +19,23 @@ object ApiClient {
     private var retrofit: Retrofit? = null
     private var downloadRetrofit: Retrofit? = null
     private var socket: Socket? = null
-    // ADDED: Singleton instance for the SocketManager
     private var socketManager: SocketManager? = null
 
+    // Use applicationContext to avoid memory leaks
     private fun authInterceptor(context: Context) = Interceptor { chain ->
-        val token = ServerConfigStorage(context).getSessionId()
-        val request = if (token.isNullOrEmpty()) chain.request() else
+        val token = ServerConfigStorage(context.applicationContext).getSessionId()
+        val request = if (token.isNullOrEmpty()) {
+            chain.request()
+        } else {
             chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+        }
         chain.proceed(request)
     }
 
     private fun buildClient(context: Context, logLevel: HttpLoggingInterceptor.Level, timeouts: Boolean = false): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(HttpLoggingInterceptor().apply { level = logLevel })
-            .addInterceptor(authInterceptor(context))
+            .addInterceptor(authInterceptor(context.applicationContext))
             .apply {
                 if (timeouts) {
                     readTimeout(5, TimeUnit.MINUTES)
@@ -49,34 +52,32 @@ object ApiClient {
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            
-    fun getBaseUrl(context: Context): String {
-        return ServerConfigStorage(context).getCurrentServer()
-    }
+
+    fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
     fun getInstance(context: Context): WhatsAppApi {
-        if (retrofit == null) {
-            retrofit = buildRetrofit(
-                getBaseUrl(context),
-                buildClient(context, HttpLoggingInterceptor.Level.BODY)
-            )
-        }
-        return retrofit!!.create(WhatsAppApi::class.java)
+        // Use applicationContext for building the client
+        val safeContext = context.applicationContext
+        return (retrofit ?: buildRetrofit(
+            getBaseUrl(safeContext),
+            buildClient(safeContext, HttpLoggingInterceptor.Level.BODY)
+        ).also { retrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun getDownloadingInstance(context: Context): WhatsAppApi {
-        if (downloadRetrofit == null) {
-            downloadRetrofit = buildRetrofit(
-                getBaseUrl(context),
-                buildClient(context, HttpLoggingInterceptor.Level.NONE, timeouts = true)
-            )
-        }
-        return downloadRetrofit!!.create(WhatsAppApi::class.java)
+        // Use applicationContext for building the client
+        val safeContext = context.applicationContext
+        return (downloadRetrofit ?: buildRetrofit(
+            getBaseUrl(safeContext),
+            buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true)
+        ).also { downloadRetrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun initializeSocket(context: Context) {
         if (socket != null) return
-        val config = ServerConfigStorage(context)
+        // Use applicationContext for safety
+        val safeContext = context.applicationContext
+        val config = ServerConfigStorage(safeContext)
         val token = config.getSessionId() ?: run {
             Log.e("ApiClient", "No session ID for socket.")
             return
@@ -90,20 +91,24 @@ object ApiClient {
         }
     }
 
-    // ADDED: Function to provide a singleton SocketManager instance.
     fun getSocketManager(context: Context): SocketManager {
-        if (socketManager == null) {
-            initializeSocket(context.applicationContext)
-            socketManager = SocketManager(context.applicationContext)
+        // Use applicationContext for safety
+        val safeContext = context.applicationContext
+        return socketManager ?: synchronized(this) {
+             socketManager ?: run {
+                initializeSocket(safeContext)
+                SocketManager(safeContext).also { socketManager = it }
+            }
         }
-        return socketManager!!
     }
 
     fun getSocket(): Socket? = socket
     fun connectSocket() = socket?.takeIf { !it.connected() }?.connect()
     fun disconnectSocket() = socket?.disconnect()
+
     fun close() {
         disconnectSocket()
+        socketManager?.close() // Clean up listeners
         socket = null
         socketManager = null
         retrofit = null

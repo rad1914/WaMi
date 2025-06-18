@@ -15,17 +15,16 @@ class SocketManager(private val context: Context) {
 
     private val gson = Gson()
     private val serverConfigStorage = ServerConfigStorage(context)
+    private val socket = ApiClient.getSocket()
+
     private val _incomingMessages = MutableSharedFlow<Message>()
     val incomingMessages = _incomingMessages.asSharedFlow()
 
     private val _messageStatusUpdates = MutableSharedFlow<MessageStatusUpdate>()
     val messageStatusUpdates = _messageStatusUpdates.asSharedFlow()
-    
-    // ++ Applied suggestion: Added a flow for broadcasting reaction updates to the UI.
+
     private val _reactionUpdates = MutableSharedFlow<ReactionUpdate>()
     val reactionUpdates = _reactionUpdates.asSharedFlow()
-
-    private val socket = ApiClient.getSocket() ?: ApiClient.initializeSocket(context).let { ApiClient.getSocket() }
 
     init {
         socket?.apply {
@@ -36,18 +35,15 @@ class SocketManager(private val context: Context) {
                     gson.fromJson<List<MessageHistoryItem>>(args[0].toString(), type)
                         .firstOrNull()?.let { msgDto ->
                             _incomingMessages.tryEmit(mapToMessage(msgDto))
-
-                            if (msgDto.isOutgoing > 0) {
-                                return@let
+                            if (msgDto.isOutgoing <= 0) {
+                                NotificationUtils.showNotification(
+                                    context = context,
+                                    jid = msgDto.jid,
+                                    contactName = msgDto.name ?: msgDto.jid,
+                                    message = msgDto.text ?: "New media received",
+                                    messageId = msgDto.id
+                                )
                             }
-
-                            NotificationUtils.showNotification(
-                                context = context,
-                                jid = msgDto.jid,
-                                contactName = msgDto.name ?: msgDto.jid,
-                                message = msgDto.text ?: "New media received",
-                                messageId = msgDto.id
-                            )
                         }
                 } catch (e: Exception) {
                     Log.e("SocketManager", "Error processing 'whatsapp-message'", e)
@@ -58,15 +54,12 @@ class SocketManager(private val context: Context) {
                 Log.d("SocketManager", "Status update: ${args[0]}")
                 try {
                     val updateDto = gson.fromJson(args[0].toString(), MessageStatusUpdateDto::class.java)
-                    _messageStatusUpdates.tryEmit(
-                        MessageStatusUpdate(updateDto.id, updateDto.status)
-                    )
+                    _messageStatusUpdates.tryEmit(MessageStatusUpdate(updateDto.id, updateDto.status))
                 } catch (e: Exception) {
                     Log.e("SocketManager", "Error processing 'whatsapp-message-status-update'", e)
                 }
             }
-            
-            // ++ Applied suggestion: Added a listener for real-time reaction events.
+
             on("whatsapp-reaction-update") { args ->
                 Log.d("SocketManager", "Reaction update: ${args[0]}")
                 try {
@@ -83,10 +76,9 @@ class SocketManager(private val context: Context) {
         }
     }
 
-    fun connect() { if (socket?.connected() == false) ApiClient.connectSocket() }
-    fun disconnect() { ApiClient.disconnectSocket() }
+    fun connect() = ApiClient.connectSocket()
+    fun disconnect() = ApiClient.disconnectSocket()
 
-    // ++ Applied suggestion: The mapper now correctly handles the new reactions field.
     private fun mapToMessage(dto: MessageHistoryItem): Message {
         val baseUrl = serverConfigStorage.getCurrentServer().removeSuffix("/")
         return Message(
@@ -100,6 +92,7 @@ class SocketManager(private val context: Context) {
             name = dto.name,
             senderName = dto.name,
             mediaUrl = dto.mediaUrl?.let { url -> "$baseUrl$url" },
+            localMediaPath = null,
             mimetype = dto.mimetype,
             quotedMessageId = dto.quotedMessageId,
             quotedMessageText = dto.quotedMessageText,
@@ -108,7 +101,5 @@ class SocketManager(private val context: Context) {
     }
 
     data class MessageStatusUpdate(val id: String, val status: String)
-    
-    // ++ Applied suggestion: Data class for deserializing reaction update events.
     data class ReactionUpdate(val id: String, val jid: String, val reactions: Map<String, Int>)
 }

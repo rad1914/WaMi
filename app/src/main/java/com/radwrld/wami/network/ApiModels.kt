@@ -35,8 +35,7 @@ data class Conversation(
     @SerializedName("last_message_timestamp") val lastMessageTimestamp: Long?,
     @SerializedName("unreadCount") val unreadCount: Int?
 ) {
-    val isGroup: Boolean
-        get() = isGroupInt == 1
+    val isGroup: Boolean = isGroupInt == 1
 }
 
 data class SessionResponse(val sessionId: String)
