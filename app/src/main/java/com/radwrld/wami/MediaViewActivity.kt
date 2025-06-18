@@ -62,13 +62,26 @@ class MediaViewActivity : AppCompatActivity() {
         Glide.with(this)
             .load(url)
             .listener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                // Corrected onLoadFailed signature
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable>,
+                    isFirstResource: Boolean
+                ): Boolean {
                     binding.progressBarMedia.visibility = View.GONE
                     Toast.makeText(this@MediaViewActivity, "Failed to load image", Toast.LENGTH_SHORT).show()
                     return false
                 }
 
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                // Corrected onResourceReady signature
+                override fun onResourceReady(
+                    resource: Drawable,
+                    model: Any,
+                    target: Target<Drawable>,
+                    dataSource: DataSource,
+                    isFirstResource: Boolean
+                ): Boolean {
                     binding.progressBarMedia.visibility = View.GONE
                     return false
                 }
