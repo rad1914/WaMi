@@ -4,11 +4,15 @@ package com.radwrld.wami.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import com.radwrld.wami.model.Contact
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.network.Conversation
+import com.radwrld.wami.network.MessageHistoryItem
 import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.network.SendMessageRequest
+import com.radwrld.wami.network.SendResponse
 import com.radwrld.wami.storage.MessageStorage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -20,9 +24,11 @@ import java.net.URLEncoder
 class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
     private val storage = MessageStorage(context)
+    private val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
+
+    fun getBaseUrl(): String = serverUrl
 
     suspend fun getConversations() = runCatching {
-        val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
         api.getConversations().map { conversation ->
             val isGroup = conversation.jid.endsWith("@g.us")
             Contact(
@@ -32,16 +38,15 @@ class WhatsAppRepository(private val context: Context) {
                 lastMessage = conversation.lastMessage,
                 lastMessageTimestamp = conversation.lastMessageTimestamp,
                 unreadCount = conversation.unreadCount ?: 0,
-                avatarUrl = "$serverUrl/avatar/${conversation.jid}",
+                avatarUrl = "$serverUrl/avatar/${URLEncoder.encode(conversation.jid, "UTF-8")}",
                 isGroup = isGroup
             )
         }
     }.onFailure { Log.e("Repo", "getConversations", it) }
 
     suspend fun getMessageHistory(jid: String) = runCatching {
-        val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
-        val encoded = URLEncoder.encode(jid, "UTF-8")
-        val msgs = api.getHistory(encoded, limit = 1000).map {
+        val encodedJid = URLEncoder.encode(jid, "UTF-8")
+        val msgs = api.getHistory(encodedJid, limit = 1000).map {
             Message(
                 id                = it.id,
                 jid               = it.jid,
@@ -68,27 +73,30 @@ class WhatsAppRepository(private val context: Context) {
         }
     }.onFailure { Log.e("Repo", "sendTextMessage", it) }
 
-    suspend fun sendMediaMessage(jid: String, uri: Uri, caption: String?) = runCatching {
-        val file = createTempFileFromUri(uri)
-        val mime = context.contentResolver.getType(uri)
+    // ++ FIX: The function now accepts a File object directly, which is more efficient.
+    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
+        // No longer need to create a temporary file, as the ViewModel provides the cached file.
+        val mime = context.contentResolver.getType(file.toUri())
         val body = file.asRequestBody(mime?.toMediaTypeOrNull())
         val part = MultipartBody.Part.createFormData("file", file.name, body)
+        
         api.sendMedia(
-            jid.toRequestBody("text/plain".toMediaTypeOrNull()),
-            caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
-            part
+            jid = jid.toRequestBody("text/plain".toMediaTypeOrNull()),
+            caption = caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
+            tempId = tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
+            file = part
         ).also {
-            file.delete()
+            // We no longer delete the file, as it's part of the permanent cache.
             if (!it.success) throw Exception(it.error ?: "Unknown error")
         }
     }.onFailure { Log.e("Repo", "sendMediaMessage", it) }
 
-    // ++ Applied suggestion: sendReaction is now part of the repository for consistency.
     suspend fun sendReaction(jid: String, messageId: String, fromMe: Boolean, emoji: String) = runCatching {
         val request = SendReactionRequest(jid, messageId, fromMe, emoji)
         api.sendReaction(request)
     }
 
+    // This helper is no longer needed by sendMediaMessage but may be useful elsewhere.
     private fun createTempFileFromUri(uri: Uri): File {
         val inStream = context.contentResolver.openInputStream(uri)
             ?: error("Can't open URI: $uri")

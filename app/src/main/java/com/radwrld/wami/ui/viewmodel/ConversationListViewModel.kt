@@ -10,6 +10,7 @@ import com.radwrld.wami.network.SocketManager
 import com.radwrld.wami.repository.WhatsAppRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 data class ConversationListState(
     val conversations: List<Contact> = emptyList(),
@@ -26,16 +27,10 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     val state = _state.asStateFlow()
 
     init {
-        // Load initial data and start listening for real-time updates.
         load()
         listenForIncomingMessages()
     }
 
-    /**
-     * Fetches the full list of conversations from the repository.
-     * This is used for the initial load and for refreshing the list
-     * when a new conversation is detected.
-     */
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -44,7 +39,6 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            // Ensure the list is always sorted by the latest message.
                             conversations = conversations.sortedByDescending { c -> c.lastMessageTimestamp }
                         )
                     }
@@ -54,51 +48,45 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                 }
         }
     }
-    
-    /**
-     * Listens to the SocketManager for incoming messages and updates the UI state accordingly.
-     */
+
     private fun listenForIncomingMessages() {
-        viewModelScope.launch {
-            socketManager.incomingMessages.collect { message ->
-                // Check if a conversation for this message's JID already exists in our current state.
-                val conversationIndex = _state.value.conversations.indexOfFirst { it.id == message.jid }
+        socketManager.incomingMessages.onEach { message ->
+            val conversationIndex = _state.value.conversations.indexOfFirst { it.id == message.jid }
+
+            _state.update { currentState ->
+                val currentConversations = currentState.conversations.toMutableList()
+                val updatedConversation: Contact
 
                 if (conversationIndex != -1) {
                     // --- Conversation Exists: Perform an efficient in-memory update ---
-                    _state.update { currentState ->
-                        val conversations = currentState.conversations.toMutableList()
-                        // Remove the old instance of the conversation.
-                        val existingConversation = conversations.removeAt(conversationIndex)
-
-                        // Create the updated conversation with new details.
-                        val updatedConversation = existingConversation.copy(
-                            lastMessage = message.text ?: "Media",
-                            lastMessageTimestamp = message.timestamp,
-                            // Increment unread count only for incoming messages.
-                            unreadCount = if (!message.isOutgoing) existingConversation.unreadCount + 1 else existingConversation.unreadCount
-                        )
-
-                        // Add the updated conversation to the top of the list and update the state.
-                        currentState.copy(
-                            conversations = listOf(updatedConversation) + conversations
-                        )
-                    }
+                    val existing = currentConversations.removeAt(conversationIndex)
+                    updatedConversation = existing.copy(
+                        lastMessage = message.text ?: "Media",
+                        lastMessageTimestamp = message.timestamp,
+                        unreadCount = if (!message.isOutgoing) existing.unreadCount + 1 else existing.unreadCount
+                    )
                 } else {
-                    // --- New Conversation: Trigger a full reload ---
-                    // If this is a message from a brand new chat, the most reliable
-                    // way to get all its details (name, avatar, etc.) is to
-                    // reload the entire conversation list from the server.
-                    load()
+                    // ++ IMPROVEMENT: New conversation is created in-memory instead of triggering a full network reload.
+                    // This is vastly more efficient and provides an instant UI update.
+                    val isGroup = message.jid.endsWith("@g.us")
+                    updatedConversation = Contact(
+                        id = message.jid,
+                        name = message.senderName ?: message.jid.split('@').firstOrNull() ?: "Unknown",
+                        phoneNumber = if (!isGroup) message.jid.split('@').firstOrNull() else null,
+                        lastMessage = message.text ?: "Media",
+                        lastMessageTimestamp = message.timestamp,
+                        unreadCount = 1,
+                        // Use the new repository method to build the avatar URL safely.
+                        avatarUrl = "${repository.getBaseUrl()}/avatar/${URLEncoder.encode(message.jid, "UTF-8")}",
+                        isGroup = isGroup
+                    )
                 }
+                // Prepend the new or updated conversation to the top and update the state.
+                currentState.copy(conversations = listOf(updatedConversation) + currentConversations)
             }
-        }
+        }.launchIn(viewModelScope)
     }
-    
-    /**
-     * Hides a conversation locally from the list.
-     * A full implementation might also call an API to archive the chat.
-     */
+
     fun hide(jid: String) {
         _state.update { currentState ->
             currentState.copy(

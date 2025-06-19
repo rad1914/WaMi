@@ -4,7 +4,6 @@ package com.radwrld.wami
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -16,6 +15,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,10 +27,6 @@ import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -72,7 +68,10 @@ class ChatActivity : AppCompatActivity() {
 
         filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.also { uri -> viewModel.sendMediaMessage(uri) }
+                result.data?.data?.also { uri ->
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    viewModel.sendMediaMessage(uri)
+                }
             }
         }
 
@@ -93,11 +92,20 @@ class ChatActivity : AppCompatActivity() {
         
         adapter = ChatAdapter(isGroup)
         adapter.onMediaClickListener = { message ->
-            if (message.mediaUrl != null && message.mimetype != null) {
-                // TODO: Create a MediaViewActivity
-                Toast.makeText(this, "Open media viewer for ${message.mediaUrl}", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Media is not available.", Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                binding.progressBar.visibility = View.VISIBLE
+                val mediaFile = viewModel.getMediaFile(message)
+                binding.progressBar.visibility = View.GONE
+
+                if (mediaFile != null) {
+                    val intent = Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
+                        setDataAndType(mediaFile.toUri(), message.mimetype)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(intent)
+                } else {
+                    Toast.makeText(this@ChatActivity, "Media could not be loaded.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -107,13 +115,11 @@ class ChatActivity : AppCompatActivity() {
         binding.rvMessages.adapter = adapter
         binding.rvMessages.itemAnimator = null
         
-        // ++ Applied suggestion: Critical bug fix. The "click outside" listener is now handled
-        //    safely by the Activity, not by every ViewHolder.
         binding.rvMessages.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 adapter.collapseExpandedViewHolder()
             }
-            false // Do not consume the event
+            false
         }
 
 
@@ -135,30 +141,32 @@ class ChatActivity : AppCompatActivity() {
         }
 
         binding.btnAttach.setOnClickListener {
-            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                type = "image/* video/*" // Be more specific about media types
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = "image/*"
                 putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                 addCategory(Intent.CATEGORY_OPENABLE)
             }
-            filePickerLauncher.launch(Intent.createChooser(intent, "Select Media"))
+            filePickerLauncher.launch(intent)
         }
     }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // ++ Applied suggestion: Observing a single state flow is cleaner.
-                viewModel.uiState
-                    .onEach { state ->
+                // Collector for UI state
+                launch {
+                    viewModel.uiState.collect { state ->
                         binding.progressBar.visibility = if(state.isLoading) View.VISIBLE else View.GONE
                         processAndSubmitMessages(state.visibleMessages)
-
-                        state.error?.let {
-                            Toast.makeText(this@ChatActivity, it, Toast.LENGTH_SHORT).show()
-                            // TODO: Add logic to reset the error in ViewModel
-                        }
                     }
-                    .launchIn(this)
+                }
+
+                // Collector for one-off error events
+                launch {
+                    viewModel.errorEvents.collect { error ->
+                        Toast.makeText(this@ChatActivity, error, Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }
@@ -179,6 +187,8 @@ class ChatActivity : AppCompatActivity() {
 
     private fun createListWithDividers(messages: List<Message>): List<ChatListItem> {
         val items = mutableListOf<ChatListItem>()
+        items.add(ChatListItem.WarningItem)
+
         if (messages.isEmpty()) return items
 
         var lastTimestamp: Long = 0
@@ -196,7 +206,6 @@ class ChatActivity : AppCompatActivity() {
     private fun shouldShowDivider(prevTs: Long, currentTs: Long): Boolean {
         if (prevTs == 0L) return true
         if (isDifferentDay(prevTs, currentTs)) return true
-        // Show divider if more than 30 minutes have passed
         return (currentTs - prevTs) > TimeUnit.MINUTES.toMillis(30)
     }
 

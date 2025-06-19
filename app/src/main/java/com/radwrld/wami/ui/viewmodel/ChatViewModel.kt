@@ -8,8 +8,12 @@ import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.storage.MessageStorage
+import com.radwrld.wami.util.MediaCache
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.*
 
 class ChatViewModel(
@@ -25,41 +29,58 @@ class ChatViewModel(
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
+    private val _errorEvents = MutableSharedFlow<String>()
+    val errorEvents = _errorEvents.asSharedFlow()
+
     init {
         loadAndSyncHistory()
         observeSocketEvents()
     }
-    
-    // Helper function to filter messages that should be visible
+
     private fun getVisibleMessages(messages: List<Message>): List<Message> {
         return messages.filter { message ->
             !message.text.isNullOrBlank() ||
             !message.mediaUrl.isNullOrBlank() ||
+            !message.localMediaPath.isNullOrBlank() ||
             !message.quotedMessageText.isNullOrBlank()
         }
+    }
+    
+    private fun Map<String, Message>.toSortedList(): List<Message> {
+        return this.values.sortedBy { it.timestamp }
     }
 
     private fun loadAndSyncHistory() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val localMessages = messageStorage.getMessages(jid)
-            _uiState.update { it.copy(messages = localMessages, visibleMessages = getVisibleMessages(localMessages)) }
+            val localMessageMap = localMessages.associateBy { it.id }
+            val initialList = localMessageMap.toSortedList()
+            _uiState.update {
+                it.copy(
+                    messages = localMessageMap,
+                    visibleMessages = getVisibleMessages(initialList)
+                )
+            }
 
             repo.getMessageHistory(jid)
                 .onSuccess { serverMessages ->
-                    val combined = (serverMessages + localMessages).distinctBy { it.id }.sortedBy { it.timestamp }
-                    messageStorage.saveMessages(jid, combined)
+                    val combinedList = withContext(Dispatchers.Default) {
+                        // Combine server and local, ensuring no duplicates, and sort
+                        (serverMessages.associateBy { it.id } + localMessageMap).toSortedList()
+                    }
+                    messageStorage.saveMessages(jid, combinedList)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            messages = combined,
-                            visibleMessages = getVisibleMessages(combined),
-                            error = null
+                            messages = combinedList.associateBy { m -> m.id },
+                            visibleMessages = getVisibleMessages(combinedList)
                         )
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false, error = error.message) }
+                    _uiState.update { it.copy(isLoading = false) }
+                    _errorEvents.emit(error.message ?: "Failed to load history")
                 }
         }
     }
@@ -68,23 +89,18 @@ class ChatViewModel(
         socketManager.incomingMessages
             .filter { message -> message.jid == jid }
             .onEach { message ->
-                val currentMessages = _uiState.value.messages
-                if (currentMessages.none { msg -> msg.id == message.id }) {
-                    val updatedMessages = (currentMessages + message).sortedBy { it.timestamp }
-                    messageStorage.addMessage(jid, message)
-                    _uiState.update {
-                        it.copy(
-                            messages = updatedMessages,
-                            visibleMessages = getVisibleMessages(updatedMessages)
-                        )
-                    }
-                }
+                messageStorage.addMessage(jid, message)
+                addOrUpdateMessage(message)
             }
             .launchIn(viewModelScope)
 
         socketManager.messageStatusUpdates
             .onEach { update ->
-                updateMessageStatus(update.id, update.status)
+                val finalId = update.id
+                // Assuming status updates might refer to a tempId, which we don't have here.
+                // This logic might need adjustment based on how socket updates work with temp IDs.
+                updateMessage(finalId) { it.copy(status = update.status) }
+                messageStorage.updateMessageStatus(jid, finalId, update.status)
             }
             .launchIn(viewModelScope)
     }
@@ -99,11 +115,11 @@ class ChatViewModel(
             name = contactName,
             text = text,
             isOutgoing = true,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            status = "sending"
         )
 
-        val updatedMessages = (_uiState.value.messages + message).sortedBy { it.timestamp }
-        _uiState.update { it.copy(messages = updatedMessages, visibleMessages = getVisibleMessages(updatedMessages)) }
+        addOrUpdateMessage(message)
         messageStorage.addMessage(jid, message)
 
         viewModelScope.launch {
@@ -111,63 +127,106 @@ class ChatViewModel(
                 .onSuccess { response ->
                     val finalId = response.messageId ?: tempId
                     messageStorage.updateMessage(jid, tempId, finalId, "sent")
-                    updateMessageStatus(tempId, "sent", newId = finalId)
+                    updateMessage(tempId) { it.copy(id = finalId, status = "sent") }
                 }
                 .onFailure { error ->
                     messageStorage.updateMessageStatus(jid, tempId, "failed")
-                    updateMessageStatus(tempId, "failed")
-                    _uiState.update { it.copy(error = "Failed to send: ${error.message}") }
+                    updateMessage(tempId) { it.copy(status = "failed") }
+                    _errorEvents.emit("Failed to send: ${error.message}")
                 }
         }
     }
 
     fun sendMediaMessage(uri: Uri) {
+        val tempId = UUID.randomUUID().toString()
+        val mimeType = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
+
+        val tempMessage = Message(
+            id = tempId,
+            jid = jid,
+            text = null,
+            isOutgoing = true,
+            status = "sending",
+            timestamp = System.currentTimeMillis(),
+            localMediaPath = uri.toString(),
+            mimetype = mimeType
+        )
+        addOrUpdateMessage(tempMessage)
+        messageStorage.addMessage(jid, tempMessage)
+
         viewModelScope.launch {
-            // This is optimistic. A better implementation would create a temporary local message.
-            _uiState.update { it.copy(isLoading = true) }
-            repo.sendMediaMessage(jid, uri, null)
-                .onSuccess { loadAndSyncHistory() } // Reload history to get the new message
+            val cacheResult = MediaCache.saveToCache(getApplication(), uri)
+
+            if (cacheResult == null) {
+                updateMessage(tempId) { it.copy(status = "failed") }
+                messageStorage.updateMessageStatus(jid, tempId, "failed")
+                _errorEvents.emit("Failed to cache media file.")
+                return@launch
+            }
+
+            val (cachedFile, sha256) = cacheResult
+            updateMessage(tempId) { it.copy(localMediaPath = cachedFile.absolutePath, mediaSha256 = sha256) }
+
+            repo.sendMediaMessage(jid, tempId, cachedFile, null)
+                .onSuccess { response ->
+                    val finalId = response.messageId ?: tempId
+                    updateMessage(tempId) { it.copy(id = finalId, status = "sent") }
+                    messageStorage.updateMessage(jid, tempId, finalId, "sent")
+                }
                 .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false, error = "Failed to send media: ${error.message}") }
+                    updateMessage(tempId) { it.copy(status = "failed") }
+                    messageStorage.updateMessageStatus(jid, tempId, "failed")
+                    _errorEvents.emit("Upload failed: ${error.message}")
                 }
         }
     }
-    
+
+    suspend fun getMediaFile(message: Message): File? = withContext(Dispatchers.IO) {
+        val context = getApplication<Application>()
+        message.localMediaPath?.let { path ->
+            val file = File(path)
+            if (file.exists()) return@withContext file
+        }
+
+        val hash = message.mediaSha256
+        val url = message.mediaUrl
+        if (hash != null && url != null) {
+            val extension = MediaCache.getFileExtensionFromMimeType(message.mimetype)
+            return@withContext MediaCache.downloadAndCache(context, url, hash, extension)
+        }
+        return@withContext null
+    }
+
     fun sendReaction(message: Message, emoji: String) {
         viewModelScope.launch {
             repo.sendReaction(jid = message.jid, messageId = message.id, fromMe = message.isOutgoing, emoji = emoji)
                 .onFailure {
-                     _uiState.update { state -> state.copy(error = "Reaction failed") }
+                     viewModelScope.launch { _errorEvents.emit("Reaction failed") }
                 }
         }
     }
 
-    private fun updateMessageStatus(messageId: String, newStatus: String, newId: String? = null) {
-        val currentMessages = _uiState.value.messages.toMutableList()
-        val messageIndex = currentMessages.indexOfFirst { it.id == messageId }
-
-        if (messageIndex != -1) {
-            val originalMessage = currentMessages[messageIndex]
-            val updatedMessage = originalMessage.copy(
-                status = newStatus,
-                id = newId ?: originalMessage.id
-            )
-            currentMessages[messageIndex] = updatedMessage
-            _uiState.update {
-                it.copy(
-                    messages = currentMessages,
-                    visibleMessages = getVisibleMessages(currentMessages)
-                )
-            }
+    private fun addOrUpdateMessage(message: Message) {
+        _uiState.update { state ->
+            val newMap = state.messages + (message.id to message)
+            state.copy(messages = newMap, visibleMessages = getVisibleMessages(newMap.toSortedList()))
         }
     }
 
-    // ++ Applied suggestion: The state now holds both the full message list and the visible (filtered) list.
+    private fun updateMessage(messageId: String, transformation: (Message) -> Message) {
+        _uiState.update { state ->
+            state.messages[messageId]?.let { originalMessage ->
+                val transformed = transformation(originalMessage)
+                val newMap = state.messages - messageId + (transformed.id to transformed)
+                state.copy(messages = newMap, visibleMessages = getVisibleMessages(newMap.toSortedList()))
+            } ?: state // If message not found, return original state
+        }
+    }
+
     data class UiState(
         val isLoading: Boolean = false,
-        val messages: List<Message> = emptyList(),
+        val messages: Map<String, Message> = emptyMap(),
         val visibleMessages: List<Message> = emptyList(),
-        val error: String? = null
     )
 }
 

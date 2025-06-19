@@ -29,7 +29,9 @@ data class Message(
     val mimetype: String? = null,
     val quotedMessageId: String? = null,
     val quotedMessageText: String? = null,
-    val reactions: Map<String, Int> = emptyMap()
+    val reactions: Map<String, Int> = emptyMap(),
+    // ++ FIX: Added the missing field to the app's internal model. This resolves the errors.
+    val mediaSha256: String? = null
 ) {
     // Helper functions for use in XML data binding
     fun hasMedia(): Boolean = mediaUrl != null || localMediaPath != null

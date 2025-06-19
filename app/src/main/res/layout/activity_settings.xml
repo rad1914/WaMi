@@ -46,6 +46,7 @@
                 android:textColor="?attr/colorPrimary"/>
 
             <LinearLayout
+                android:id="@+id/themeSettingRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="?android:attr/listPreferredItemHeight"
@@ -61,15 +62,18 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Dark Mode"
+                    android:text="App Theme"
                     android:textAppearance="?attr/textAppearanceBodyLarge" />
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/darkModeSwitch"
+                <TextView
+                    android:id="@+id/theme_value_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.Wami.Switch" />
-            </LinearLayout>
+                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="System Default" />
+
+                </LinearLayout>
 
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"

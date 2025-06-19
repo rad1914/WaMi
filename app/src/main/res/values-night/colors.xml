@@ -1,34 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values-night/colors.xml -->
 <resources>
-    <color name="primary">#B4D5B4</color>
-    <color name="onPrimary">#1E3624</color>
-    <color name="primaryContainer">#354D39</color>
-    <color name="onPrimaryContainer">#D0F1CF</color>
-    <color name="secondary">#B8CCB5</color>
-    <color name="onSecondary">#243424</color>
-    <color name="secondaryContainer">#3A4B3A</color>
-    <color name="onSecondaryContainer">#D4E8D1</color>
-    <color name="tertiary">#A2CFD9</color>
-    <color name="onTertiary">#02363F</color>
-    <color name="tertiaryContainer">#204D56</color>
-    <color name="onTertiaryContainer">#BEEBF5</color>
+    <color name="primary">#7DDA98</color>
+    <color name="onPrimary">#00391B</color>
+    <color name="primaryContainer">#005229</color>
+    <color name="onPrimaryContainer">#99F7B2</color>
+
+    <color name="secondary">#B7CCB7</color>
+    <color name="onSecondary">#233426</color>
+    <color name="secondaryContainer">#394B3C</color>
+    <color name="onSecondaryContainer">#D3E8D3</color>
+
+    <color name="tertiary">#A2CED9</color>
+    <color name="onTertiary">#023640</color>
+    <color name="tertiaryContainer">#204D57</color>
+    <color name="onTertiaryContainer">#BEEAF6</color>
+
     <color name="error">#FFB4AB</color>
     <color name="onError">#690005</color>
     <color name="errorContainer">#93000A</color>
     <color name="onErrorContainer">#FFDAD6</color>
-    <color name="background">#1A1C19</color>
-    <color name="onBackground">#E2E3DD</color>
-    <color name="surface">#1A1C19</color>
-    <color name="onSurface">#E2E3DD</color>
-    <color name="surfaceVariant">#424940</color>
+
+    <color name="background">#1A1C1A</color>
+    <color name="onBackground">#E2E3DE</color>
+    <color name="surface">#1A1C1A</color>
+    <color name="onSurface">#E2E3DE</color>
+
+    <color name="surfaceVariant">#424941</color>
     <color name="onSurfaceVariant">#C2C9BE</color>
     <color name="outline">#8C9389</color>
 
-    <color name="divider">@color/outline</color>
-    <color name="online_indicator">@color/primary</color>
+    <color name="divider">#424242</color>
+    <color name="online_indicator">#66BB6A</color>
 
-    <color name="bg_header">@color/primaryContainer</color>
+    <color name="bg_header">@color/surface</color>
     <color name="text_primary">@color/onSurface</color>
     <color name="text_secondary">@color/onSurfaceVariant</color>
-</resources>
+
+    <color name="code_text">#FFB599</color>
+    <color name="code_background_color">#2C2C2C</color>
+    <color name="spoiler_revealed_background_color">#26E2E3DE</color> </resources>

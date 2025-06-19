@@ -1,30 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values/colors.xml -->
 <resources>
-    <color name="primary">#4CAF50</color>
+    <color name="primary">#006D39</color>
     <color name="onPrimary">#FFFFFF</color>
-    <color name="primaryContainer">#D0F1CF</color>
-    <color name="onPrimaryContainer">#0C2010</color>
-    <color name="secondary">#516350</color>
+    <color name="primaryContainer">#99F7B2</color>
+    <color name="onPrimaryContainer">#00210D</color>
+
+    <color name="secondary">#506352</color>
     <color name="onSecondary">#FFFFFF</color>
-    <color name="secondaryContainer">#D4E8D1</color>
-    <color name="onSecondaryContainer">#0F1F10</color>
-    <color name="tertiary">#3A656E</color>
+    <color name="secondaryContainer">#D3E8D3</color>
+    <color name="onSecondaryContainer">#0D1F12</color>
+
+    <color name="tertiary">#3A656F</color>
     <color name="onTertiary">#FFFFFF</color>
-    <color name="tertiaryContainer">#BEEBF5</color>
-    <color name="onTertiaryContainer">#001F25</color>
+    <color name="tertiaryContainer">#BEEAF6</color>
+    <color name="onTertiaryContainer">#001F26</color>
+
     <color name="error">#BA1A1A</color>
     <color name="onError">#FFFFFF</color>
     <color name="errorContainer">#FFDAD6</color>
     <color name="onErrorContainer">#410002</color>
-    <color name="background">#FCFDF7</color>
-    <color name="onBackground">#1A1C19</color>
-    <color name="surface">#FCFDF7</color>
-    <color name="onSurface">#1A1C19</color>
-    <color name="surfaceVariant">#DEE5D9</color>
-    <color name="onSurfaceVariant">#424940</color>
-    <color name="outline">#727970</color>
-    <color name="code_background">#1A808080</color> <color name="code_text">#D81B60</color> <color name="quote_stripe">?attr/colorPrimary</color> 
-    <color name="spoiler_background_hidden">#8A8A8A</color> <color name="spoiler_background_revealed">#00000000</color>
 
-</resources>
+    <color name="background">#FCFDF7</color>
+    <color name="onBackground">#1A1C1A</color>
+    <color name="surface">#FCFDF7</color>
+    <color name="onSurface">#1A1C1A</color>
+
+    <color name="surfaceVariant">#DEE5D9</color>
+    <color name="onSurfaceVariant">#424941</color>
+    <color name="outline">#727970</color>
+
+    <color name="divider">#E0E0E0</color>
+    <color name="online_indicator">#4CAF50</color>
+
+    <color name="bg_header">@color/surface</color>
+    <color name="text_primary">@color/onSurface</color>
+    <color name="text_secondary">@color/onSurfaceVariant</color>
+    
+    <color name="code_text">#B53D00</color>
+    <color name="code_background_color">#F5F5F5</color>
+    <color name="spoiler_revealed_background_color">#261A1C1A</color> </resources>

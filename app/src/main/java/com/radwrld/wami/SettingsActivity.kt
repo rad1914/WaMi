@@ -27,8 +27,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var serverConfig: ServerConfigStorage
 
     companion object {
-        const val PREFS_NAME = "settings_prefs"
-        const val DARK_MODE_KEY = "dark_mode"
+        const val PREFS_NAME = "WamiPrefs"
+        const val THEME_KEY = "theme_preference"
         const val CUSTOM_IP_KEY = "custom_ip"
         const val ENABLE_CUSTOM_IP_KEY = "enable_custom_ip"
         const val OFFLINE_MODE_KEY = "offline_mode"
@@ -50,13 +50,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun initUI() {
-        binding.darkModeSwitch.isChecked = prefs.getBoolean(DARK_MODE_KEY, true)
-        binding.darkModeSwitch.setOnCheckedChangeListener { _, checked ->
-            prefs.edit().putBoolean(DARK_MODE_KEY, checked).apply()
-            AppCompatDelegate.setDefaultNightMode(
-                if (checked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            )
-        }
+        setupThemeSelector()
 
         binding.enableCustomIpSwitch.isChecked = prefs.getBoolean(ENABLE_CUSTOM_IP_KEY, false)
         binding.setCustomIpText.visibility = if (binding.enableCustomIpSwitch.isChecked) View.VISIBLE else View.GONE
@@ -77,6 +71,42 @@ class SettingsActivity : AppCompatActivity() {
         binding.exportSessionText.setOnClickListener { exportLauncher.launch("wami-session.zip") }
     }
 
+    private fun setupThemeSelector() {
+        updateThemeValueText()
+        binding.themeSettingRow.setOnClickListener {
+            val themes = arrayOf("Light", "Dark", "System Default")
+            val themeValues = arrayOf("light", "dark", "system")
+            val currentThemeValue = prefs.getString(THEME_KEY, "system")
+            val checkedItem = themeValues.indexOf(currentThemeValue).coerceAtLeast(0)
+
+            AlertDialog.Builder(this)
+                .setTitle("Choose Theme")
+                .setSingleChoiceItems(themes, checkedItem) { dialog, which ->
+                    val selectedTheme = themeValues[which]
+                    prefs.edit().putString(THEME_KEY, selectedTheme).apply()
+                    updateThemeValueText()
+
+                    val nightMode = when (selectedTheme) {
+                        "light" -> AppCompatDelegate.MODE_NIGHT_NO
+                        "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                        else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                    }
+                    AppCompatDelegate.setDefaultNightMode(nightMode)
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
+    private fun updateThemeValueText() {
+        binding.themeValueText.text = when (prefs.getString(THEME_KEY, "system")) {
+            "light" -> "Light"
+            "dark" -> "Dark"
+            else -> "System Default"
+        }
+    }
+
     private fun showCustomIpDialog() {
         val input = EditText(this).apply {
             setText(prefs.getString(CUSTOM_IP_KEY, ""))
@@ -90,7 +120,7 @@ class SettingsActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
-
+    
     private fun exportSessionToUri(uri: Uri) {
         lifecycleScope.launch {
             try {

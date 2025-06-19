@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -10,6 +11,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -32,24 +34,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // ++ IMPROVEMENT: This enables the app to draw behind the system bars for an edge-to-edge UI.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         serverConfigStorage = ServerConfigStorage(this)
-        
-        setupClickListeners()
+
+        setupEventListeners()
         setupRecyclerView()
         observeViewModel()
     }
 
     override fun onResume() {
         super.onResume()
-        // ++ Applied suggestion: Restore the call to load data. This ensures that
-        //    conversations are fetched every time the activity becomes active,
-        //    guaranteeing the list is populated and fresh.
-        viewModel.load()
-        
-        ApiClient.connectSocket() 
+        // The ViewModel now handles the initial load. We only connect the socket here.
+        ApiClient.connectSocket()
     }
 
     override fun onPause() {
@@ -57,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         ApiClient.disconnectSocket()
     }
 
-    private fun setupClickListeners() {
+    private fun setupEventListeners() {
         binding.toolbar.setNavigationOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -74,6 +75,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.fabAdd.setOnClickListener {
             showFastContactDialog()
+        }
+
+        // ++ IMPROVEMENT: Replaced inefficient onResume loading with Swipe-to-Refresh.
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            viewModel.load()
         }
     }
 
@@ -106,7 +112,6 @@ class MainActivity : AppCompatActivity() {
         builder.show()
     }
 
-
     private fun setupRecyclerView() {
         conversationAdapter = ConversationAdapter(
             onItemClicked = { contact ->
@@ -128,7 +133,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+                    // Link the ViewModel's loading state to the SwipeRefreshLayout.
+                    binding.swipeRefreshLayout.isRefreshing = state.isLoading
 
                     conversationAdapter.submitList(state.conversations)
 

@@ -1,5 +1,5 @@
-// @path: app/src/main/java/com/radwrld/wami/util/TextFormatter.kt
-package com.radwrld.wami.util
+// @path: app/src/main/java/com/radwrld/wami/ui/TextFormatter.kt
+package com.radwrld.wami.ui // Package name updated as per error log
 
 import android.content.Context
 import android.graphics.Color
@@ -85,8 +85,10 @@ object TextFormatter {
             matches.add(matcher.toMatchResult())
         }
         
-        val codeBackgroundColor = ContextCompat.getColor(context, R.color.code_background)
-        val codeTextColor = ContextCompat.getColor(context, R.color.code_text)
+        // FIXME: Replaced unresolved R.color.code_background. Add this color to your colors.xml.
+        val codeBackgroundColor = Color.parseColor("#F0F0F0") 
+        // FIXME: Replaced unresolved R.color.code_text. Add this color to your colors.xml.
+        val codeTextColor = Color.parseColor("#C83232")
 
         for (match in matches.asReversed()) {
             val fullMatchStart = match.start()
@@ -178,8 +180,10 @@ object TextFormatter {
 
     private class SpoilerSpan(context: Context) : ClickableSpan() {
         private var isRevealed = false
-        private val hiddenColor = ContextCompat.getColor(context, R.color.spoiler_background_hidden)
-        private val revealedColor = ContextCompat.getColor(context, R.color.spoiler_background_revealed)
+        // FIXME: Replaced unresolved R.color.spoiler_background_hidden. Add this color to your colors.xml.
+        private val hiddenColor = Color.DKGRAY
+        // FIXME: Replaced unresolved R.color.spoiler_background_revealed. Add this color to your colors.xml.
+        private val revealedColor = Color.TRANSPARENT
 
         override fun onClick(widget: View) {
             isRevealed = !isRevealed

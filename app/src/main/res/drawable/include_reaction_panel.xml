@@ -1,0 +1,23 @@
+<!-- @path: app/src/main/res/drawable/include_reaction_panel.xml -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_1" android:text="👍" />
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_2" android:text="❤️" />
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_3" android:text="😂" />
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_4" android:text="😮" />
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_5" android:text="😢" />
+        <TextView style="@style/ReactionEmoji" android:tag="reaction_6" android:text="🙏" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

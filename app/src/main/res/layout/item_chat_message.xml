@@ -18,12 +18,35 @@
         android:paddingHorizontal="12dp"
         android:paddingVertical="8dp">
 
+        <LinearLayout
+            android:id="@+id/quoteLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="4dp"/>
+
+        <ImageView
+            android:id="@+id/ivPlay"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_play_arrow"
+            android:visibility="gone"/>
+
         <TextView
             android:id="@+id/tv_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnPrimary" />
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/reactionsLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"/>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -41,15 +64,13 @@
                 android:textColor="?attr/colorOnPrimary"
                 android:textSize="12sp" />
 
-            <TextView
-                android:id="@+id/tv_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <ImageView
+                android:id="@+id/ivStatus"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_marginStart="8dp"
                 android:alpha="0.8"
-                android:textColor="?attr/colorOnPrimary"
-                android:textSize="12sp"
-                android:textStyle="italic" />
+                android:tint="?attr/colorOnPrimary"/>
 
         </LinearLayout>
     </LinearLayout>

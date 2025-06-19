@@ -26,6 +26,7 @@ interface WhatsAppApi {
     suspend fun sendMedia(
         @Part("jid") jid: RequestBody,
         @Part("caption") caption: RequestBody?,
+        @Part("tempId") tempId: RequestBody,
         @Part file: MultipartBody.Part
     ): SendResponse
 

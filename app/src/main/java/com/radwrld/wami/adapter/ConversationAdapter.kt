@@ -10,7 +10,8 @@ import com.bumptech.glide.Glide
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemConversationBinding
 import com.radwrld.wami.model.Contact
-import com.radwrld.wami.util.TextFormatter
+// FIXME: Corrected the import path for TextFormatter from .util to .ui.
+import com.radwrld.wami.ui.TextFormatter
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -48,6 +49,7 @@ class ConversationAdapter(
         fun bind(contact: Contact) = with(binding) {
             tvContactName.text = contact.name
             
+            // This reference is now resolved with the corrected import.
             tvLastMessage.text = if (contact.lastMessage != null) {
                 TextFormatter.format(root.context, contact.lastMessage)
             } else {
@@ -60,7 +62,7 @@ class ConversationAdapter(
             }
             tvTimestamp.text = contact.lastMessageTimestamp?.let(::formatTimestamp).orEmpty()
 
-            // ++ Applied suggestion: Use the contact's isGroup flag to determine the correct placeholder.
+            // Drawable resources ic_group_placeholder and ic_profile_placeholder are available.
             val placeholder = if (contact.isGroup) {
                 R.drawable.ic_group_placeholder
             } else {

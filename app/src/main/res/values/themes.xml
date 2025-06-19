@@ -1,5 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values/themes.xml -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Wami" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/onPrimary</item>
@@ -13,12 +14,10 @@
         <item name="colorOnTertiary">@color/onTertiary</item>
         <item name="colorTertiaryContainer">@color/tertiaryContainer</item>
         <item name="colorOnTertiaryContainer">@color/onTertiaryContainer</item>
-
         <item name="colorError">@color/error</item>
         <item name="colorOnError">@color/onError</item>
         <item name="colorErrorContainer">@color/errorContainer</item>
         <item name="colorOnErrorContainer">@color/onErrorContainer</item>
-
         <item name="android:colorBackground">@color/background</item>
         <item name="colorOnBackground">@color/onBackground</item>
         <item name="colorSurface">@color/surface</item>
@@ -29,5 +28,16 @@
 
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.Wami.HeadlineLarge</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.Wami.HeadlineMedium</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Wami.TitleLarge</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.Wami.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.Wami.BodyMedium</item>
+
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Wami.SmallComponent</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Wami.MediumComponent</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Wami.LargeComponent</item>
     </style>
 </resources>

@@ -108,7 +108,7 @@ object ApiClient {
 
     fun close() {
         disconnectSocket()
-        socketManager?.close() // Clean up listeners
+       // socketManager?.close() // Clean up listeners
         socket = null
         socketManager = null
         retrofit = null

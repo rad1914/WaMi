@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/layout/item_incoming_message.xml -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -14,7 +13,6 @@
         android:id="@+id/reaction_panel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginBottom="4dp"
         android:background="@drawable/bg_reaction_panel"
         android:elevation="3dp"
@@ -23,15 +21,18 @@
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp"
         android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@+id/bubble_layout"
+        app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible" />
 
     <ImageView
         android:id="@+id/iv_sticker"
         android:layout_width="120dp"
         android:layout_height="120dp"
-        android:layout_alignParentStart="true"
         android:contentDescription="@string/sticker"
         android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         tools:src="@drawable/ic_media_placeholder"
         tools:visibility="visible" />
 
@@ -39,12 +40,16 @@
         android:id="@+id/bubble_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/reaction_panel"
-        android:layout_alignParentStart="true"
-        android:background="@android:color/transparent"
         android:orientation="vertical"
-        android:paddingHorizontal="0dp"
-        android:paddingVertical="0dp">
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/reaction_panel"
+        app:layout_constraintHorizontal_bias="0.0"
+        
+        android:background="@drawable/bg_incoming_message"
+        tools:background="@drawable/bg_incoming_message">
 
         <TextView
             android:id="@+id/tv_sender_name"
@@ -57,36 +62,9 @@
             tools:text="John Doe"
             tools:visibility="visible" />
 
-        <LinearLayout
-            android:id="@+id/reply_layout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:background="@drawable/bg_reply_rounded"
-            android:orientation="vertical"
-            android:paddingStart="12dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="8dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <TextView
-                android:id="@+id/tv_reply_sender"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceLabelMedium"
-                android:textColor="?attr/colorPrimary"
-                tools:text="You" />
-
-            <TextView
-                android:id="@+id/tv_reply_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="?attr/colorOnSurface"
-                tools:text="This is the message being replied to." />
-        </LinearLayout>
+        <include
+            android:id="@+id/reply_view"
+            layout="@layout/view_reply_content" />
 
         <include
             android:id="@+id/message_content"
@@ -98,33 +76,25 @@
         android:id="@+id/reaction_group"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/bubble_layout"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginStart="4dp"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="-8dp"
         android:elevation="2dp"
         app:flexWrap="wrap"
         app:justifyContent="flex_start"
+        app:layout_constraintStart_toStartOf="@+id/bubble_layout"
+        app:layout_constraintTop_toBottomOf="@+id/bubble_layout"
         tools:visibility="visible" />
 
-    <LinearLayout
-        android:id="@+id/info_container"
+    <TextView
+        android:id="@+id/tv_timestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/reaction_group"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginStart="4dp"
         android:layout_marginTop="2dp"
-        android:visibility="gone"
-        tools:visibility="visible">
+        android:textAppearance="?attr/textAppearanceLabelSmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        app:layout_constraintStart_toStartOf="@+id/bubble_layout"
+        app:layout_constraintTop_toBottomOf="@+id/reaction_group"
+        tools:text="03:28 PM" />
 
-        <TextView
-            android:id="@+id/tv_timestamp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceLabelSmall"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="03:28 PM" />
-    </LinearLayout>
-
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
