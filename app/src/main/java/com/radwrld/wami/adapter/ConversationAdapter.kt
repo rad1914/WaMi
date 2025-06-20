@@ -10,7 +10,6 @@ import com.bumptech.glide.Glide
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemConversationBinding
 import com.radwrld.wami.model.Contact
-// FIXME: Corrected the import path for TextFormatter from .util to .ui.
 import com.radwrld.wami.ui.TextFormatter
 import java.text.SimpleDateFormat
 import java.util.*
@@ -22,10 +21,9 @@ class ConversationAdapter(
 
     private var conversations = emptyList<Contact>()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-        ConversationViewHolder(
-            ItemConversationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        )
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ConversationViewHolder(
+        ItemConversationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+    )
 
     override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) =
         holder.bind(conversations[position])
@@ -43,32 +41,25 @@ class ConversationAdapter(
         diff.dispatchUpdatesTo(this)
     }
 
-    inner class ConversationViewHolder(private val binding: ItemConversationBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    inner class ConversationViewHolder(private val b: ItemConversationBinding) :
+        RecyclerView.ViewHolder(b.root) {
 
-        fun bind(contact: Contact) = with(binding) {
+        fun bind(contact: Contact) = with(b) {
             tvContactName.text = contact.name
-            
-            // This reference is now resolved with the corrected import.
-            tvLastMessage.text = if (contact.lastMessage != null) {
-                TextFormatter.format(root.context, contact.lastMessage)
-            } else {
-                "Tap to start chatting"
-            }
+            tvLastMessage.text = contact.lastMessage?.let {
+                TextFormatter.format(root.context, it)
+            } ?: "Tap to start chatting"
 
-            tvUnreadCount.apply {
+            tvUnreadCount.run {
                 visibility = if (contact.unreadCount > 0) View.VISIBLE else View.GONE
                 text = contact.unreadCount.toString()
             }
+
             tvTimestamp.text = contact.lastMessageTimestamp?.let(::formatTimestamp).orEmpty()
 
-            // Drawable resources ic_group_placeholder and ic_profile_placeholder are available.
-            val placeholder = if (contact.isGroup) {
-                R.drawable.ic_group_placeholder
-            } else {
-                R.drawable.ic_profile_placeholder
-            }
-            
+            val placeholder = if (contact.isGroup)
+                R.drawable.ic_group_placeholder else R.drawable.ic_profile_placeholder
+
             Glide.with(root.context)
                 .load(contact.avatarUrl)
                 .placeholder(placeholder)
@@ -77,21 +68,18 @@ class ConversationAdapter(
                 .into(ivAvatar)
 
             root.setOnClickListener { onItemClicked(contact) }
-            root.setOnLongClickListener {
-                onItemLongClicked(contact, it)
-                true
-            }
+            root.setOnLongClickListener { onItemLongClicked(contact, it); true }
         }
     }
 
-    private fun formatTimestamp(timestamp: Long): String {
-        val messageDate = Calendar.getInstance().apply { timeInMillis = timestamp }
+    private fun formatTimestamp(ts: Long): String {
+        val msgCal = Calendar.getInstance().apply { timeInMillis = ts }
         val now = Calendar.getInstance()
         return when {
-            now.get(Calendar.DATE) == messageDate.get(Calendar.DATE) ->
-                SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
-            now.get(Calendar.DATE) - messageDate.get(Calendar.DATE) == 1 -> "Yesterday"
-            else -> SimpleDateFormat("MM/dd/yy", Locale.getDefault()).format(Date(timestamp))
+            now.get(Calendar.DATE) == msgCal.get(Calendar.DATE) ->
+                SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(ts))
+            now.get(Calendar.DATE) - msgCal.get(Calendar.DATE) == 1 -> "Yesterday"
+            else -> SimpleDateFormat("MM/dd/yy", Locale.getDefault()).format(Date(ts))
         }
     }
 }

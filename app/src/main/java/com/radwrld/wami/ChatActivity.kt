@@ -1,7 +1,6 @@
 // @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 package com.radwrld.wami
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -10,7 +9,6 @@ import android.text.TextWatcher
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -33,50 +31,35 @@ import java.util.concurrent.TimeUnit
 
 class ChatActivity : AppCompatActivity() {
 
-    private var _binding: ActivityChatBinding? = null
-    private val binding get() = _binding!!
-
+    private lateinit var binding: ActivityChatBinding
     private lateinit var adapter: ChatAdapter
-    private lateinit var jid: String
-    private lateinit var contactName: String
-    private var isGroup: Boolean = false
+
+    private val jid      by lazy { intent.getStringExtra("EXTRA_JID").orEmpty() }
+    private val name     by lazy { intent.getStringExtra("EXTRA_NAME") ?: "Unknown" }
+    private val isGroup  get() = jid.endsWith("@g.us")
 
     private val viewModel: ChatViewModel by viewModels {
-        ChatViewModelFactory(
-            application,
-            intent.getStringExtra("EXTRA_JID") ?: "",
-            intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
-        )
+        ChatViewModelFactory(application, jid, name)
     }
 
-    private lateinit var filePickerLauncher: ActivityResultLauncher<Intent>
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        _binding = ActivityChatBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        jid = intent.getStringExtra("EXTRA_JID") ?: ""
-        contactName = intent.getStringExtra("EXTRA_NAME") ?: "Unknown"
-        isGroup = jid.endsWith("@g.us")
-
-        if (jid.isBlank()) {
-            Toast.makeText(this, "Error: Invalid or missing contact JID.", Toast.LENGTH_LONG).show()
-            finish()
-            return
-        }
-
-        filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.also { uri ->
-                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    viewModel.sendMediaMessage(uri)
-                }
+    private val pickFile = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            it.data?.data?.let { uri ->
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                viewModel.sendMediaMessage(uri)
             }
         }
+    }
 
+    override fun onCreate(saved: Bundle?) {
+        super.onCreate(saved)
+        if (jid.isBlank()) {
+            Toast.makeText(this, "Error: Invalid JID.", Toast.LENGTH_LONG).show()
+            finish(); return
+        }
+        binding = ActivityChatBinding.inflate(layoutInflater).also { setContentView(it.root) }
         setupUI()
-        observeViewModel()
+        observeVM()
     }
 
     override fun onResume() {
@@ -84,148 +67,118 @@ class ChatActivity : AppCompatActivity() {
         ApiClient.connectSocket()
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setupUI() {
-        binding.tvContactName.text = contactName
-        binding.tvLastSeen.visibility = View.GONE
-        binding.btnBack.setOnClickListener { finish() }
-        
-        adapter = ChatAdapter(isGroup)
-        adapter.onMediaClickListener = { message ->
-            lifecycleScope.launch {
-                binding.progressBar.visibility = View.VISIBLE
-                val mediaFile = viewModel.getMediaFile(message)
-                binding.progressBar.visibility = View.GONE
+    private fun setupUI() = with(binding) {
+        tvContactName.text = name
+        tvLastSeen.visibility = View.GONE
+        btnBack.setOnClickListener { finish() }
 
-                if (mediaFile != null) {
-                    val intent = Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
-                        setDataAndType(mediaFile.toUri(), message.mimetype)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        adapter = ChatAdapter(isGroup).apply {
+            onMediaClickListener = { msg ->
+                lifecycleScope.launch {
+                    progressBar.visibility = View.VISIBLE
+                    val file = viewModel.getMediaFile(msg)
+                    progressBar.visibility = View.GONE
+                    if (file != null) {
+                        startActivity(Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
+                            setDataAndType(file.toUri(), msg.mimetype)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        })
+                    } else {
+                        Toast.makeText(this@ChatActivity, "Media downloading…", Toast.LENGTH_SHORT).show()
                     }
-                    startActivity(intent)
-                } else {
-                    Toast.makeText(this@ChatActivity, "Media is downloading...", Toast.LENGTH_SHORT).show()
                 }
             }
+            onReactionClicked = viewModel::sendReaction
         }
 
-        adapter.onReactionClicked = { message, emoji -> viewModel.sendReaction(message, emoji) }
-
-        binding.rvMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
-        binding.rvMessages.adapter = adapter
-        binding.rvMessages.itemAnimator = null
-        
-        binding.rvMessages.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                adapter.collapseExpandedViewHolder()
+        rvMessages.apply {
+            layoutManager = LinearLayoutManager(context).apply { stackFromEnd = true }
+            adapter = this@ChatActivity.adapter
+            itemAnimator = null
+            setOnTouchListener { _, e ->
+                if (e.action == MotionEvent.ACTION_DOWN) {
+                    this@ChatActivity.adapter.collapseExpandedViewHolder()
+                }
+                false
             }
-            false
         }
 
-        binding.etMessage.addTextChangedListener(object : TextWatcher {
+        etMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val hasText = !s.isNullOrBlank()
-                binding.btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
-                binding.btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
-                binding.btnAttach.visibility = if (hasText) View.GONE else View.VISIBLE
+                val has = !s.isNullOrBlank()
+                btnSend.visibility   = if (has) View.VISIBLE else View.GONE
+                btnMic.visibility    = if (has) View.GONE    else View.VISIBLE
+                btnAttach.visibility = if (has) View.GONE    else View.VISIBLE
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        binding.btnSend.setOnClickListener {
-            val text = binding.etMessage.text.toString().trim()
-            viewModel.sendTextMessage(text)
-            binding.etMessage.text?.clear()
+        btnSend.setOnClickListener {
+            etMessage.text.toString().trim().takeIf { it.isNotEmpty() }?.let {
+                viewModel.sendTextMessage(it)
+                etMessage.text?.clear()
+            }
         }
 
-        binding.btnAttach.setOnClickListener {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        btnAttach.setOnClickListener {
+            pickFile.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 type = "image/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*", "image/webp"))
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*","video/*","image/webp"))
                 addCategory(Intent.CATEGORY_OPENABLE)
-            }
-            filePickerLauncher.launch(intent)
+            })
         }
     }
 
-    private fun observeViewModel() {
+    private fun observeVM() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.uiState.collect { state ->
-                        binding.progressBar.visibility = if(state.isLoading) View.VISIBLE else View.GONE
+                    viewModel.uiState.collect {
+                        binding.progressBar.visibility = if (it.isLoading) View.VISIBLE else View.GONE
                     }
                 }
-                
                 launch {
-                    viewModel.visibleMessagesFlow.collectLatest { messages ->
-                        processAndSubmitMessages(messages)
-                    }
+                    viewModel.visibleMessagesFlow.collectLatest { msgs -> process(msgs) }
                 }
-
                 launch {
-                    viewModel.errorEvents.collect { error ->
-                        Toast.makeText(this@ChatActivity, error, Toast.LENGTH_LONG).show()
+                    viewModel.errorEvents.collect {
+                        Toast.makeText(this@ChatActivity, it, Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
     }
 
-    private fun processAndSubmitMessages(messageList: List<Message>) {
-        // ++ FIX #1: If the binding is null when this function is called, exit early.
-        val currentBinding = _binding ?: return
-        
-        val newChatItems = createListWithDividers(messageList)
-        
-        val layoutManager = currentBinding.rvMessages.layoutManager as LinearLayoutManager
-        val lastVisible = layoutManager.findLastVisibleItemPosition()
-        val isAtBottom = lastVisible == -1 || lastVisible >= adapter.itemCount - 2
+    private fun process(messages: List<Message>) {
+        val lm = binding.rvMessages.layoutManager as LinearLayoutManager
+        val atBottom = lm.findLastVisibleItemPosition() >= adapter.itemCount - 2
 
-        adapter.submitList(newChatItems) {
-            // ++ FIX #2: Use the safe-call operator `?.` to prevent a crash if the binding
-            // becomes null between when submitList is called and when this callback runs.
-            if (isAtBottom) {
-                _binding?.rvMessages?.scrollToPosition(newChatItems.size - 1)
+        val items = mutableListOf<ChatListItem>().apply {
+            add(ChatListItem.WarningItem)
+            var lastTs = 0L
+            for (m in messages) {
+                if (shouldShowDivider(lastTs, m.timestamp)) add(ChatListItem.DividerItem(m.timestamp))
+                add(ChatListItem.MessageItem(m))
+                lastTs = m.timestamp
             }
+        }
+
+        adapter.submitList(items) {
+            if (atBottom) binding.rvMessages.scrollToPosition(items.lastIndex)
         }
     }
 
-    private fun createListWithDividers(messages: List<Message>): List<ChatListItem> {
-        val items = mutableListOf<ChatListItem>()
-        items.add(ChatListItem.WarningItem)
-
-        if (messages.isEmpty()) return items
-
-        var lastTimestamp: Long = 0
-        
-        messages.forEach { message ->
-            if (shouldShowDivider(lastTimestamp, message.timestamp)) {
-                items.add(ChatListItem.DividerItem(message.timestamp))
-            }
-            items.add(ChatListItem.MessageItem(message))
-            lastTimestamp = message.timestamp
-        }
-        return items
+    private fun shouldShowDivider(prev: Long, cur: Long): Boolean {
+        if (prev == 0L) return true
+        val gap = cur - prev
+        return gap > TimeUnit.MINUTES.toMillis(30) || isDiffDay(prev, cur)
     }
 
-    private fun shouldShowDivider(prevTs: Long, currentTs: Long): Boolean {
-        if (prevTs == 0L) return true
-        if (isDifferentDay(prevTs, currentTs)) return true
-        return (currentTs - prevTs) > TimeUnit.MINUTES.toMillis(30)
-    }
-
-    private fun isDifferentDay(ts1: Long, ts2: Long): Boolean {
-        if (ts1 == 0L) return true
-        val cal1 = Calendar.getInstance().apply { timeInMillis = ts1 }
-        val cal2 = Calendar.getInstance().apply { timeInMillis = ts2 }
-        return cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR) ||
-               cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        _binding = null
+    private fun isDiffDay(t1: Long, t2: Long): Boolean {
+        val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
+        val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
+        return c1.get(Calendar.YEAR)  != c2.get(Calendar.YEAR) ||
+               c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }

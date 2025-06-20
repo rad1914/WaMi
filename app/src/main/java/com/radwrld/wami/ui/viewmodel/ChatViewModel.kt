@@ -44,11 +44,9 @@ class ChatViewModel(
     private fun loadAndSyncHistory() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // Load local messages first for instant display
             val localMessages = messageStorage.getMessages(jid)
             _uiState.update { it.copy(messages = localMessages.associateBy { m -> m.id }) }
             
-            // Sync with server
             repo.getMessageHistory(jid)
                 .onSuccess { serverMessages ->
                     val combinedMap = (serverMessages.associateBy { it.id } + localMessages.associateBy { it.id })
@@ -59,18 +57,16 @@ class ChatViewModel(
                             messages = combinedMap,
                         )
                     }
-                    // ++ After loading history, check for any media that needs to be downloaded.
                     triggerBackgroundDownloads(combinedMap.values.toList())
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(isLoading = false, messages = localMessages.associateBy { m -> m.id }) }
                     _errorEvents.emit(error.message ?: "Failed to load history")
-                    triggerBackgroundDownloads(localMessages) // Still try to download from local data
+                    triggerBackgroundDownloads(localMessages)
                 }
         }
     }
     
-    // ++ This function triggers the background download for a list of messages.
     private fun triggerBackgroundDownloads(messages: List<Message>) {
         messages.forEach { msg ->
             if (msg.mediaUrl != null && msg.localMediaPath == null && msg.mediaSha256 != null) {
@@ -79,9 +75,7 @@ class ChatViewModel(
         }
     }
 
-    // ++ This is the core background download logic for a single message.
     private fun downloadMediaForMessage(message: Message) {
-        // Avoid re-downloading if already in progress or done.
         if (message.mediaUrl == null || message.mediaSha256 == null) return
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -89,7 +83,6 @@ class ChatViewModel(
             val cachedFile = MediaCache.downloadAndCache(getApplication(), message.mediaUrl, message.mediaSha256, extension)
 
             if (cachedFile != null) {
-                // Once downloaded, update the message in the UI state and local storage.
                 val localPath = cachedFile.absolutePath
                 updateMessage(message.id) { it.copy(localMediaPath = localPath) }
                 messageStorage.updateMessageLocalPath(jid, message.id, localPath)
@@ -103,7 +96,6 @@ class ChatViewModel(
             .onEach { message ->
                 messageStorage.addMessage(jid, message)
                 addOrUpdateMessage(message)
-                // ++ Also trigger download for new messages arriving via socket.
                 downloadMediaForMessage(message)
             }
             .launchIn(viewModelScope)
@@ -144,7 +136,6 @@ class ChatViewModel(
 
     fun sendMediaMessage(uri: Uri) {
         viewModelScope.launch {
-            // ++ 1. Immediately save the media to our local cache.
             val cacheResult = MediaCache.saveToCache(getApplication(), uri)
             if (cacheResult == null) {
                 _errorEvents.emit("Failed to process media file.")
@@ -152,24 +143,21 @@ class ChatViewModel(
             }
             val (cachedFile, sha256) = cacheResult
             
-            // ++ 2. Create the message with the local path and hash already populated.
             val mimeType = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
             val message = Message(
                 jid = jid,
                 text = null,
                 isOutgoing = true,
                 status = "sending",
-                localMediaPath = cachedFile.absolutePath, // Use the new local path
-                mediaSha256 = sha256, // Use the calculated hash
+                localMediaPath = cachedFile.absolutePath,
+                mediaSha256 = sha256,
                 mimetype = mimeType,
                 senderName = "Me"
             )
 
-            // ++ 3. Add to UI and storage instantly. The preview will now work immediately.
             addOrUpdateMessage(message)
             messageStorage.addMessage(jid, message)
 
-            // ++ 4. Start the upload in the background.
             repo.sendMediaMessage(jid, message.id, cachedFile, null)
                 .onSuccess { response ->
                     val finalId = response.messageId ?: message.id
@@ -184,7 +172,6 @@ class ChatViewModel(
         }
     }
 
-    // ++ This function becomes very simple: it just finds the file that should already be cached.
     suspend fun getMediaFile(message: Message): File? = withContext(Dispatchers.IO) {
         message.localMediaPath?.let { path ->
             val file = File(path)
@@ -213,7 +200,6 @@ class ChatViewModel(
         }
     }
 
-    // Use a Flow to continuously provide the sorted list of messages to the UI.
     val visibleMessagesFlow: Flow<List<Message>> = uiState.map { it.messages.toSortedList() }
 
     data class UiState(

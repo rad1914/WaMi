@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/drawable/ic_media_placeholder.xml -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#E0E0E0" />
+    <solid android:color="?attr/colorSurfaceVariant" />
 </shape>

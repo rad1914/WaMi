@@ -2,42 +2,40 @@
 package com.radwrld.wami.storage
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.radwrld.wami.model.Contact
 
 class ContactStorage(context: Context) {
-
-    private val sharedPreferences: SharedPreferences =
-        context.getSharedPreferences("contacts_pref", Context.MODE_PRIVATE)
-
+    private val prefs = context.getSharedPreferences("contacts_pref", Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    fun saveContacts(contacts: List<Contact>) {
-        val jsonString = gson.toJson(contacts)
-        sharedPreferences.edit().putString("contacts", jsonString).apply()
+    // private helpers
+    private fun loadList(): MutableList<Contact> = try {
+        gson.fromJson(prefs.getString("contacts", "[]"), Array<Contact>::class.java)
+            .toMutableList()
+    } catch (e: Exception) {
+        mutableListOf()
     }
 
-    fun getContacts(): List<Contact> {
-        val jsonString = sharedPreferences.getString("contacts", "[]")
-        return try {
-            gson.fromJson(jsonString, Array<Contact>::class.java).toList()
-        } catch (e: Exception) {
-            emptyList()
+    private fun saveList(list: List<Contact>) {
+        prefs.edit().putString("contacts", gson.toJson(list)).apply()
+    }
+
+    // public API
+    fun getContacts(): List<Contact> = loadList()
+
+    fun saveContacts(list: List<Contact>) = saveList(list)
+
+    fun addContact(contact: Contact) {
+        val list = loadList()
+        if (list.none { it.id == contact.id }) {
+            list.add(0, contact)
+            saveList(list)
         }
     }
 
-    fun addContact(newContact: Contact) {
-        val currentContacts = getContacts().toMutableList()
-        if (currentContacts.none { it.id == newContact.id }) {
-            currentContacts.add(0, newContact)
-            saveContacts(currentContacts)
-        }
-    }
-
-    fun deleteContact(contactToDelete: Contact) {
-        val currentContacts = getContacts().toMutableList()
-        val updatedContacts = currentContacts.filterNot { it.id == contactToDelete.id }
-        saveContacts(updatedContacts)
+    fun deleteContact(contact: Contact) {
+        val updated = loadList().filterNot { it.id == contact.id }
+        saveList(updated)
     }
 }

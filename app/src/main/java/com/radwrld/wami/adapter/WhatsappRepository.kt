@@ -1,14 +1,13 @@
-// @path: app/src/main/java/com/radwrld/wami/repository/WhatsAppRepository.kt
+// @path: app/src/main/java/com/radwrld/wami/adapter/WhatsappRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
-// ++ FIX: Added the missing import for the .toUri() extension function.
 import androidx.core.net.toUri
 import com.radwrld.wami.model.Contact
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.network.SendMessageRequest
+import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.storage.ConversationStorage
 import com.radwrld.wami.storage.MessageStorage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -24,87 +23,68 @@ class WhatsAppRepository(private val context: Context) {
     private val messageStorage = MessageStorage(context)
     private val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
 
-    fun getBaseUrl(): String = serverUrl
+    fun getBaseUrl() = serverUrl
 
-    suspend fun refreshAndGetConversations(): Result<List<Contact>> {
-        return runCatching {
-            val conversationsDto = api.getConversations()
-            val contacts = conversationsDto.map { conversation ->
-                val isGroup = conversation.jid.endsWith("@g.us")
-                Contact(
-                    id = conversation.jid,
-                    name = conversation.name ?: "Unknown",
-                    phoneNumber = if (!isGroup) conversation.jid.split('@').first() else null,
-                    lastMessage = conversation.lastMessage,
-                    lastMessageTimestamp = conversation.lastMessageTimestamp,
-                    unreadCount = conversation.unreadCount ?: 0,
-                    avatarUrl = "$serverUrl/avatar/${URLEncoder.encode(conversation.jid, "UTF-8")}",
-                    isGroup = isGroup
-                )
-            }
-            conversationStorage.saveConversations(contacts)
-            contacts
-        }
+    suspend fun refreshAndGetConversations() = runCatching {
+        api.getConversations().map {
+            val isGroup = it.jid.endsWith("@g.us")
+            Contact(
+                id = it.jid,
+                name = it.name ?: "Unknown",
+                phoneNumber = if (isGroup) null else it.jid.substringBefore('@'),
+                lastMessage = it.lastMessage,
+                lastMessageTimestamp = it.lastMessageTimestamp,
+                unreadCount = it.unreadCount ?: 0,
+                avatarUrl = "$serverUrl/avatar/${URLEncoder.encode(it.jid, "UTF-8")}",
+                isGroup = isGroup
+            )
+        }.also { conversationStorage.saveConversations(it) }
     }
 
-    fun getCachedConversations(): List<Contact> {
-        return conversationStorage.getConversations()
+    fun getCachedConversations() = conversationStorage.getConversations()
+
+    fun updateAndSaveConversations(updated: List<Contact>) =
+        conversationStorage.saveConversations(updated)
+
+    suspend fun getMessageHistory(jid: String) = runCatching {
+        api.getHistory(URLEncoder.encode(jid, "UTF-8")).map {
+            Message(
+                id = it.id,
+                jid = it.jid,
+                text = it.text,
+                type = it.type,
+                isOutgoing = it.isOutgoing > 0,
+                status = it.status,
+                timestamp = it.timestamp,
+                name = it.name,
+                senderName = it.name,
+                mediaUrl = it.mediaUrl?.let { path -> "$serverUrl$path" },
+                mimetype = it.mimetype,
+                quotedMessageId = it.quotedMessageId,
+                quotedMessageText = it.quotedMessageText,
+                reactions = it.reactions.orEmpty(),
+                mediaSha256 = it.mediaSha256
+            )
+        }.also { messageStorage.saveMessages(jid, it) }
     }
 
-    fun updateAndSaveConversations(updatedList: List<Contact>) {
-        conversationStorage.saveConversations(updatedList)
-    }
-    
-    suspend fun getMessageHistory(jid: String): Result<List<Message>> {
-        return runCatching {
-            val encodedJid = URLEncoder.encode(jid, "UTF-8")
-            val msgs = api.getHistory(encodedJid).map {
-                Message(
-                    id                = it.id,
-                    jid               = it.jid,
-                    text              = it.text,
-                    type              = it.type,
-                    isOutgoing        = it.isOutgoing > 0,
-                    status            = it.status,
-                    timestamp         = it.timestamp,
-                    name              = it.name,
-                    senderName        = it.name,
-                    mediaUrl          = it.mediaUrl?.let { path -> "$serverUrl$path" },
-                    mimetype          = it.mimetype,
-                    quotedMessageId   = it.quotedMessageId,
-                    quotedMessageText = it.quotedMessageText,
-                    reactions         = it.reactions ?: emptyMap(),
-                    mediaSha256       = it.mediaSha256
-                )
-            }
-            messageStorage.saveMessages(jid, msgs)
-            msgs
-        }
+    suspend fun sendTextMessage(jid: String, text: String, tempId: String) = runCatching {
+        api.sendMessage(SendMessageRequest(jid, text, tempId))
+            .takeIf { it.success } ?: error("Send failed")
     }
 
-    suspend fun sendTextMessage(jid: String, text: String, tempId: String) =
-        runCatching {
-            api.sendMessage(SendMessageRequest(jid, text, tempId)).also {
-                if (!it.success) throw Exception(it.error ?: "Unknown error")
-            }
-        }
-
-    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) =
-        runCatching {
-            // The toUri() function is now resolved by the added import.
-            val mime = context.contentResolver.getType(file.toUri())
-            val body = file.asRequestBody(mime?.toMediaTypeOrNull())
-            val part = MultipartBody.Part.createFormData("file", file.name, body)
-
-            api.sendMedia(
-                jid = jid.toRequestBody("text/plain".toMediaTypeOrNull()),
-                caption = caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
-                tempId = tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
-                file = part
-            ).also {
-                if (!it.success) throw Exception(it.error ?: "Unknown error")
-            }
-        }
+    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
+        val mime = context.contentResolver.getType(file.toUri())
+        val part = MultipartBody.Part.createFormData(
+            "file", file.name, file.asRequestBody(mime?.toMediaTypeOrNull())
+        )
+        api.sendMedia(
+            jid.toRequestBody("text/plain".toMediaTypeOrNull()),
+            caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
+            tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
+            part
+        ).takeIf { it.success } ?: error("Send failed")
+    }
 
     suspend fun sendReaction(jid: String, messageId: String, fromMe: Boolean, emoji: String) =
         runCatching {

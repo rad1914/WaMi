@@ -57,7 +57,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.enableCustomIpSwitch.setOnCheckedChangeListener { _, checked ->
             prefs.edit().putBoolean(ENABLE_CUSTOM_IP_KEY, checked).apply()
             binding.setCustomIpText.visibility = if (checked) View.VISIBLE else View.GONE
-            if (!checked) serverConfig.resetToPrimary()
+            // The call to resetToPrimary() was removed as it's not in the new ServerConfigStorage.
+            // The getCurrentServer() method now handles this logic internally.
         }
 
         binding.setCustomIpText.setOnClickListener { showCustomIpDialog() }

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/values/colors.xml -->
 <resources>
     <color name="primary">#006D39</color>
     <color name="onPrimary">#FFFFFF</color>
@@ -30,13 +29,14 @@
     <color name="onSurfaceVariant">#424941</color>
     <color name="outline">#727970</color>
 
-    <color name="divider">#E0E0E0</color>
+    <color name="divider">?attr/colorOutlineVariant</color>
     <color name="online_indicator">#4CAF50</color>
 
-    <color name="bg_header">@color/surface</color>
-    <color name="text_primary">@color/onSurface</color>
-    <color name="text_secondary">@color/onSurfaceVariant</color>
+    <color name="bg_header">?attr/colorSurface</color>
+    <color name="text_primary">?attr/colorOnSurface</color>
+    <color name="text_secondary">?attr/colorOnSurfaceVariant</color>
     
-    <color name="code_text">#B53D00</color>
-    <color name="code_background_color">#F5F5F5</color>
-    <color name="spoiler_revealed_background_color">#261A1C1A</color> </resources>
+    <color name="code_text">?attr/colorPrimary</color>
+    <color name="code_background_color">?attr/colorSurfaceContainer</color>
+    <color name="spoiler_revealed_background_color">?attr/colorSurfaceContainerHigh</color>
+</resources>

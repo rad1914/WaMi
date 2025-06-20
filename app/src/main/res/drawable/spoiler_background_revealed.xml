@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/drawable/spoiler_background_revealed.xml -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/spoiler_revealed_background_color" />
-    <corners android:radius="4dp" />
-</shape>

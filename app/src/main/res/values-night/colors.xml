@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/values-night/colors.xml -->
 <resources>
     <color name="primary">#7DDA98</color>
     <color name="onPrimary">#00391B</color>
@@ -30,13 +29,14 @@
     <color name="onSurfaceVariant">#C2C9BE</color>
     <color name="outline">#8C9389</color>
 
-    <color name="divider">#424242</color>
+    <color name="divider">?attr/colorOutlineVariant</color>
     <color name="online_indicator">#66BB6A</color>
 
-    <color name="bg_header">@color/surface</color>
-    <color name="text_primary">@color/onSurface</color>
-    <color name="text_secondary">@color/onSurfaceVariant</color>
+    <color name="bg_header">?attr/colorSurface</color>
+    <color name="text_primary">?attr/colorOnSurface</color>
+    <color name="text_secondary">?attr/colorOnSurfaceVariant</color>
 
-    <color name="code_text">#FFB599</color>
-    <color name="code_background_color">#2C2C2C</color>
-    <color name="spoiler_revealed_background_color">#26E2E3DE</color> </resources>
+    <color name="code_text">?attr/colorPrimary</color>
+    <color name="code_background_color">?attr/colorSurfaceContainer</color>
+    <color name="spoiler_revealed_background_color">?attr/colorSurfaceContainerHigh</color>
+</resources>

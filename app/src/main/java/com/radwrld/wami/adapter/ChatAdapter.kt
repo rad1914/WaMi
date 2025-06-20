@@ -34,8 +34,6 @@ sealed class ChatListItem {
     object WarningItem : ChatListItem()
 }
 
-// ++ KEY FIX: The DiffUtil Callback now explicitly checks the properties that can change
-// after the initial message load, such as status and the critical localMediaPath.
 class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
     override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
         return when {
@@ -51,7 +49,6 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
             oldItem is ChatListItem.MessageItem && newItem is ChatListItem.MessageItem -> {
                 val oldMsg = oldItem.message
                 val newMsg = newItem.message
-                // This forces a re-bind if the local path is updated after a download.
                 oldMsg.localMediaPath == newMsg.localMediaPath &&
                 oldMsg.status == newMsg.status &&
                 oldMsg.reactions == newMsg.reactions &&
