@@ -20,8 +20,8 @@ DUPLICATES_OUT="$OUTPUT_DIR/duplicate_groups.txt"
 TMP_HASH_LIST="$OUTPUT_DIR/all_hashes.txt"
 
 # === Options ===
-DRY_RUN=false
-DELETE_UNUSED=false
+DRY_RUN=true
+DELETE_UNUSED=true
 VERBOSE=false
 
 usage() {
