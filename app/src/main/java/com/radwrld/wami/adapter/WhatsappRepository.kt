@@ -1,9 +1,10 @@
-// @path: app/src/main/java/com/radwrld/wami/repository/WhatsAppRepository.kt
+// @path: app/src/main/java/com/radwrld/wami/adapter/WhatsappRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.core.net.toUri
 import com.radwrld.wami.model.Contact
 import com.radwrld.wami.model.Message
@@ -47,6 +48,12 @@ class WhatsAppRepository(private val context: Context) {
     suspend fun getMessageHistory(jid: String) = runCatching {
         val encodedJid = URLEncoder.encode(jid, "UTF-8")
         val msgs = api.getHistory(encodedJid, limit = 1000).map {
+            // ++ DEBUG TOAST
+            if (it.mediaUrl != null) {
+                val fullUrl = it.mediaUrl.let { path -> "$serverUrl$path" }
+                Toast.makeText(context, "Repo: Got mediaUrl: $fullUrl", Toast.LENGTH_LONG).show()
+            }
+            // --
             Message(
                 id                = it.id,
                 jid               = it.jid,
@@ -60,7 +67,8 @@ class WhatsAppRepository(private val context: Context) {
                 mimetype          = it.mimetype,
                 quotedMessageId   = it.quotedMessageId,
                 quotedMessageText = it.quotedMessageText,
-                reactions         = it.reactions ?: emptyMap()
+                reactions         = it.reactions ?: emptyMap(),
+                mediaSha256       = it.mediaSha256
             )
         }
         storage.saveMessages(jid, msgs)
@@ -73,9 +81,7 @@ class WhatsAppRepository(private val context: Context) {
         }
     }.onFailure { Log.e("Repo", "sendTextMessage", it) }
 
-    // ++ FIX: The function now accepts a File object directly, which is more efficient.
     suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
-        // No longer need to create a temporary file, as the ViewModel provides the cached file.
         val mime = context.contentResolver.getType(file.toUri())
         val body = file.asRequestBody(mime?.toMediaTypeOrNull())
         val part = MultipartBody.Part.createFormData("file", file.name, body)
@@ -86,7 +92,6 @@ class WhatsAppRepository(private val context: Context) {
             tempId = tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
             file = part
         ).also {
-            // We no longer delete the file, as it's part of the permanent cache.
             if (!it.success) throw Exception(it.error ?: "Unknown error")
         }
     }.onFailure { Log.e("Repo", "sendMediaMessage", it) }
@@ -96,7 +101,6 @@ class WhatsAppRepository(private val context: Context) {
         api.sendReaction(request)
     }
 
-    // This helper is no longer needed by sendMediaMessage but may be useful elsewhere.
     private fun createTempFileFromUri(uri: Uri): File {
         val inStream = context.contentResolver.openInputStream(uri)
             ?: error("Can't open URI: $uri")

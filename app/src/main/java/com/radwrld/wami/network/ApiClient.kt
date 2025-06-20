@@ -21,7 +21,15 @@ object ApiClient {
     private var socket: Socket? = null
     private var socketManager: SocketManager? = null
 
-    // Use applicationContext to avoid memory leaks
+    // ++ FIX START: Expose the OkHttpClient instances
+    // We make the clients public properties so other parts of the app (like Glide) can use them.
+    var httpClient: OkHttpClient? = null
+        private set
+
+    var downloadHttpClient: OkHttpClient? = null
+        private set
+    // ++ FIX END
+
     private fun authInterceptor(context: Context) = Interceptor { chain ->
         val token = ServerConfigStorage(context.applicationContext).getSessionId()
         val request = if (token.isNullOrEmpty()) {
@@ -56,26 +64,31 @@ object ApiClient {
     fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
     fun getInstance(context: Context): WhatsAppApi {
-        // Use applicationContext for building the client
         val safeContext = context.applicationContext
+        // ++ FIX: Initialize and store the client if it doesn't exist
+        if (httpClient == null) {
+            httpClient = buildClient(safeContext, HttpLoggingInterceptor.Level.BODY)
+        }
         return (retrofit ?: buildRetrofit(
             getBaseUrl(safeContext),
-            buildClient(safeContext, HttpLoggingInterceptor.Level.BODY)
+            httpClient!!
         ).also { retrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun getDownloadingInstance(context: Context): WhatsAppApi {
-        // Use applicationContext for building the client
         val safeContext = context.applicationContext
+        // ++ FIX: Initialize and store the client if it doesn't exist
+        if (downloadHttpClient == null) {
+            downloadHttpClient = buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true)
+        }
         return (downloadRetrofit ?: buildRetrofit(
             getBaseUrl(safeContext),
-            buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true)
+            downloadHttpClient!!
         ).also { downloadRetrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun initializeSocket(context: Context) {
         if (socket != null) return
-        // Use applicationContext for safety
         val safeContext = context.applicationContext
         val config = ServerConfigStorage(safeContext)
         val token = config.getSessionId() ?: run {
@@ -92,7 +105,6 @@ object ApiClient {
     }
 
     fun getSocketManager(context: Context): SocketManager {
-        // Use applicationContext for safety
         val safeContext = context.applicationContext
         return socketManager ?: synchronized(this) {
              socketManager ?: run {
@@ -108,10 +120,12 @@ object ApiClient {
 
     fun close() {
         disconnectSocket()
-       // socketManager?.close() // Clean up listeners
         socket = null
         socketManager = null
         retrofit = null
         downloadRetrofit = null
+        // ++ FIX: Clear the clients on close
+        httpClient = null
+        downloadHttpClient = null
     }
 }

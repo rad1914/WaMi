@@ -1,11 +1,13 @@
 package com.radwrld.wami.adapter
 
 import android.annotation.SuppressLint
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.text.format.DateFormat
 import android.text.format.DateUtils
+import android.util.Log
 import android.view.*
-import android.widget.LinearLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -14,12 +16,17 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.google.android.flexbox.FlexboxLayout
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.*
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.ui.TextFormatter
 import java.io.File
+import java.io.IOException
 import java.util.*
 
 sealed class ChatListItem {
@@ -101,12 +108,36 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             messageContent.ivPlayIcon.isVisible = message.isVideo()
             if (message.hasMedia()) {
                 val mediaPath = message.getMediaPath()
-                val glideRequest = Glide.with(itemView.context)
+
+                Glide.with(itemView.context)
                     .load(if (mediaPath?.startsWith("/") == true) File(mediaPath) else Uri.parse(mediaPath))
                     .placeholder(R.drawable.ic_media_placeholder)
-                    .error(R.drawable.ic_image_error)
-                if (message.isSticker()) glideRequest.fitCenter()
-                glideRequest.into(messageContent.ivMedia)
+                    .listener(object : RequestListener<Drawable> {
+                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
+                            Log.e("ChatAdapter", "Glide FAILED for $mediaPath", e)
+                            
+                            // MODIFIED LOGIC: Check for any network exception (IOException)
+                            // This is compatible with the OkHttp integration.
+                            val isNetworkError = e?.causes?.any { it is IOException } == true
+                            if (isNetworkError) {
+                                // Set our specific "media not found" icon for any network issue (404, timeout, etc)
+                                val view = (target as? com.bumptech.glide.request.target.ViewTarget<*,*>)?.view
+                                if (view is ImageView) {
+                                    view.setImageResource(R.drawable.ic_image_broken_variant)
+                                }
+                                return true // Return true to prevent error placeholder from showing
+                            }
+                            return false // Return false to show the generic error placeholder for other errors
+                        }
+
+                        override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
+                           // Load was successful, do nothing special.
+                            return false
+                        }
+                    })
+                    .error(R.drawable.ic_image_error) // Generic error for non-network issues
+                    .into(messageContent.ivMedia)
+
                 messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
             } else {
                 messageContent.mediaContainer.setOnClickListener(null)
@@ -187,7 +218,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         override fun bindQuote(message: Message) {
             val isQuoted = message.quotedMessageId != null
-            // Access views via the included binding object `binding.replyView`
             binding.replyView.root.isVisible = isQuoted
             if (isQuoted) {
                 binding.replyView.tvReplySender.text = message.name
@@ -213,7 +243,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         override fun bindQuote(message: Message) {
             val isQuoted = message.quotedMessageId != null
-            // Access views via the included binding object `binding.replyView`
             binding.replyView.root.isVisible = isQuoted
             if (isQuoted) {
                 binding.replyView.tvReplySender.text = message.name
@@ -221,7 +250,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             }
         }
     }
-    
+
     class DividerViewHolder(private val binding: ItemDividerBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ChatListItem.DividerItem) {
             binding.tvDivider.text = DateUtils.getRelativeTimeSpanString(item.timestamp, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_SHOW_WEEKDAY)
@@ -229,7 +258,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
     }
 
     class WarningViewHolder(binding: ItemWarningBinding) : RecyclerView.ViewHolder(binding.root)
-    
+
     override fun getItemViewType(position: Int): Int {
         return when (val item = getItem(position)) {
             is ChatListItem.DividerItem -> VIEW_TYPE_DIVIDER
@@ -237,7 +266,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             is ChatListItem.WarningItem -> VIEW_TYPE_WARNING
         }
     }
-    
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
@@ -248,7 +277,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             else -> throw IllegalArgumentException("Invalid view type")
         }
     }
-    
+
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = getItem(position)) {
             is ChatListItem.MessageItem -> (holder as BaseMessageViewHolder).bind(item.message)
