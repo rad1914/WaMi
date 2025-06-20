@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/WamiGlideModule.kt (NEW FILE)
+// @path: app/src/main/java/com/radwrld/wami/WamiGlideModule.kt
 package com.radwrld.wami
 
 import android.content.Context

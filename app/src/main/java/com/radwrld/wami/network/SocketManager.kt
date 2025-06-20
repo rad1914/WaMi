@@ -6,9 +6,6 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.radwrld.wami.model.Message
-// ++ FIX: Corrected import paths by removing the non-existent '.dto' sub-package.
-import com.radwrld.wami.network.MessageHistoryItem
-import com.radwrld.wami.network.MessageStatusUpdateDto
 import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.util.NotificationUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,7 +63,6 @@ class SocketManager(private val context: Context) {
             on("whatsapp-reaction-update") { args ->
                 Log.d("SocketManager", "Reaction update: ${args[0]}")
                 try {
-                    // This uses the local ReactionUpdate data class defined below.
                     val update = gson.fromJson(args[0].toString(), ReactionUpdate::class.java)
                     _reactionUpdates.tryEmit(update)
                 } catch (e: Exception) {
@@ -96,7 +92,7 @@ class SocketManager(private val context: Context) {
             name = dto.name,
             senderName = dto.name,
             mediaUrl = dto.mediaUrl?.let { url -> "$baseUrl$url" },
-            localMediaPath = null,
+            localMediaPath = null, // Always null initially for incoming messages
             mimetype = dto.mimetype,
             quotedMessageId = dto.quotedMessageId,
             quotedMessageText = dto.quotedMessageText,

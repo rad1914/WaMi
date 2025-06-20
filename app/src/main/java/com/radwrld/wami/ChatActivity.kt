@@ -4,7 +4,6 @@ package com.radwrld.wami
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -27,6 +26,7 @@ import com.radwrld.wami.model.Message
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -104,7 +104,7 @@ class ChatActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 } else {
-                    Toast.makeText(this@ChatActivity, "Media could not be loaded.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@ChatActivity, "Media is downloading...", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -121,7 +121,6 @@ class ChatActivity : AppCompatActivity() {
             }
             false
         }
-
 
         binding.etMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -143,7 +142,7 @@ class ChatActivity : AppCompatActivity() {
         binding.btnAttach.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 type = "image/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*", "image/webp"))
                 addCategory(Intent.CATEGORY_OPENABLE)
             }
             filePickerLauncher.launch(intent)
@@ -153,15 +152,18 @@ class ChatActivity : AppCompatActivity() {
     private fun observeViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Collector for UI state
                 launch {
                     viewModel.uiState.collect { state ->
                         binding.progressBar.visibility = if(state.isLoading) View.VISIBLE else View.GONE
-                        processAndSubmitMessages(state.visibleMessages)
+                    }
+                }
+                
+                launch {
+                    viewModel.visibleMessagesFlow.collectLatest { messages ->
+                        processAndSubmitMessages(messages)
                     }
                 }
 
-                // Collector for one-off error events
                 launch {
                     viewModel.errorEvents.collect { error ->
                         Toast.makeText(this@ChatActivity, error, Toast.LENGTH_LONG).show()
@@ -172,15 +174,20 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun processAndSubmitMessages(messageList: List<Message>) {
+        // ++ FIX #1: If the binding is null when this function is called, exit early.
+        val currentBinding = _binding ?: return
+        
         val newChatItems = createListWithDividers(messageList)
         
-        val layoutManager = binding.rvMessages.layoutManager as LinearLayoutManager
+        val layoutManager = currentBinding.rvMessages.layoutManager as LinearLayoutManager
         val lastVisible = layoutManager.findLastVisibleItemPosition()
         val isAtBottom = lastVisible == -1 || lastVisible >= adapter.itemCount - 2
 
         adapter.submitList(newChatItems) {
+            // ++ FIX #2: Use the safe-call operator `?.` to prevent a crash if the binding
+            // becomes null between when submitList is called and when this callback runs.
             if (isAtBottom) {
-                binding.rvMessages.scrollToPosition(newChatItems.size - 1)
+                _binding?.rvMessages?.scrollToPosition(newChatItems.size - 1)
             }
         }
     }

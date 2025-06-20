@@ -29,9 +29,9 @@ class MediaViewActivity : AppCompatActivity() {
 
         hideSystemUI()
 
-        // ++ Applied suggestion: Use intent.data (Uri) as the primary way to receive media.
+        // ++ Use intent.data (Uri) and intent.type (MIME type) as the primary way to receive media.
         val mediaUri = intent.data
-        val mimeType = intent.type // Get mimetype from the intent type
+        val mimeType = intent.type
 
         if (mediaUri == null || mimeType.isNullOrEmpty()) {
             Toast.makeText(this, "Error: Media not found.", Toast.LENGTH_LONG).show()
@@ -41,6 +41,7 @@ class MediaViewActivity : AppCompatActivity() {
 
         binding.btnCloseMedia.setOnClickListener { finish() }
 
+        // ++ Conditionally load content based on the MIME type.
         when {
             mimeType.startsWith("image/") -> loadImage(mediaUri)
             mimeType.startsWith("video/") -> loadVideo(mediaUri)
@@ -56,7 +57,7 @@ class MediaViewActivity : AppCompatActivity() {
         binding.progressBarMedia.visibility = View.VISIBLE
 
         Glide.with(this)
-            .load(uri) // Load directly from Uri
+            .load(uri) // Load directly from the provided Uri
             .listener(object : RequestListener<Drawable> {
                 override fun onLoadFailed(
                     e: GlideException?,
@@ -90,11 +91,11 @@ class MediaViewActivity : AppCompatActivity() {
         val mediaController = MediaController(this)
         mediaController.setAnchorView(binding.vvMediaFull)
         binding.vvMediaFull.setMediaController(mediaController)
-        binding.vvMediaFull.setVideoURI(uri) // Set video from Uri
+        binding.vvMediaFull.setVideoURI(uri) // Set video directly from Uri
 
         binding.vvMediaFull.setOnPreparedListener {
             binding.progressBarMedia.visibility = View.GONE
-            binding.vvMediaFull.start()
+            it.start()
         }
 
         binding.vvMediaFull.setOnErrorListener { _, _, _ ->

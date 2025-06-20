@@ -34,7 +34,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // ++ IMPROVEMENT: This enables the app to draw behind the system bars for an edge-to-edge UI.
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -49,7 +48,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The ViewModel now handles the initial load. We only connect the socket here.
         ApiClient.connectSocket()
     }
 
@@ -77,7 +75,6 @@ class MainActivity : AppCompatActivity() {
             showFastContactDialog()
         }
 
-        // ++ IMPROVEMENT: Replaced inefficient onResume loading with Swipe-to-Refresh.
         binding.swipeRefreshLayout.setOnRefreshListener {
             viewModel.load()
         }
@@ -133,11 +130,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    // Link the ViewModel's loading state to the SwipeRefreshLayout.
                     binding.swipeRefreshLayout.isRefreshing = state.isLoading
-
                     conversationAdapter.submitList(state.conversations)
-
                     state.error?.let { errorMsg ->
                         Toast.makeText(this@MainActivity, "Error: $errorMsg", Toast.LENGTH_LONG).show()
                         if (errorMsg.contains("401")) {

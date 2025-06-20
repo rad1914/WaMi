@@ -25,7 +25,6 @@ data class MessageHistoryItem(
     @SerializedName("quoted_message_id") val quotedMessageId: String?,
     @SerializedName("quoted_message_text") val quotedMessageText: String?,
     @SerializedName("reactions") val reactions: Map<String, Int>?,
-    // ++ FIX: Added the missing field to receive the hash from the backend.
     @SerializedName("media_sha256") val mediaSha256: String?
 )
 

@@ -10,7 +10,6 @@ import com.radwrld.wami.network.SocketManager
 import com.radwrld.wami.repository.WhatsAppRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 
 data class ConversationListState(
     val conversations: List<Contact> = emptyList(),
@@ -27,14 +26,22 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     val state = _state.asStateFlow()
 
     init {
-        load()
+        loadFromCache()
+        load() // Network refresh
         listenForIncomingMessages()
+    }
+
+    private fun loadFromCache() {
+        val cachedConversations = repository.getCachedConversations()
+        _state.update {
+            it.copy(conversations = cachedConversations.sortedByDescending { c -> c.lastMessageTimestamp })
+        }
     }
 
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            repository.getConversations()
+            repository.refreshAndGetConversations()
                 .onSuccess { conversations ->
                     _state.update {
                         it.copy(
@@ -51,14 +58,12 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
     private fun listenForIncomingMessages() {
         socketManager.incomingMessages.onEach { message ->
-            val conversationIndex = _state.value.conversations.indexOfFirst { it.id == message.jid }
-
             _state.update { currentState ->
                 val currentConversations = currentState.conversations.toMutableList()
+                val conversationIndex = currentConversations.indexOfFirst { it.id == message.jid }
                 val updatedConversation: Contact
 
                 if (conversationIndex != -1) {
-                    // --- Conversation Exists: Perform an efficient in-memory update ---
                     val existing = currentConversations.removeAt(conversationIndex)
                     updatedConversation = existing.copy(
                         lastMessage = message.text ?: "Media",
@@ -66,32 +71,33 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                         unreadCount = if (!message.isOutgoing) existing.unreadCount + 1 else existing.unreadCount
                     )
                 } else {
-                    // ++ IMPROVEMENT: New conversation is created in-memory instead of triggering a full network reload.
-                    // This is vastly more efficient and provides an instant UI update.
-                    val isGroup = message.jid.endsWith("@g.us")
                     updatedConversation = Contact(
                         id = message.jid,
                         name = message.senderName ?: message.jid.split('@').firstOrNull() ?: "Unknown",
-                        phoneNumber = if (!isGroup) message.jid.split('@').firstOrNull() else null,
+                        isGroup = message.jid.endsWith("@g.us"),
+                        phoneNumber = if (!message.jid.endsWith("@g.us")) message.jid.split('@').firstOrNull() else null,
                         lastMessage = message.text ?: "Media",
                         lastMessageTimestamp = message.timestamp,
                         unreadCount = 1,
-                        // Use the new repository method to build the avatar URL safely.
-                        avatarUrl = "${repository.getBaseUrl()}/avatar/${URLEncoder.encode(message.jid, "UTF-8")}",
-                        isGroup = isGroup
+                        avatarUrl = "${repository.getBaseUrl()}/avatar/${message.jid}"
                     )
                 }
-                // Prepend the new or updated conversation to the top and update the state.
-                currentState.copy(conversations = listOf(updatedConversation) + currentConversations)
+                
+                val finalList = (listOf(updatedConversation) + currentConversations)
+                    .distinctBy { it.id }
+                    .sortedByDescending { it.lastMessageTimestamp }
+
+                repository.updateAndSaveConversations(finalList)
+                
+                currentState.copy(conversations = finalList)
             }
         }.launchIn(viewModelScope)
     }
 
     fun hide(jid: String) {
-        _state.update { currentState ->
-            currentState.copy(
-                conversations = currentState.conversations.filterNot { it.id == jid }
-            )
-        }
+        val currentList = _state.value.conversations
+        val updatedList = currentList.filterNot { it.id == jid }
+        repository.updateAndSaveConversations(updatedList)
+        _state.update { it.copy(conversations = updatedList) }
     }
 }

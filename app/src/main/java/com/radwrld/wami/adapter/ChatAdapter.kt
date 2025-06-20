@@ -1,8 +1,8 @@
+// @path: app/src/main/java/com/radwrld/wami/adapter/ChatAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.annotation.SuppressLint
 import android.graphics.drawable.Drawable
-import android.net.Uri
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.util.Log
@@ -26,7 +26,6 @@ import com.radwrld.wami.databinding.*
 import com.radwrld.wami.model.Message
 import com.radwrld.wami.ui.TextFormatter
 import java.io.File
-import java.io.IOException
 import java.util.*
 
 sealed class ChatListItem {
@@ -35,6 +34,8 @@ sealed class ChatListItem {
     object WarningItem : ChatListItem()
 }
 
+// ++ KEY FIX: The DiffUtil Callback now explicitly checks the properties that can change
+// after the initial message load, such as status and the critical localMediaPath.
 class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
     override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
         return when {
@@ -45,9 +46,19 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
         }
     }
 
-    @SuppressLint("DiffUtilEquals")
     override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
-        return oldItem == newItem
+        return when {
+            oldItem is ChatListItem.MessageItem && newItem is ChatListItem.MessageItem -> {
+                val oldMsg = oldItem.message
+                val newMsg = newItem.message
+                // This forces a re-bind if the local path is updated after a download.
+                oldMsg.localMediaPath == newMsg.localMediaPath &&
+                oldMsg.status == newMsg.status &&
+                oldMsg.reactions == newMsg.reactions &&
+                oldMsg.text == newMsg.text
+            }
+            else -> oldItem == newItem
+        }
     }
 }
 
@@ -60,6 +71,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
     private var expandedViewHolder: BaseMessageViewHolder? = null
 
     fun collapseExpandedViewHolder() {
+        expandedViewHolder?.hideDetails()
         expandedViewHolder?.collapsePanels()
         expandedViewHolder = null
     }
@@ -78,11 +90,13 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         abstract val messageContent: ItemMessageContentBinding
         abstract val reactionsLayout: FlexboxLayout
         abstract val tvTimestamp: TextView
+        abstract fun getStatusView(): View?
 
         abstract fun bindQuote(message: Message)
 
         open fun bind(message: Message) {
             collapsePanels()
+            hideDetails()
             bindText(message)
             bindMedia(message)
             bindQuote(message)
@@ -95,6 +109,18 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         fun collapsePanels() {
             reactionPanel.visibility = View.GONE
         }
+        
+        fun hideDetails() {
+            reactionsLayout.visibility = View.GONE
+            tvTimestamp.visibility = View.GONE
+            getStatusView()?.visibility = View.GONE
+        }
+        
+        fun showDetails(message: Message) {
+            reactionsLayout.visibility = if (message.reactions.isNotEmpty()) View.VISIBLE else View.GONE
+            tvTimestamp.visibility = View.VISIBLE
+            getStatusView()?.visibility = View.VISIBLE
+        }
 
         private fun bindText(message: Message) {
             messageContent.tvMessage.isVisible = message.hasText()
@@ -102,42 +128,28 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                 messageContent.tvMessage.text = TextFormatter.format(itemView.context, message.text!!)
             }
         }
-
+        
         private fun bindMedia(message: Message) {
-            messageContent.mediaContainer.isVisible = message.hasMedia()
+            val hasLocalMedia = !message.localMediaPath.isNullOrBlank()
+            messageContent.mediaContainer.isVisible = hasLocalMedia
             messageContent.ivPlayIcon.isVisible = message.isVideo()
-            if (message.hasMedia()) {
-                val mediaPath = message.getMediaPath()
 
+            if (hasLocalMedia) {
                 Glide.with(itemView.context)
-                    .load(if (mediaPath?.startsWith("/") == true) File(mediaPath) else Uri.parse(mediaPath))
+                    .load(File(message.localMediaPath!!))
                     .placeholder(R.drawable.ic_media_placeholder)
-                    .listener(object : RequestListener<Drawable> {
+                    .error(R.drawable.ic_image_error)
+                    .listener(object: RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
-                            Log.e("ChatAdapter", "Glide FAILED for $mediaPath", e)
-                            
-                            // MODIFIED LOGIC: Check for any network exception (IOException)
-                            // This is compatible with the OkHttp integration.
-                            val isNetworkError = e?.causes?.any { it is IOException } == true
-                            if (isNetworkError) {
-                                // Set our specific "media not found" icon for any network issue (404, timeout, etc)
-                                val view = (target as? com.bumptech.glide.request.target.ViewTarget<*,*>)?.view
-                                if (view is ImageView) {
-                                    view.setImageResource(R.drawable.ic_image_broken_variant)
-                                }
-                                return true // Return true to prevent error placeholder from showing
-                            }
-                            return false // Return false to show the generic error placeholder for other errors
+                            Log.e("ChatAdapter", "Glide failed to load local file: ${message.localMediaPath}", e)
+                            return false
                         }
-
                         override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
-                           // Load was successful, do nothing special.
                             return false
                         }
                     })
-                    .error(R.drawable.ic_image_error) // Generic error for non-network issues
                     .into(messageContent.ivMedia)
-
+                
                 messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
             } else {
                 messageContent.mediaContainer.setOnClickListener(null)
@@ -146,7 +158,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         private fun bindReactions(message: Message) {
             reactionsLayout.removeAllViews()
-            reactionsLayout.isVisible = message.reactions.isNotEmpty()
             if (message.reactions.isNotEmpty()) {
                 val inflater = LayoutInflater.from(itemView.context)
                 message.reactions.entries.forEach { entry ->
@@ -162,7 +173,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             REACTIONS.forEachIndexed { index, emoji ->
                 (reactionPanel.findViewWithTag<TextView>("reaction_${index + 1}"))?.setOnClickListener {
                     onReactionClicked?.invoke(message, emoji)
-                    collapsePanels()
+                    collapseExpandedViewHolder()
                 }
             }
         }
@@ -170,19 +181,27 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         private fun setupListeners(message: Message) {
             val gestureDetector = GestureDetector(itemView.context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                    collapseExpandedViewHolder(); return true
+                    collapseExpandedViewHolder()
+                    return true
                 }
                 override fun onLongPress(e: MotionEvent) {
-                    if (expandedViewHolder != this@BaseMessageViewHolder) collapseExpandedViewHolder()
+                    if (expandedViewHolder != this@BaseMessageViewHolder) {
+                        collapseExpandedViewHolder()
+                    }
+                    showDetails(message)
                     reactionPanel.fadeIn()
                     bubble.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     expandedViewHolder = this@BaseMessageViewHolder
                 }
                 override fun onDoubleTap(e: MotionEvent): Boolean {
-                    onReactionClicked?.invoke(message, REACTIONS.first()); return true
+                    onReactionClicked?.invoke(message, REACTIONS.first())
+                    return true
                 }
             })
-            bubble.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
+            bubble.setOnTouchListener { _, event ->
+                gestureDetector.onTouchEvent(event)
+                true
+            }
         }
 
         private fun View.fadeIn() {
@@ -198,6 +217,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         override val messageContent = binding.messageContent
         override val reactionsLayout = binding.reactionGroup
         override val tvTimestamp = binding.tvTimestamp
+        override fun getStatusView(): View = binding.tvStatus
 
         override fun bind(message: Message) {
             super.bind(message)
@@ -209,17 +229,13 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             }
             if (statusIconRes != 0) {
                 val statusDrawable = ContextCompat.getDrawable(itemView.context, statusIconRes)
-                binding.tvStatus.setCompoundDrawablesWithIntrinsicBounds(null, null, statusDrawable, null)
-                binding.tvStatus.isVisible = true
-            } else {
-                binding.tvStatus.isVisible = false
+                binding.tvStatus.setCompoundDrawablesWithIntrinsicBounds(statusDrawable, null, null, null)
             }
         }
 
         override fun bindQuote(message: Message) {
-            val isQuoted = message.quotedMessageId != null
-            binding.replyView.root.isVisible = isQuoted
-            if (isQuoted) {
+            binding.replyView.root.isVisible = message.quotedMessageId != null
+            if (message.quotedMessageId != null) {
                 binding.replyView.tvReplySender.text = message.name
                 binding.replyView.tvReplyText.text = message.quotedMessageText ?: "Media"
             }
@@ -232,19 +248,35 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         override val messageContent = binding.messageContent
         override val reactionsLayout = binding.reactionGroup
         override val tvTimestamp = binding.tvTimestamp
+        override fun getStatusView(): View? = null
 
         override fun bind(message: Message) {
-            super.bind(message)
-            binding.tvSenderName.isVisible = isGroup
-            if(isGroup) {
-                binding.tvSenderName.text = message.senderName
+            if (message.isSticker()) {
+                binding.bubbleLayout.isVisible = false
+                binding.ivSticker.isVisible = true
+                hideDetails()
+
+                if (!message.localMediaPath.isNullOrBlank()) {
+                     Glide.with(itemView.context)
+                        .load(File(message.localMediaPath!!))
+                        .placeholder(R.drawable.ic_media_placeholder)
+                        .error(R.drawable.ic_image_error)
+                        .into(binding.ivSticker)
+                }
+            } else {
+                binding.ivSticker.isVisible = false
+                binding.bubbleLayout.isVisible = true
+                super.bind(message)
+                binding.tvSenderName.isVisible = isGroup
+                if(isGroup) {
+                    binding.tvSenderName.text = message.senderName
+                }
             }
         }
 
         override fun bindQuote(message: Message) {
-            val isQuoted = message.quotedMessageId != null
-            binding.replyView.root.isVisible = isQuoted
-            if (isQuoted) {
+            binding.replyView.root.isVisible = message.quotedMessageId != null
+            if (message.quotedMessageId != null) {
                 binding.replyView.tvReplySender.text = message.name
                 binding.replyView.tvReplyText.text = message.quotedMessageText ?: "Media"
             }
@@ -280,8 +312,8 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = getItem(position)) {
-            is ChatListItem.MessageItem -> (holder as BaseMessageViewHolder).bind(item.message)
-            is ChatListItem.DividerItem -> (holder as DividerViewHolder).bind(item)
+            is ChatListItem.MessageItem -> (holder as? BaseMessageViewHolder)?.bind(item.message)
+            is ChatListItem.DividerItem -> (holder as? DividerViewHolder)?.bind(item)
             is ChatListItem.WarningItem -> {}
         }
     }

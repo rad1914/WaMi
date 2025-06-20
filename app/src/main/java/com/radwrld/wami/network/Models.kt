@@ -30,13 +30,10 @@ data class Message(
     val quotedMessageId: String? = null,
     val quotedMessageText: String? = null,
     val reactions: Map<String, Int> = emptyMap(),
-    // ++ FIX: Added the missing field to the app's internal model. This resolves the errors.
     val mediaSha256: String? = null
 ) {
-    // Helper functions for use in XML data binding
-    fun hasMedia(): Boolean = mediaUrl != null || localMediaPath != null
+    fun hasMedia(): Boolean = !localMediaPath.isNullOrBlank()
     fun isVideo(): Boolean = mimetype?.startsWith("video/") == true
     fun hasText(): Boolean = !text.isNullOrBlank()
-    fun getMediaPath(): String? = localMediaPath ?: mediaUrl
     fun isSticker(): Boolean = type == "sticker"
 }

@@ -88,8 +88,6 @@ class ContactsActivity : AppCompatActivity() {
                 lastMessage = conversation.lastMessage,
                 lastMessageTimestamp = conversation.lastMessageTimestamp,
                 unreadCount = conversation.unreadCount ?: 0,
-                // ++ Applied suggestion: Align with the repository and construct the URL to the new
-                //    /avatar/:jid endpoint for asynchronous loading.
                 avatarUrl = "$serverUrl/avatar/${conversation.jid}"
             )
         }

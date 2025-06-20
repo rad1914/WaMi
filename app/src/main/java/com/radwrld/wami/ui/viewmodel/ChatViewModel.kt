@@ -36,15 +36,6 @@ class ChatViewModel(
         loadAndSyncHistory()
         observeSocketEvents()
     }
-
-    private fun getVisibleMessages(messages: List<Message>): List<Message> {
-        return messages.filter { message ->
-            !message.text.isNullOrBlank() ||
-            !message.mediaUrl.isNullOrBlank() ||
-            !message.localMediaPath.isNullOrBlank() ||
-            !message.quotedMessageText.isNullOrBlank()
-        }
-    }
     
     private fun Map<String, Message>.toSortedList(): List<Message> {
         return this.values.sortedBy { it.timestamp }
@@ -53,35 +44,56 @@ class ChatViewModel(
     private fun loadAndSyncHistory() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
+            // Load local messages first for instant display
             val localMessages = messageStorage.getMessages(jid)
-            val localMessageMap = localMessages.associateBy { it.id }
-            val initialList = localMessageMap.toSortedList()
-            _uiState.update {
-                it.copy(
-                    messages = localMessageMap,
-                    visibleMessages = getVisibleMessages(initialList)
-                )
-            }
-
+            _uiState.update { it.copy(messages = localMessages.associateBy { m -> m.id }) }
+            
+            // Sync with server
             repo.getMessageHistory(jid)
                 .onSuccess { serverMessages ->
-                    val combinedList = withContext(Dispatchers.Default) {
-                        // Combine server and local, ensuring no duplicates, and sort
-                        (serverMessages.associateBy { it.id } + localMessageMap).toSortedList()
-                    }
-                    messageStorage.saveMessages(jid, combinedList)
+                    val combinedMap = (serverMessages.associateBy { it.id } + localMessages.associateBy { it.id })
+                    messageStorage.saveMessages(jid, combinedMap.values.toList())
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            messages = combinedList.associateBy { m -> m.id },
-                            visibleMessages = getVisibleMessages(combinedList)
+                            messages = combinedMap,
                         )
                     }
+                    // ++ After loading history, check for any media that needs to be downloaded.
+                    triggerBackgroundDownloads(combinedMap.values.toList())
                 }
                 .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(isLoading = false, messages = localMessages.associateBy { m -> m.id }) }
                     _errorEvents.emit(error.message ?: "Failed to load history")
+                    triggerBackgroundDownloads(localMessages) // Still try to download from local data
                 }
+        }
+    }
+    
+    // ++ This function triggers the background download for a list of messages.
+    private fun triggerBackgroundDownloads(messages: List<Message>) {
+        messages.forEach { msg ->
+            if (msg.mediaUrl != null && msg.localMediaPath == null && msg.mediaSha256 != null) {
+                downloadMediaForMessage(msg)
+            }
+        }
+    }
+
+    // ++ This is the core background download logic for a single message.
+    private fun downloadMediaForMessage(message: Message) {
+        // Avoid re-downloading if already in progress or done.
+        if (message.mediaUrl == null || message.mediaSha256 == null) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val extension = MediaCache.getFileExtensionFromMimeType(message.mimetype)
+            val cachedFile = MediaCache.downloadAndCache(getApplication(), message.mediaUrl, message.mediaSha256, extension)
+
+            if (cachedFile != null) {
+                // Once downloaded, update the message in the UI state and local storage.
+                val localPath = cachedFile.absolutePath
+                updateMessage(message.id) { it.copy(localMediaPath = localPath) }
+                messageStorage.updateMessageLocalPath(jid, message.id, localPath)
+            }
         }
     }
 
@@ -91,126 +103,104 @@ class ChatViewModel(
             .onEach { message ->
                 messageStorage.addMessage(jid, message)
                 addOrUpdateMessage(message)
+                // ++ Also trigger download for new messages arriving via socket.
+                downloadMediaForMessage(message)
             }
             .launchIn(viewModelScope)
 
         socketManager.messageStatusUpdates
             .onEach { update ->
-                val finalId = update.id
-                // Assuming status updates might refer to a tempId, which we don't have here.
-                // This logic might need adjustment based on how socket updates work with temp IDs.
-                updateMessage(finalId) { it.copy(status = update.status) }
-                messageStorage.updateMessageStatus(jid, finalId, update.status)
+                updateMessage(update.id) { it.copy(status = update.status) }
+                messageStorage.updateMessageStatus(jid, update.id, update.status)
             }
             .launchIn(viewModelScope)
     }
 
     fun sendTextMessage(text: String) {
         if (text.isBlank()) return
-
-        val tempId = UUID.randomUUID().toString()
         val message = Message(
-            id = tempId,
             jid = jid,
-            name = contactName,
             text = text,
             isOutgoing = true,
-            timestamp = System.currentTimeMillis(),
-            status = "sending"
+            senderName = "Me"
         )
-
         addOrUpdateMessage(message)
         messageStorage.addMessage(jid, message)
 
         viewModelScope.launch {
-            repo.sendTextMessage(jid, text, tempId)
+            repo.sendTextMessage(jid, text, message.id)
                 .onSuccess { response ->
-                    val finalId = response.messageId ?: tempId
-                    messageStorage.updateMessage(jid, tempId, finalId, "sent")
-                    updateMessage(tempId) { it.copy(id = finalId, status = "sent") }
+                    val finalId = response.messageId ?: message.id
+                    messageStorage.updateMessage(jid, message.id, finalId, "sent")
+                    updateMessage(message.id) { it.copy(id = finalId, status = "sent") }
                 }
                 .onFailure { error ->
-                    messageStorage.updateMessageStatus(jid, tempId, "failed")
-                    updateMessage(tempId) { it.copy(status = "failed") }
+                    messageStorage.updateMessageStatus(jid, message.id, "failed")
+                    updateMessage(message.id) { it.copy(status = "failed") }
                     _errorEvents.emit("Failed to send: ${error.message}")
                 }
         }
     }
 
     fun sendMediaMessage(uri: Uri) {
-        val tempId = UUID.randomUUID().toString()
-        val mimeType = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
-
-        val tempMessage = Message(
-            id = tempId,
-            jid = jid,
-            text = null,
-            isOutgoing = true,
-            status = "sending",
-            timestamp = System.currentTimeMillis(),
-            localMediaPath = uri.toString(),
-            mimetype = mimeType
-        )
-        addOrUpdateMessage(tempMessage)
-        messageStorage.addMessage(jid, tempMessage)
-
         viewModelScope.launch {
+            // ++ 1. Immediately save the media to our local cache.
             val cacheResult = MediaCache.saveToCache(getApplication(), uri)
-
             if (cacheResult == null) {
-                updateMessage(tempId) { it.copy(status = "failed") }
-                messageStorage.updateMessageStatus(jid, tempId, "failed")
-                _errorEvents.emit("Failed to cache media file.")
+                _errorEvents.emit("Failed to process media file.")
                 return@launch
             }
-
             val (cachedFile, sha256) = cacheResult
-            updateMessage(tempId) { it.copy(localMediaPath = cachedFile.absolutePath, mediaSha256 = sha256) }
+            
+            // ++ 2. Create the message with the local path and hash already populated.
+            val mimeType = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
+            val message = Message(
+                jid = jid,
+                text = null,
+                isOutgoing = true,
+                status = "sending",
+                localMediaPath = cachedFile.absolutePath, // Use the new local path
+                mediaSha256 = sha256, // Use the calculated hash
+                mimetype = mimeType,
+                senderName = "Me"
+            )
 
-            repo.sendMediaMessage(jid, tempId, cachedFile, null)
+            // ++ 3. Add to UI and storage instantly. The preview will now work immediately.
+            addOrUpdateMessage(message)
+            messageStorage.addMessage(jid, message)
+
+            // ++ 4. Start the upload in the background.
+            repo.sendMediaMessage(jid, message.id, cachedFile, null)
                 .onSuccess { response ->
-                    val finalId = response.messageId ?: tempId
-                    updateMessage(tempId) { it.copy(id = finalId, status = "sent") }
-                    messageStorage.updateMessage(jid, tempId, finalId, "sent")
+                    val finalId = response.messageId ?: message.id
+                    messageStorage.updateMessage(jid, message.id, finalId, "sent")
+                    updateMessage(message.id) { it.copy(id = finalId, status = "sent") }
                 }
                 .onFailure { error ->
-                    updateMessage(tempId) { it.copy(status = "failed") }
-                    messageStorage.updateMessageStatus(jid, tempId, "failed")
+                    messageStorage.updateMessageStatus(jid, message.id, "failed")
+                    updateMessage(message.id) { it.copy(status = "failed") }
                     _errorEvents.emit("Upload failed: ${error.message}")
                 }
         }
     }
 
+    // ++ This function becomes very simple: it just finds the file that should already be cached.
     suspend fun getMediaFile(message: Message): File? = withContext(Dispatchers.IO) {
-        val context = getApplication<Application>()
         message.localMediaPath?.let { path ->
             val file = File(path)
-            if (file.exists()) return@withContext file
+            if (file.exists()) file else null
         }
-
-        val hash = message.mediaSha256
-        val url = message.mediaUrl
-        if (hash != null && url != null) {
-            val extension = MediaCache.getFileExtensionFromMimeType(message.mimetype)
-            return@withContext MediaCache.downloadAndCache(context, url, hash, extension)
-        }
-        return@withContext null
     }
 
     fun sendReaction(message: Message, emoji: String) {
         viewModelScope.launch {
             repo.sendReaction(jid = message.jid, messageId = message.id, fromMe = message.isOutgoing, emoji = emoji)
-                .onFailure {
-                     viewModelScope.launch { _errorEvents.emit("Reaction failed") }
-                }
+                .onFailure { _errorEvents.emit("Reaction failed") }
         }
     }
 
     private fun addOrUpdateMessage(message: Message) {
-        _uiState.update { state ->
-            val newMap = state.messages + (message.id to message)
-            state.copy(messages = newMap, visibleMessages = getVisibleMessages(newMap.toSortedList()))
-        }
+        _uiState.update { state -> state.copy(messages = state.messages + (message.id to message)) }
     }
 
     private fun updateMessage(messageId: String, transformation: (Message) -> Message) {
@@ -218,15 +208,17 @@ class ChatViewModel(
             state.messages[messageId]?.let { originalMessage ->
                 val transformed = transformation(originalMessage)
                 val newMap = state.messages - messageId + (transformed.id to transformed)
-                state.copy(messages = newMap, visibleMessages = getVisibleMessages(newMap.toSortedList()))
-            } ?: state // If message not found, return original state
+                state.copy(messages = newMap)
+            } ?: state
         }
     }
 
+    // Use a Flow to continuously provide the sorted list of messages to the UI.
+    val visibleMessagesFlow: Flow<List<Message>> = uiState.map { it.messages.toSortedList() }
+
     data class UiState(
         val isLoading: Boolean = false,
-        val messages: Map<String, Message> = emptyMap(),
-        val visibleMessages: List<Message> = emptyList(),
+        val messages: Map<String, Message> = emptyMap()
     )
 }
 

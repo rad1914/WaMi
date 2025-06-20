@@ -58,6 +58,7 @@ class LoginViewModel(
     companion object {
         private const val POLLING_INTERVAL_MS = 5000L
         private const val RETRY_DELAY_MS = 10000L
+        const val OFFLINE_MESSAGE = "Please connect to the internet to log in."
     }
 
     private fun reinitializeApi() {
@@ -100,9 +101,9 @@ class LoginViewModel(
                         _uiState.value = LoginUiState.LoggedIn
                         break
                     } else {
-                        _uiState.value = status.qr?.let { 
-                            decodeQr(it)?.let { bitmap -> 
-                                LoginUiState.ShowQr(bitmap, "Scan QR code with WhatsApp") 
+                        _uiState.value = status.qr?.let {
+                            decodeQr(it)?.let { bitmap ->
+                                LoginUiState.ShowQr(bitmap, "Scan QR code with WhatsApp")
                             }
                         } ?: LoginUiState.Loading("Waiting for QR code...")
                     }
@@ -194,7 +195,7 @@ class LoginViewModel(
     }
 
     fun notifyNoNetwork() {
-        _uiState.value = LoginUiState.Error("Please connect to the internet to log in.")
+        _uiState.value = LoginUiState.Error(OFFLINE_MESSAGE)
     }
 
     fun logout() {
@@ -243,6 +244,10 @@ class LoginActivity : AppCompatActivity() {
             pickFileLauncher.launch("application/zip")
         }
 
+        binding.offlineLoginButton.setOnClickListener {
+            launchMainActivity()
+        }
+
         observeViewModel()
 
         if (isNetworkAvailable()) viewModel.startLoginProcess()
@@ -266,6 +271,7 @@ class LoginActivity : AppCompatActivity() {
         progressBar.isVisible = state is LoginUiState.Loading
         qrImage.isVisible = state is LoginUiState.ShowQr
         importSessionButton.isEnabled = state !is LoginUiState.Loading
+        offlineLoginButton.isVisible = state is LoginUiState.Error && state.message == LoginViewModel.OFFLINE_MESSAGE
 
         statusText.text = when (state) {
             is LoginUiState.Idle -> "WaMi"
