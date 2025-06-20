@@ -1,10 +1,10 @@
-<!-- @path: app/src/main/res/values/dimens.xml -->
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Padding para tus diálogos -->
-    <dimen name="padding">26dp</dimen>
-    <dimen name="padding_standard">26dp</dimen>
+    <dimen name="spacing_standard">16dp</dimen>
+    <dimen name="spacing_large">24dp</dimen>
 
-    <dimen name="chat_bubble_radius_normal">16dp</dimen>
+
+    <dimen name="dialog_padding">@dimen/spacing_large</dimen> <dimen name="chat_bubble_radius_normal">16dp</dimen>
     <dimen name="chat_bubble_radius_small">4dp</dimen>
 
 </resources>
