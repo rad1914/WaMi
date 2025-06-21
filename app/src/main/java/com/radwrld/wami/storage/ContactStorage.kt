@@ -3,13 +3,12 @@ package com.radwrld.wami.storage
 
 import android.content.Context
 import com.google.gson.Gson
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.model.Contact // <-- Este import ahora funciona
 
 class ContactStorage(context: Context) {
     private val prefs = context.getSharedPreferences("contacts_pref", Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    // private helpers
     private fun loadList(): MutableList<Contact> = try {
         gson.fromJson(prefs.getString("contacts", "[]"), Array<Contact>::class.java)
             .toMutableList()
@@ -21,7 +20,6 @@ class ContactStorage(context: Context) {
         prefs.edit().putString("contacts", gson.toJson(list)).apply()
     }
 
-    // public API
     fun getContacts(): List<Contact> = loadList()
 
     fun saveContacts(list: List<Contact>) = saveList(list)

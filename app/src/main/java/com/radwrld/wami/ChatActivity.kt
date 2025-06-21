@@ -46,7 +46,6 @@ class ChatActivity : AppCompatActivity() {
         if (it.resultCode == Activity.RESULT_OK) {
             it.data?.data?.let { uri ->
                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                // FIXED: Unresolved reference 'sendMediaMessage'. The correct method is sendMedia.
                 viewModel.sendMedia(uri)
             }
         }
@@ -72,6 +71,10 @@ class ChatActivity : AppCompatActivity() {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
         btnBack.setOnClickListener { finish() }
+
+        swipeRefreshLayout.setOnRefreshListener {
+            viewModel.loadOlderMessages()
+        }
 
         adapter = ChatAdapter(isGroup).apply {
             onMediaClickListener = { msg ->
@@ -117,7 +120,6 @@ class ChatActivity : AppCompatActivity() {
 
         btnSend.setOnClickListener {
             etMessage.text.toString().trim().takeIf { it.isNotEmpty() }?.let {
-                // FIXED: Unresolved reference 'sendTextMessage'. The correct method is sendText.
                 viewModel.sendText(it)
                 etMessage.text?.clear()
             }
@@ -136,22 +138,18 @@ class ChatActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    // FIXED: Unresolved reference 'uiState'. The correct property is state.
                     viewModel.state.collect {
-                        // FIXED: Unresolved reference 'it'. This is resolved by fixing 'uiState'.
                         binding.progressBar.visibility = if (it.loading) View.VISIBLE else View.GONE
+                        binding.swipeRefreshLayout.isRefreshing = it.loadingOlder
                     }
                 }
                 launch {
-                    // FIXED: Unresolved reference 'visibleMessagesFlow'. The correct property is visibleMessages.
                     viewModel.visibleMessages.collectLatest { msgs -> process(msgs) }
                 }
                 launch {
-                    // FIXED: Unresolved reference 'errorEvents'. The correct property is errors.
                     viewModel.errors.collect {
-                        // FIXED: Unresolved reference 'it'. This is resolved by fixing 'errorEvents'.
-                        // FIXED: Unresolved reference 'show'. Toast requires a .show() call.
                         Toast.makeText(this@ChatActivity, it, Toast.LENGTH_LONG).show()
+                        binding.swipeRefreshLayout.isRefreshing = false
                     }
                 }
             }

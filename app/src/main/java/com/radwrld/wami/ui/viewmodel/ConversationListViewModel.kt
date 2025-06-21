@@ -8,6 +8,7 @@ import com.radwrld.wami.model.Contact
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.SocketManager
 import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -21,6 +22,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
     private val repository = WhatsAppRepository(application)
     private val socketManager: SocketManager = ApiClient.getSocketManager(application)
+    private val messageStorage = MessageStorage(application) // ++ NUEVA dependencia
 
     private val _state = MutableStateFlow(ConversationListState())
     val state = _state.asStateFlow()
@@ -43,10 +45,22 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             _state.update { it.copy(isLoading = true) }
             repository.refreshAndGetConversations()
                 .onSuccess { conversations ->
+                    // ++ LÓGICA ACTUALIZADA: Obtener el último mensaje localmente
+                    val updatedConversations = conversations.map { contact ->
+                        val lastMessage = messageStorage.getLastMessage(contact.id)
+                        if (lastMessage != null) {
+                            contact.copy(
+                                lastMessage = lastMessage.text ?: "Media",
+                                lastMessageTimestamp = lastMessage.timestamp
+                            )
+                        } else {
+                            contact // Mantener el del servidor si no hay mensajes locales
+                        }
+                    }
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            conversations = conversations.sortedByDescending { c -> c.lastMessageTimestamp }
+                            conversations = updatedConversations.sortedByDescending { c -> c.lastMessageTimestamp }
                         )
                     }
                 }

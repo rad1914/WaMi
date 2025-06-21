@@ -46,8 +46,9 @@ class WhatsAppRepository(private val context: Context) {
     fun updateAndSaveConversations(updated: List<Contact>) =
         conversationStorage.saveConversations(updated)
 
-    suspend fun getMessageHistory(jid: String) = runCatching {
-        api.getHistory(URLEncoder.encode(jid, "UTF-8")).map {
+    suspend fun getMessageHistory(jid: String, before: Long? = null) = runCatching {
+        val timestampCursor = before ?: System.currentTimeMillis() + 1000
+        api.getHistory(URLEncoder.encode(jid, "UTF-8"), before = timestampCursor).map {
             Message(
                 id = it.id,
                 jid = it.jid,
@@ -58,14 +59,20 @@ class WhatsAppRepository(private val context: Context) {
                 timestamp = it.timestamp,
                 name = it.name,
                 senderName = it.name,
-                mediaUrl = it.mediaUrl?.let { path -> "$serverUrl$path" },
+                mediaUrl = it.mediaUrl?.let { path -> if (path.startsWith("http")) path else "$serverUrl$path" },
                 mimetype = it.mimetype,
                 quotedMessageId = it.quotedMessageId,
                 quotedMessageText = it.quotedMessageText,
                 reactions = it.reactions.orEmpty(),
                 mediaSha256 = it.mediaSha256
             )
-        }.also { messageStorage.saveMessages(jid, it) }
+        }.also { messages ->
+            if (before != null) {
+                 messageStorage.appendMessages(jid, messages)
+            } else {
+                messageStorage.saveMessages(jid, messages)
+            }
+        }
     }
 
     suspend fun sendTextMessage(jid: String, text: String, tempId: String) = runCatching {
@@ -74,9 +81,9 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
-        val mime = context.contentResolver.getType(file.toUri())
+        val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
         val part = MultipartBody.Part.createFormData(
-            "file", file.name, file.asRequestBody(mime?.toMediaTypeOrNull())
+            "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
         )
         api.sendMedia(
             jid.toRequestBody("text/plain".toMediaTypeOrNull()),
@@ -86,8 +93,9 @@ class WhatsAppRepository(private val context: Context) {
         ).takeIf { it.success } ?: error("Send failed")
     }
 
-    suspend fun sendReaction(jid: String, messageId: String, fromMe: Boolean, emoji: String) =
+    // ++ FUNCIÓN ACTUALIZADA: Se eliminó el parámetro `fromMe`
+    suspend fun sendReaction(jid: String, messageId: String, emoji: String) =
         runCatching {
-            api.sendReaction(SendReactionRequest(jid, messageId, fromMe, emoji))
+            api.sendReaction(SendReactionRequest(jid, messageId, emoji))
         }
 }

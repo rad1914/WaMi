@@ -11,8 +11,12 @@ interface WhatsAppApi {
     @GET("history/{jid}")
     suspend fun getHistory(
         @Path("jid", encoded = true) jid: String,
-        @Query("limit") limit: Int = 200
+        @Query("before") before: Long,
+        @Query("limit") limit: Int = 50
     ): List<MessageHistoryItem>
+    
+    @POST("history/sync/{jid}")
+    suspend fun syncHistory(@Path("jid", encoded = true) jid: String): SyncResponse
 
     @Streaming
     @GET
@@ -33,7 +37,8 @@ interface WhatsAppApi {
     @POST("send/reaction")
     suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
 
-    @GET("status")
+    // ++ CORRECCIÓN APLICADA AQUÍ ++
+    @GET("session/status")
     suspend fun getStatus(): StatusResponse
 
     @POST("session/create")

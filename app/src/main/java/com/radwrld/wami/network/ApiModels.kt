@@ -49,14 +49,19 @@ data class SendMessageRequest(
     val tempId: String
 )
 
+// ++ MODELO ACTUALIZADO: Se eliminó el campo `fromMe`
 data class SendReactionRequest(
     val jid: String,
     val messageId: String,
-    val fromMe: Boolean,
     val emoji: String
 )
 
 data class MessageStatusUpdateDto(
     @SerializedName("id") val id: String,
     @SerializedName("status") val status: String
+)
+
+data class SyncResponse(
+    val success: Boolean,
+    val message: String
 )

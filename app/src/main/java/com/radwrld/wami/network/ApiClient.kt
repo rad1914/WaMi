@@ -16,19 +16,16 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private var retrofit: Retrofit? = null
-    private var downloadRetrofit: Retrofit? = null
-    private var socket: Socket? = null
-    private var socketManager: SocketManager? = null
+    @Volatile private var retrofit: Retrofit? = null
+    @Volatile private var downloadRetrofit: Retrofit? = null
+    @Volatile private var socket: Socket? = null
+    @Volatile private var socketManager: SocketManager? = null
 
-    // ++ FIX START: Expose the OkHttpClient instances
-    // We make the clients public properties so other parts of the app (like Glide) can use them.
-    var httpClient: OkHttpClient? = null
+    @Volatile var httpClient: OkHttpClient? = null
         private set
 
-    var downloadHttpClient: OkHttpClient? = null
+    @Volatile var downloadHttpClient: OkHttpClient? = null
         private set
-    // ++ FIX END
 
     private fun authInterceptor(context: Context) = Interceptor { chain ->
         val token = ServerConfigStorage(context.applicationContext).getSessionId()
@@ -64,52 +61,52 @@ object ApiClient {
     fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
     fun getInstance(context: Context): WhatsAppApi {
-        val safeContext = context.applicationContext
-        // ++ FIX: Initialize and store the client if it doesn't exist
-        if (httpClient == null) {
-            httpClient = buildClient(safeContext, HttpLoggingInterceptor.Level.BODY)
+        return retrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
+            retrofit?.create(WhatsAppApi::class.java) ?: run {
+                val safeContext = context.applicationContext
+                val client = httpClient ?: buildClient(safeContext, HttpLoggingInterceptor.Level.BODY).also { httpClient = it }
+                buildRetrofit(getBaseUrl(safeContext), client).also { retrofit = it }.create(WhatsAppApi::class.java)
+            }
         }
-        return (retrofit ?: buildRetrofit(
-            getBaseUrl(safeContext),
-            httpClient!!
-        ).also { retrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun getDownloadingInstance(context: Context): WhatsAppApi {
-        val safeContext = context.applicationContext
-        // ++ FIX: Initialize and store the client if it doesn't exist
-        if (downloadHttpClient == null) {
-            downloadHttpClient = buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true)
+        return downloadRetrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
+            downloadRetrofit?.create(WhatsAppApi::class.java) ?: run {
+                val safeContext = context.applicationContext
+                val client = downloadHttpClient ?: buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true).also { downloadHttpClient = it }
+                buildRetrofit(getBaseUrl(safeContext), client).also { downloadRetrofit = it }.create(WhatsAppApi::class.java)
+            }
         }
-        return (downloadRetrofit ?: buildRetrofit(
-            getBaseUrl(safeContext),
-            downloadHttpClient!!
-        ).also { downloadRetrofit = it }).create(WhatsAppApi::class.java)
     }
 
     fun initializeSocket(context: Context) {
-        if (socket != null) return
-        val safeContext = context.applicationContext
-        val config = ServerConfigStorage(safeContext)
-        val token = config.getSessionId() ?: run {
-            Log.e("ApiClient", "No session ID for socket.")
-            return
-        }
-        try {
-            socket = IO.socket(config.getCurrentServer(), IO.Options().apply {
-                auth = mapOf("token" to token)
-            })
-        } catch (e: URISyntaxException) {
-            Log.e("ApiClient", "Socket init failed", e)
+        if (socket == null) {
+            synchronized(this) {
+                if (socket == null) {
+                    val safeContext = context.applicationContext
+                    val config = ServerConfigStorage(safeContext)
+                    val token = config.getSessionId() ?: run {
+                        Log.e("ApiClient", "No session ID for socket.")
+                        return
+                    }
+                    try {
+                        socket = IO.socket(config.getCurrentServer(), IO.Options().apply {
+                            auth = mapOf("token" to token)
+                        })
+                    } catch (e: URISyntaxException) {
+                        Log.e("ApiClient", "Socket init failed", e)
+                    }
+                }
+            }
         }
     }
 
     fun getSocketManager(context: Context): SocketManager {
-        val safeContext = context.applicationContext
         return socketManager ?: synchronized(this) {
-             socketManager ?: run {
-                initializeSocket(safeContext)
-                SocketManager(safeContext).also { socketManager = it }
+            socketManager ?: run {
+                initializeSocket(context.applicationContext)
+                SocketManager(context.applicationContext).also { socketManager = it }
             }
         }
     }
@@ -124,7 +121,6 @@ object ApiClient {
         socketManager = null
         retrofit = null
         downloadRetrofit = null
-        // ++ FIX: Clear the clients on close
         httpClient = null
         downloadHttpClient = null
     }

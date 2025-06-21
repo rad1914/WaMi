@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.radwrld.wami.model.Message
-import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.util.NotificationUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 class SocketManager(private val context: Context) {
 
     private val gson = Gson()
-    private val serverConfigStorage = ServerConfigStorage(context)
     private val socket = ApiClient.getSocket()
 
     private val _incomingMessages = MutableSharedFlow<Message>()
@@ -80,7 +78,6 @@ class SocketManager(private val context: Context) {
     fun disconnect() = ApiClient.disconnectSocket()
 
     private fun mapToMessage(dto: MessageHistoryItem): Message {
-        val baseUrl = serverConfigStorage.getCurrentServer().removeSuffix("/")
         return Message(
             id = dto.id,
             jid = dto.jid,
@@ -91,8 +88,8 @@ class SocketManager(private val context: Context) {
             timestamp = dto.timestamp,
             name = dto.name,
             senderName = dto.name,
-            mediaUrl = dto.mediaUrl?.let { url -> "$baseUrl$url" },
-            localMediaPath = null, // Always null initially for incoming messages
+            mediaUrl = dto.mediaUrl,
+            localMediaPath = null,
             mimetype = dto.mimetype,
             quotedMessageId = dto.quotedMessageId,
             quotedMessageText = dto.quotedMessageText,

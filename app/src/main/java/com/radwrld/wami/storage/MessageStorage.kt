@@ -15,7 +15,11 @@ class MessageStorage(context: Context) {
 
     private fun getList(jid: String): MutableList<Message> {
         val json = prefs.getString(getKey(jid), null) ?: return mutableListOf()
-        return gson.fromJson(json, object : TypeToken<MutableList<Message>>() {}.type)
+        return try {
+            gson.fromJson(json, object : TypeToken<MutableList<Message>>() {}.type)
+        } catch (e: Exception) {
+            mutableListOf()
+        }
     }
 
     private fun saveList(jid: String, list: List<Message>) {
@@ -27,7 +31,21 @@ class MessageStorage(context: Context) {
 
     /** Restored public API for saving an entire list at once */
     fun saveMessages(jid: String, messages: List<Message>) {
-        saveList(jid, messages)
+        // Guardar la lista combinada y sin duplicados, ordenada por tiempo
+        val distinctSorted = messages.distinctBy { it.id }.sortedBy { it.timestamp }
+        saveList(jid, distinctSorted)
+    }
+    
+    /** ++ NUEVA: Agrega mensajes más antiguos a la lista existente (para paginación) */
+    fun appendMessages(jid: String, newMessages: List<Message>) {
+        val existing = getList(jid)
+        val combined = (existing + newMessages).distinctBy { it.id }.sortedBy { it.timestamp }
+        saveList(jid, combined)
+    }
+
+    /** ++ NUEVA: Obtiene el último mensaje de un chat */
+    fun getLastMessage(jid: String): Message? {
+        return getList(jid).maxByOrNull { it.timestamp }
     }
 
     /** Add a single message if not already present */
@@ -56,13 +74,6 @@ class MessageStorage(context: Context) {
         }
     }
 
-    /**
-     * Internal helper to find, transform, and save a single message.
-     *
-     * @param jid    the chat identifier
-     * @param id     the message ID to look up
-     * @param transform  a function that takes the existing Message and returns an updated copy
-     */
     private fun update(jid: String, id: String, transform: (Message) -> Message) {
         val list = getList(jid)
         val index = list.indexOfFirst { it.id == id }

@@ -19,11 +19,11 @@ data class Message(
     val jid: String,
     val text: String?,
     val isOutgoing: Boolean,
-    val type: String? = "conversation", // e.g., "conversation", "sticker", "image", "video"
+    val type: String? = "conversation",
     val status: String = "sending",
     val timestamp: Long = System.currentTimeMillis(),
-    val name: String? = null, // Used for the sender of a quoted message
-    val senderName: String? = null, // Used for the sender of an incoming message
+    val name: String? = null,
+    val senderName: String? = null,
     val mediaUrl: String? = null,
     val localMediaPath: String? = null,
     val mimetype: String? = null,

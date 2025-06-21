@@ -3,17 +3,19 @@ package com.radwrld.wami
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ContactAdapter
 import com.radwrld.wami.databinding.ActivityContactsBinding
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.model.Contact // Import del modelo
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.Conversation
 import com.radwrld.wami.network.WhatsAppApi
-import com.radwrld.wami.storage.ContactStorage
+import com.radwrld.wami.storage.ContactStorage // Import del storage
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -28,6 +30,7 @@ class ContactsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityContactsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -36,12 +39,19 @@ class ContactsActivity : AppCompatActivity() {
         api = ApiClient.getInstance(this)
 
         setupRecyclerView()
+        setupListeners()
         updateContactList(contactStorage.getContacts())
     }
 
     override fun onResume() {
         super.onResume()
         syncContactsFromServer()
+    }
+
+    private fun setupListeners() {
+        binding.ivBack.setOnClickListener {
+            finish()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -52,7 +62,6 @@ class ContactsActivity : AppCompatActivity() {
                 putExtra("EXTRA_AVATAR_URL", contact.avatarUrl)
             })
         }
-
         binding.rvContacts.apply {
             layoutManager = LinearLayoutManager(this@ContactsActivity)
             adapter = contactAdapter
@@ -61,6 +70,7 @@ class ContactsActivity : AppCompatActivity() {
 
     private fun syncContactsFromServer() {
         lifecycleScope.launch {
+            binding.progressBar.visibility = View.VISIBLE
             try {
                 val conversations = api.getConversations()
                 val newContacts = mapConversationsToContacts(conversations)
@@ -73,6 +83,8 @@ class ContactsActivity : AppCompatActivity() {
                 } else {
                     Toast.makeText(this@ContactsActivity, "Could not refresh contacts: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }

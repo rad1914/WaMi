@@ -5,12 +5,14 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
-import android.view.View
+import android.view.Menu
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -29,21 +31,57 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var conversationAdapter: ConversationAdapter
     private lateinit var serverConfigStorage: ServerConfigStorage
-
     private val viewModel: ConversationListViewModel by viewModels()
+
+    private var fullConversationList: List<Contact> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        serverConfigStorage = ServerConfigStorage(this)
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
+        serverConfigStorage = ServerConfigStorage(this)
         setupEventListeners()
         setupRecyclerView()
         observeViewModel()
+    }
+
+    // --- FUNCIÓN CORREGIDA ---
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_toolbar_menu, menu)
+        val searchItem = menu.findItem(R.id.action_search)
+
+        // Usar conversión segura (as?) y un bloque 'let' para evitar el NullPointerException
+        (searchItem.actionView as? SearchView)?.let { searchView ->
+            searchView.queryHint = "Search by name..."
+
+            searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean {
+                    return false
+                }
+
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    filterConversations(newText.orEmpty())
+                    return true
+                }
+            })
+        }
+        return true
+    }
+
+    private fun filterConversations(query: String) {
+        val filteredList = if (query.isBlank()) {
+            fullConversationList
+        } else {
+            fullConversationList.filter {
+                it.name.contains(query, ignoreCase = true)
+            }
+        }
+        conversationAdapter.submitList(filteredList)
     }
 
     override fun onResume() {
@@ -61,20 +99,23 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        binding.bottomNavigation.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.navigation_contacts -> {
-                    startActivity(Intent(this, ContactsActivity::class.java))
-                    true
-                }
-                else -> false
-            }
-        }
+        val navMessages: ImageButton = binding.navMessages
+        val navAdd: ImageButton = binding.navAdd
+        val navContacts: ImageButton = binding.navContacts
+        navMessages.isSelected = true
 
-        binding.fabAdd.setOnClickListener {
+        navMessages.setOnClickListener {
+            navMessages.isSelected = true
+            navContacts.isSelected = false
+        }
+        navAdd.setOnClickListener {
             showFastContactDialog()
         }
-
+        navContacts.setOnClickListener {
+            navContacts.isSelected = true
+            navMessages.isSelected = false
+            startActivity(Intent(this, ContactsActivity::class.java))
+        }
         binding.swipeRefreshLayout.setOnRefreshListener {
             viewModel.load()
         }
@@ -84,13 +125,11 @@ class MainActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Fast Contact")
         builder.setMessage("Enter a phone number to start a new chat.")
-
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_PHONE
             hint = "e.g., 15551234567"
         }
         builder.setView(input)
-
         builder.setPositiveButton("Chat") { dialog, _ ->
             val number = input.text.toString().trim()
             if (number.isNotEmpty()) {
@@ -119,7 +158,6 @@ class MainActivity : AppCompatActivity() {
             },
             onItemLongClicked = { contact, _ -> confirmHide(contact) }
         )
-
         binding.rvMessages.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = conversationAdapter
@@ -131,7 +169,9 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
                     binding.swipeRefreshLayout.isRefreshing = state.isLoading
+                    fullConversationList = state.conversations
                     conversationAdapter.submitList(state.conversations)
+
                     state.error?.let { errorMsg ->
                         Toast.makeText(this@MainActivity, "Error: $errorMsg", Toast.LENGTH_LONG).show()
                         if (errorMsg.contains("401")) {
@@ -144,7 +184,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmHide(contact: Contact) {
-        AlertDialog.Builder(this)
+         AlertDialog.Builder(this)
             .setTitle("Hide Conversation")
             .setMessage("Are you sure you want to hide the conversation with ${contact.name}?")
             .setPositiveButton("Hide") { _, _ ->
@@ -164,11 +204,9 @@ class MainActivity : AppCompatActivity() {
                     Log.e("MainActivity", "Server logout failed", e)
                 }
             }
-
             ApiClient.close()
             serverConfigStorage.saveSessionId(null)
             serverConfigStorage.saveLoginState(false)
-
             val intent = Intent(this@MainActivity, LoginActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
