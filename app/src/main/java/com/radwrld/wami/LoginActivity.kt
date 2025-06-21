@@ -180,8 +180,16 @@ class LoginViewModelFactory(
     private val config: ServerConfigStorage,
     private val resolver: android.content.ContentResolver
 ) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(cls: Class<T>): T =
-        LoginViewModel(app, config, resolver) as T
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        // Check if the requested ViewModel class is assignable from LoginViewModel
+        if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
+            // Suppress the "UNCHECKED_CAST" warning as we have verified the class type
+            @Suppress("UNCHECKED_CAST")
+            return LoginViewModel(app, config, resolver) as T
+        }
+        // If it's an unknown class, throw an exception
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }
 
 class LoginActivity : AppCompatActivity() {
@@ -236,7 +244,7 @@ class LoginActivity : AppCompatActivity() {
             is LoginUiState.Error -> state.msg
             is LoginUiState.LoggedIn -> {
                 openMain()
-                "Logged in!"
+                "Let's Go!"
             }
         }
     }

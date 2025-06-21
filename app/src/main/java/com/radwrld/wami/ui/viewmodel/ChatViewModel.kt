@@ -167,7 +167,14 @@ class ChatViewModelFactory(
     private val jid: String,
     private val name: String
 ) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(cls: Class<T>): T {
-        return ChatViewModel(app, jid, name) as T
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        // Check if the requested ViewModel class is assignable from ChatViewModel
+        if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
+            // Suppress the "UNCHECKED_CAST" warning as we have verified the class type
+            @Suppress("UNCHECKED_CAST")
+            return ChatViewModel(app, jid, name) as T
+        }
+        // If it's an unknown class, throw an exception
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

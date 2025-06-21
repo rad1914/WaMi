@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values-night/colors.xml -->
 <resources>
-    <color name="primary">#7DDA98</color>
-    <color name="onPrimary">#00391B</color>
-    <color name="primaryContainer">#005229</color>
+    <color name="primary">#7DD097</color>
+    <color name="onPrimary">#00391A</color>
+    <color name="primaryContainer">#005228</color>
     <color name="onPrimaryContainer">#99F7B2</color>
 
     <color name="secondary">#B7CCB7</color>
-    <color name="onSecondary">#233426</color>
-    <color name="secondaryContainer">#394B3C</color>
+    <color name="onSecondary">#243426</color>
+    <color name="secondaryContainer">#3A4B3C</color>
     <color name="onSecondaryContainer">#D3E8D3</color>
 
-    <color name="tertiary">#A2CED9</color>
+    <color name="tertiary">#A2CDD9</color>
     <color name="onTertiary">#023640</color>
     <color name="tertiaryContainer">#204D57</color>
     <color name="onTertiaryContainer">#BEEAF6</color>
@@ -19,25 +19,15 @@
     <color name="error">#FFB4AB</color>
     <color name="onError">#690005</color>
     <color name="errorContainer">#93000A</color>
-    <color name="onErrorContainer">#FFDAD6</color>
+    <color name="onErrorContainer">#FFB4AB</color>
 
     <color name="background">#1A1C1A</color>
     <color name="onBackground">#E2E3DE</color>
-    <color name="surface">#1A1C1A</color>
+    
+    <color name="surface">#000000</color>
     <color name="onSurface">#E2E3DE</color>
 
     <color name="surfaceVariant">#424941</color>
-    <color name="onSurfaceVariant">#C2C9BE</color>
+    <color name="onSurfaceVariant">#C2C9BF</color>
     <color name="outline">#8C9389</color>
-
-    <color name="divider">?attr/colorOutlineVariant</color>
-    <color name="online_indicator">#66BB6A</color>
-
-    <color name="bg_header">?attr/colorSurface</color>
-    <color name="text_primary">?attr/colorOnSurface</color>
-    <color name="text_secondary">?attr/colorOnSurfaceVariant</color>
-
-    <color name="code_text">?attr/colorPrimary</color>
-    <color name="code_background_color">?attr/colorSurfaceContainer</color>
-    <color name="spoiler_revealed_background_color">?attr/colorSurfaceContainerHigh</color>
 </resources>
