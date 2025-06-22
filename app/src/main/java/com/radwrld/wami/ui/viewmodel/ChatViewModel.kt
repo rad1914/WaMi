@@ -34,7 +34,6 @@ class ChatViewModel(
         observeSocket()
     }
     
-    // ++ NUEVA: Carga mensajes más antiguos al hacer "swipe to refresh"
     fun loadOlderMessages() = viewModelScope.launch {
         if (state.value.loadingOlder || state.value.messages.isEmpty()) return@launch
 
@@ -76,31 +75,31 @@ class ChatViewModel(
         }
     }
 
+    // ++ CORREGIDO: Simplificado para usar la nueva lógica de getMediaFile
     private fun downloadMissingMedia(messages: Collection<Message>) {
-        messages.forEach {
-            if (it.mediaUrl != null && it.localMediaPath == null && it.mediaSha256 != null) {
-                downloadMedia(it)
+        viewModelScope.launch(Dispatchers.IO) {
+            messages.forEach { msg ->
+                if (msg.mediaUrl != null && msg.localMediaPath == null) {
+                    // Simplemente llama a getMediaFile, que ahora maneja toda la lógica.
+                    // No es necesario verificar el resultado aquí, solo queremos iniciar la descarga.
+                    getMediaFile(msg)
+                }
             }
         }
     }
 
-    private fun downloadMedia(msg: Message) = viewModelScope.launch(Dispatchers.IO) {
-        val ext = MediaCache.fileExt(msg.mimetype)
-        val file = MediaCache.downloadAndCache(getApplication(), msg.mediaUrl!!, msg.mediaSha256!!, ext)
-        file?.let {
-            val path = it.absolutePath
-            updateMessageInState(msg.id) { m -> m.copy(localMediaPath = path) }
-            storage.updateMessageLocalPath(jid, msg.id, path)
-        }
-    }
+    // Se eliminó la función `downloadMedia` anterior, ya que su lógica ahora está en `getMediaFile`.
 
     private fun observeSocket() {
         socket.incomingMessages
             .filter { it.jid == jid }
-            .onEach {
-                storage.addMessage(jid, it)
-                addOrUpdateMessageInState(it.id, it)
-                downloadMedia(it)
+            .onEach { msg ->
+                storage.addMessage(jid, msg)
+                addOrUpdateMessageInState(msg.id, msg)
+                // ++ CORREGIDO: Llama a getMediaFile para descargar automáticamente el medio del nuevo mensaje.
+                if (msg.mediaUrl != null) {
+                    getMediaFile(msg)
+                }
             }.launchIn(viewModelScope)
 
         socket.messageStatusUpdates
@@ -153,15 +152,47 @@ class ChatViewModel(
         }
     }
 
-    // ++ CORREGIDO: Se eliminó el parámetro `isOutgoing`
     fun sendReaction(msg: Message, emoji: String) = viewModelScope.launch {
         repo.sendReaction(jid, msg.id, emoji).onFailure {
             _errors.emit("Reaction failed")
         }
     }
 
-    suspend fun getMediaFile(msg: Message): File? = withContext(Dispatchers.IO) {
-        msg.localMediaPath?.let { path -> File(path).takeIf { it.exists() } }
+    // ++ CORREGIDO: Esta es la función clave. Ahora maneja la lógica de caché y descarga.
+    suspend fun getMediaFile(msg: Message): File? {
+        // 1. Revisa si ya existe un archivo local válido.
+        msg.localMediaPath?.let { path ->
+            File(path).takeIf { it.exists() }?.let { return it }
+        }
+
+        // 2. Verifica si se puede descargar.
+        if (msg.mediaUrl.isNullOrBlank() || msg.mimetype.isNullOrBlank()) {
+            return null
+        }
+        
+        val ext = MediaCache.fileExt(msg.mimetype)
+
+        // 3. Usa el hash SHA256 como clave si está disponible; si no, usa el ID del mensaje.
+        val cacheKey = msg.mediaSha256 ?: msg.id
+
+        // 4. Llama a MediaCache. Esta función descargará el archivo si no está en caché.
+        val file = withContext(Dispatchers.IO) {
+             MediaCache.downloadAndCache(
+                context = getApplication(),
+                url = msg.mediaUrl!!,
+                cacheKey = cacheKey,
+                ext = ext
+            )
+        }
+
+        // 5. Si la descarga fue exitosa, actualiza el estado y el almacenamiento local.
+        if (file != null) {
+            val path = file.absolutePath
+            updateMessageInState(msg.id) { m -> m.copy(localMediaPath = path) }
+            storage.updateMessageLocalPath(jid, msg.id, path)
+        }
+
+        return file
     }
 
     private fun addOrUpdateMessageInState(id: String, message: Message) {
@@ -188,7 +219,7 @@ class ChatViewModel(
 
     data class UiState(
         val loading: Boolean = false,
-        val loadingOlder: Boolean = false, // ++ NUEVO: para el swipe refresh
+        val loadingOlder: Boolean = false,
         val messages: Map<String, Message> = emptyMap()
     )
 }

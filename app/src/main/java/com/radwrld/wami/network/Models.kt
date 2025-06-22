@@ -32,7 +32,8 @@ data class Message(
     val reactions: Map<String, Int> = emptyMap(),
     val mediaSha256: String? = null
 ) {
-    fun hasMedia(): Boolean = !localMediaPath.isNullOrBlank()
+    // ++ CAMBIO APLICADO: Se basa la existencia de medios en mediaUrl en lugar de la ruta local.
+    fun hasMedia(): Boolean = !mediaUrl.isNullOrBlank()
     fun isVideo(): Boolean = mimetype?.startsWith("video/") == true
     fun hasText(): Boolean = !text.isNullOrBlank()
     fun isSticker(): Boolean = type == "sticker"

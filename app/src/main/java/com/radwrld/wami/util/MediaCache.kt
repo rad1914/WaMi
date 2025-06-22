@@ -16,7 +16,6 @@ object MediaCache {
 
     private fun cacheDir(context: Context) = File(context.cacheDir, "media_cache").apply { mkdirs() }
 
-    // FIXED: Removed the 'private' modifier to make this function accessible from other classes.
     fun fileExt(mime: String?) = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "bin"
 
     private fun sha256(stream: java.io.InputStream): String {
@@ -42,19 +41,21 @@ object MediaCache {
         null
     }
 
-    fun getCachedFile(context: Context, sha: String, ext: String): File? {
-        val file = File(cacheDir(context), "$sha.$ext")
+    // ++ CAMBIO APLICADO: Acepta una 'cacheKey' genérica en lugar de 'sha' ++
+    fun getCachedFile(context: Context, cacheKey: String, ext: String): File? {
+        val file = File(cacheDir(context), "$cacheKey.$ext")
         return file.takeIf { it.exists() }
     }
 
-    suspend fun downloadAndCache(context: Context, url: String, sha: String, ext: String): File? {
-        getCachedFile(context, sha, ext)?.let { return it }
+    // ++ CAMBIO APLICADO: Acepta una 'cacheKey' genérica y la usa para buscar y guardar ++
+    suspend fun downloadAndCache(context: Context, url: String, cacheKey: String, ext: String): File? {
+        getCachedFile(context, cacheKey, ext)?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
                 val res = ApiClient.getDownloadingInstance(context).downloadFile(url)
                 if (res.isSuccessful) {
                     res.body()?.let {
-                        val file = File(cacheDir(context), "$sha.$ext")
+                        val file = File(cacheDir(context), "$cacheKey.$ext")
                         it.byteStream().use { input -> FileOutputStream(file).use { input.copyTo(it) } }
                         return@withContext file
                     }

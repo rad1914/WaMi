@@ -1,3 +1,4 @@
+<!-- @path: app/src/main/res/drawable/pill_button_tint_selector.xml -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_selected="true" android:color="?attr/colorOnPrimaryContainer" />
     <item android:color="?attr/colorOnSurfaceVariant" />

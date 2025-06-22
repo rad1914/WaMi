@@ -1,13 +1,11 @@
 // @path: app/src/main/java/com/radwrld/wami/adapter/ChatAdapter.kt
 package com.radwrld.wami.adapter
 
-import android.annotation.SuppressLint
 import android.graphics.drawable.Drawable
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.util.Log
 import android.view.*
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -43,22 +41,13 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
             else -> false
         }
     }
-
     override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem): Boolean {
         return when {
-            oldItem is ChatListItem.MessageItem && newItem is ChatListItem.MessageItem -> {
-                val oldMsg = oldItem.message
-                val newMsg = newItem.message
-                oldMsg.localMediaPath == newMsg.localMediaPath &&
-                oldMsg.status == newMsg.status &&
-                oldMsg.reactions == newMsg.reactions &&
-                oldMsg.text == newMsg.text
-            }
+            oldItem is ChatListItem.MessageItem && newItem is ChatListItem.MessageItem -> oldItem.message == newItem.message
             else -> oldItem == newItem
         }
     }
 }
-
 
 class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, RecyclerView.ViewHolder>(ChatDiffCallback()) {
 
@@ -88,7 +77,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         abstract val reactionsLayout: FlexboxLayout
         abstract val tvTimestamp: TextView
         abstract fun getStatusView(): View?
-
         abstract fun bindQuote(message: Message)
 
         open fun bind(message: Message) {
@@ -102,54 +90,78 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             setupListeners(message)
             tvTimestamp.text = DateFormat.getTimeFormat(itemView.context).format(Date(message.timestamp))
         }
-
-        fun collapsePanels() {
-            reactionPanel.visibility = View.GONE
-        }
         
+        fun collapsePanels() { reactionPanel.visibility = View.GONE }
         fun hideDetails() {
             reactionsLayout.visibility = View.GONE
             tvTimestamp.visibility = View.GONE
             getStatusView()?.visibility = View.GONE
         }
-        
         fun showDetails(message: Message) {
             reactionsLayout.visibility = if (message.reactions.isNotEmpty()) View.VISIBLE else View.GONE
             tvTimestamp.visibility = View.VISIBLE
             getStatusView()?.visibility = View.VISIBLE
         }
-
         private fun bindText(message: Message) {
             messageContent.tvMessage.isVisible = message.hasText()
             if (message.hasText()) {
                 messageContent.tvMessage.text = TextFormatter.format(itemView.context, message.text!!)
             }
         }
-        
-        private fun bindMedia(message: Message) {
-            val hasLocalMedia = !message.localMediaPath.isNullOrBlank()
-            messageContent.mediaContainer.isVisible = hasLocalMedia
-            messageContent.ivPlayIcon.isVisible = message.isVideo()
 
-            if (hasLocalMedia) {
-                Glide.with(itemView.context)
-                    .load(File(message.localMediaPath!!))
-                    .placeholder(R.drawable.ic_media_placeholder)
-                    .error(R.drawable.ic_image_error)
-                    .listener(object: RequestListener<Drawable> {
-                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
-                            Log.e("ChatAdapter", "Glide failed to load local file: ${message.localMediaPath}", e)
-                            return false
-                        }
-                        override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
-                            return false
-                        }
-                    })
-                    .into(messageContent.ivMedia)
-                
-                messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
-            } else {
+        private fun bindMedia(message: Message) {
+            Glide.with(itemView.context).clear(messageContent.ivMedia)
+
+            val canShowMedia = !message.localMediaPath.isNullOrBlank() || !message.mediaUrl.isNullOrBlank()
+            messageContent.mediaContainer.isVisible = canShowMedia
+
+            if (!canShowMedia) {
                 messageContent.mediaContainer.setOnClickListener(null)
+                return
+            }
+
+            messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
+            
+            val hasLocalFile = !message.localMediaPath.isNullOrBlank()
+            messageContent.ivPlayIcon.isVisible = message.isVideo() && hasLocalFile
+
+            if (hasLocalFile) {
+                val file = File(message.localMediaPath!!)
+                
+                val listener = object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
+                        Log.e("ChatAdapter", "Glide FAILED to load model: $model", e)
+                        if (file.exists()) {
+                            Log.e("ChatAdapter", "File exists. Size: ${file.length()} bytes. Path: ${file.absolutePath}")
+                        } else {
+                            Log.e("ChatAdapter", "File does NOT exist at path: ${file.absolutePath}")
+                        }
+                        return false
+                    }
+
+                    override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
+                        Log.d("ChatAdapter", "Glide SUCCEEDED in loading model: $model")
+                        return false
+                    }
+                }
+
+                if (message.isVideo()) {
+                     Glide.with(itemView.context)
+                        .load(message.localMediaPath)
+                        .placeholder(R.drawable.ic_media_placeholder)
+                        .error(R.drawable.ic_image_error)
+                        .listener(listener)
+                        .into(messageContent.ivMedia)
+                } else {
+                     Glide.with(itemView.context)
+                        .load(file)
+                        .placeholder(R.drawable.ic_media_placeholder)
+                        .error(R.drawable.ic_image_error)
+                        .listener(listener)
+                        .into(messageContent.ivMedia)
+                }
+            } else {
+                messageContent.ivMedia.setImageResource(R.drawable.ic_media_placeholder)
             }
         }
 
@@ -182,9 +194,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                     return true
                 }
                 override fun onLongPress(e: MotionEvent) {
-                    if (expandedViewHolder != this@BaseMessageViewHolder) {
-                        collapseExpandedViewHolder()
-                    }
+                    if (expandedViewHolder != this@BaseMessageViewHolder) collapseExpandedViewHolder()
                     showDetails(message)
                     reactionPanel.fadeIn()
                     bubble.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -195,16 +205,13 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                     return true
                 }
             })
-            bubble.setOnTouchListener { _, event ->
-                gestureDetector.onTouchEvent(event)
-                true
-            }
+            bubble.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event); true }
         }
 
         private fun View.fadeIn() {
-            this.visibility = View.VISIBLE
-            this.alpha = 0f
-            this.animate().alpha(1f).setDuration(200).setListener(null).start()
+            alpha = 0f
+            visibility = View.VISIBLE
+            animate().alpha(1f).setDuration(200).setListener(null).start()
         }
     }
 
@@ -217,21 +224,31 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         override fun getStatusView(): View = binding.tvStatus
 
         override fun bind(message: Message) {
-            super.bind(message)
-            val statusIconRes = when (message.status) {
-                "read" -> R.drawable.ic_read_receipt
-                "delivered" -> R.drawable.ic_delivered_receipt
-                "sent", "sending" -> R.drawable.ic_sending
-                else -> 0
-            }
-            if (statusIconRes != 0) {
-                val statusDrawable = ContextCompat.getDrawable(itemView.context, statusIconRes)
-                binding.tvStatus.setCompoundDrawablesWithIntrinsicBounds(statusDrawable, null, null, null)
+            binding.bubbleLayout.isVisible = false
+            binding.ivSticker.isVisible = false
+            if (message.isSticker()) {
+                binding.ivSticker.isVisible = true
+                hideDetails()
+                Glide.with(itemView.context).clear(binding.ivSticker)
+                if (!message.localMediaPath.isNullOrBlank()) {
+                    Glide.with(itemView.context).load(File(message.localMediaPath!!)).into(binding.ivSticker)
+                }
+            } else {
+                binding.bubbleLayout.isVisible = true
+                super.bind(message)
+                val statusIconRes = when (message.status) {
+                    "read" -> R.drawable.ic_read_receipt
+                    "delivered" -> R.drawable.ic_delivered_receipt
+                    "sent", "sending" -> R.drawable.ic_sending
+                    else -> 0
+                }
+                if (statusIconRes != 0) {
+                    binding.tvStatus.setCompoundDrawablesWithIntrinsicBounds(ContextCompat.getDrawable(itemView.context, statusIconRes), null, null, null)
+                }
             }
         }
-
         override fun bindQuote(message: Message) {
-            binding.replyView.root.isVisible = message.quotedMessageId != null
+             binding.replyView.root.isVisible = message.quotedMessageId != null
             if (message.quotedMessageId != null) {
                 binding.replyView.tvReplySender.text = message.name
                 binding.replyView.tvReplyText.text = message.quotedMessageText ?: "Media"
@@ -248,29 +265,27 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         override fun getStatusView(): View? = null
 
         override fun bind(message: Message) {
+            binding.bubbleLayout.isVisible = false
+            binding.ivSticker.isVisible = false
             if (message.isSticker()) {
-                binding.bubbleLayout.isVisible = false
                 binding.ivSticker.isVisible = true
                 hideDetails()
-
+                Glide.with(itemView.context).clear(binding.ivSticker)
                 if (!message.localMediaPath.isNullOrBlank()) {
-                     Glide.with(itemView.context)
-                        .load(File(message.localMediaPath!!))
-                        .placeholder(R.drawable.ic_media_placeholder)
-                        .error(R.drawable.ic_image_error)
-                        .into(binding.ivSticker)
+                    Glide.with(itemView.context).load(File(message.localMediaPath!!)).into(binding.ivSticker)
+                } else {
+                    binding.ivSticker.setImageResource(R.drawable.ic_media_placeholder)
+                    binding.ivSticker.setOnClickListener { onMediaClickListener?.invoke(message) }
                 }
             } else {
-                binding.ivSticker.isVisible = false
                 binding.bubbleLayout.isVisible = true
                 super.bind(message)
                 binding.tvSenderName.isVisible = isGroup
-                if(isGroup) {
+                if (isGroup) {
                     binding.tvSenderName.text = message.senderName
                 }
             }
         }
-
         override fun bindQuote(message: Message) {
             binding.replyView.root.isVisible = message.quotedMessageId != null
             if (message.quotedMessageId != null) {
@@ -279,7 +294,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             }
         }
     }
-
+    
     class DividerViewHolder(private val binding: ItemDividerBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ChatListItem.DividerItem) {
             binding.tvDivider.text = DateUtils.getRelativeTimeSpanString(item.timestamp, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS, DateUtils.FORMAT_SHOW_WEEKDAY)
