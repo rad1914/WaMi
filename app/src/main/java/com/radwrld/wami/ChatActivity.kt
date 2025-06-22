@@ -21,7 +21,6 @@ import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.adapter.ChatListItem
 import com.radwrld.wami.databinding.ActivityChatBinding
 import com.radwrld.wami.model.Message
-import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
@@ -64,7 +63,8 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        ApiClient.connectSocket()
+        // ELIMINADO: ApiClient.connectSocket()
+        // SyncManager maneja la conexión automáticamente.
     }
 
     private fun setupUI() = with(binding) {

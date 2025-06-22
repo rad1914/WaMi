@@ -2,24 +2,18 @@
 package com.radwrld.wami.network
 
 import android.content.Context
-import android.util.Log
 import com.radwrld.wami.storage.ServerConfigStorage
-import io.socket.client.IO
-import io.socket.client.Socket
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.net.URISyntaxException
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
     @Volatile private var retrofit: Retrofit? = null
     @Volatile private var downloadRetrofit: Retrofit? = null
-    @Volatile private var socket: Socket? = null
-    @Volatile private var socketManager: SocketManager? = null
 
     @Volatile var httpClient: OkHttpClient? = null
         private set
@@ -80,45 +74,7 @@ object ApiClient {
         }
     }
 
-    fun initializeSocket(context: Context) {
-        if (socket == null) {
-            synchronized(this) {
-                if (socket == null) {
-                    val safeContext = context.applicationContext
-                    val config = ServerConfigStorage(safeContext)
-                    val token = config.getSessionId() ?: run {
-                        Log.e("ApiClient", "No session ID for socket.")
-                        return
-                    }
-                    try {
-                        socket = IO.socket(config.getCurrentServer(), IO.Options().apply {
-                            auth = mapOf("token" to token)
-                        })
-                    } catch (e: URISyntaxException) {
-                        Log.e("ApiClient", "Socket init failed", e)
-                    }
-                }
-            }
-        }
-    }
-
-    fun getSocketManager(context: Context): SocketManager {
-        return socketManager ?: synchronized(this) {
-            socketManager ?: run {
-                initializeSocket(context.applicationContext)
-                SocketManager(context.applicationContext).also { socketManager = it }
-            }
-        }
-    }
-
-    fun getSocket(): Socket? = socket
-    fun connectSocket() = socket?.takeIf { !it.connected() }?.connect()
-    fun disconnectSocket() = socket?.disconnect()
-
     fun close() {
-        disconnectSocket()
-        socket = null
-        socketManager = null
         retrofit = null
         downloadRetrofit = null
         httpClient = null

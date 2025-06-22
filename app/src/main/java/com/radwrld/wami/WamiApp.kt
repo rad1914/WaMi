@@ -5,6 +5,7 @@ import android.app.Application
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.material.color.DynamicColors
+import com.radwrld.wami.sync.SyncManager
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -17,6 +18,10 @@ class WamiApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // ++ SE AGREGA LA INICIALIZACIÓN DEL SYNC MANAGER AQUÍ ++
+        SyncManager.initialize(this)
+
         // MODIFIED: Using AppConfig.DEBUG instead of BuildConfig.DEBUG
         if (AppConfig.DEBUG) {
             Log.d(TAG, "Lifecycle: onCreate() called.")

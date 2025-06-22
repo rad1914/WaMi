@@ -37,7 +37,6 @@ interface WhatsAppApi {
     @POST("send/reaction")
     suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
 
-    // ++ CORRECCIÓN APLICADA AQUÍ ++
     @GET("session/status")
     suspend fun getStatus(): StatusResponse
 
@@ -50,11 +49,5 @@ interface WhatsAppApi {
     @GET("chats")
     suspend fun getConversations(): List<Conversation>
 
-    @Streaming
-    @GET("session/export")
-    suspend fun exportSession(): Response<ResponseBody>
-
-    @Multipart
-    @POST("session/import")
-    suspend fun importSession(@Part file: MultipartBody.Part): Response<Void>
+    // --- ENDPOINTS DE IMPORTAR/EXPORTAR ELIMINADOS ---
 }

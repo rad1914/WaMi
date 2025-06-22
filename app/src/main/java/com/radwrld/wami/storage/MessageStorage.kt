@@ -74,6 +74,11 @@ class MessageStorage(context: Context) {
         }
     }
 
+    /** Update a message's reactions */
+    fun updateMessageReactions(jid: String, id: String, reactions: Map<String, Int>) {
+        update(jid, id) { it.copy(reactions = reactions) }
+    }
+
     private fun update(jid: String, id: String, transform: (Message) -> Message) {
         val list = getList(jid)
         val index = list.indexOfFirst { it.id == id }

@@ -7,13 +7,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.widget.EditText
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.*
@@ -23,15 +23,13 @@ import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.net.ConnectException
 import java.net.UnknownHostException
 
 sealed class LoginUiState {
     object Idle : LoginUiState()
-    object LoggedIn : LoginUiState()
+    data class LoggedIn(val sessionId: String) : LoginUiState()
     data class Loading(val msg: String) : LoginUiState()
     data class ShowQr(val bitmap: Bitmap, val msg: String) : LoginUiState()
     data class Error(val msg: String) : LoginUiState()
@@ -69,7 +67,7 @@ class LoginViewModel(
         job = viewModelScope.launch {
             try {
                 if (config.getSessionId().isNullOrEmpty()) {
-                    uiState.value = LoginUiState.Loading("Creating session...")
+                    uiState.value = LoginUiState.Loading("Creating new session...")
                     config.saveSessionId(api.createSession().sessionId)
                     restartApi()
                 }
@@ -84,16 +82,22 @@ class LoginViewModel(
         job = viewModelScope.launch {
             while (isActive) {
                 try {
-                    // ++ Asegúrate que tu WhatsAppApi.kt tiene la ruta correcta "session/status"
                     val status = api.getStatus()
                     if (status.connected) {
                         config.saveLoginState(true)
-                        uiState.value = LoginUiState.LoggedIn
+                        val sessionId = config.getSessionId() ?: "Unknown"
+                        uiState.value = LoginUiState.LoggedIn(sessionId)
                         break
                     }
-                    uiState.value = status.qr?.let { decodeQr(it)?.let { bmp -> LoginUiState.ShowQr(bmp, "Scan QR") } }
-                        ?: LoginUiState.Loading("Waiting for QR...")
+                    uiState.value = status.qr?.let { decodeQr(it)?.let { bmp -> LoginUiState.ShowQr(bmp, "Scan QR to log in") } }
+                        ?: LoginUiState.Loading("Waiting for QR Code...")
                 } catch (e: Exception) {
+                    if (e is HttpException && e.code() == 401) {
+                        toastEvents.emit("Session expired. Creating a new one.")
+                        config.saveSessionId(null)
+                        loginFlow()
+                        break
+                    }
                     handleError(e)
                     break
                 }
@@ -101,17 +105,20 @@ class LoginViewModel(
             }
         }
     }
-
-    fun import(uri: Uri) {
-        // ...código de import sin cambios...
+    
+    fun setSessionAndRestart(sessionId: String) {
+        job?.cancel()
+        viewModelScope.launch {
+            config.saveSessionId(sessionId)
+            toastEvents.emit("Attempting to connect with session: $sessionId")
+            start()
+        }
     }
 
-    // ++ FUNCIÓN ACTUALIZADA CON DIAGNÓSTICO DETALLADO ++
     private suspend fun handleError(e: Exception) {
         Log.e("LoginViewModel", "Login failed", e)
         val baseUrl = ApiClient.getBaseUrl(getApplication())
         val verboseError: String
-
         when (e) {
             is HttpException -> {
                 val errorMsg = "Server error: ${e.code()}"
@@ -129,7 +136,7 @@ class LoginViewModel(
                  verboseError = "$errorMsg\nIs the server running at $baseUrl?\nDetails: ${e.message}"
             }
             else -> {
-                val errorMsg = "UE"
+                val errorMsg = "Unknown Error"
                 uiState.value = LoginUiState.Error(errorMsg)
                 verboseError = "$errorMsg Details: ${e.message}"
             }
@@ -142,7 +149,7 @@ class LoginViewModel(
         val bytes = Base64.decode(base64, Base64.DEFAULT)
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     } catch (_: Exception) {
-        viewModelScope.launch { toastEvents.emit("QR decode failed.") }
+        viewModelScope.launch { toastEvents.emit("Failed to decode QR image.") }
         null
     }
 
@@ -157,7 +164,7 @@ class LoginViewModel(
             config.saveSessionId(null)
             restartApi()
             uiState.value = LoginUiState.Idle
-            toastEvents.emit("Logged out.")
+            toastEvents.emit("Logged out successfully.")
         }
     }
 }
@@ -183,18 +190,15 @@ class LoginActivity : AppCompatActivity() {
         LoginViewModelFactory(application, ServerConfigStorage(this), contentResolver)
     }
 
-    private val filePicker = registerForActivityResult(ActivityResultContracts.GetContent()) {
-        it?.let(vm::import)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         bind = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(bind.root)
 
         bind.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
-        bind.importSessionButton.setOnClickListener { filePicker.launch("application/zip") }
         bind.offlineLoginButton.setOnClickListener { openMain() }
+        
+        bind.multiUserLoginButton.setOnClickListener { showMultiUserInputDialog() }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -215,8 +219,10 @@ class LoginActivity : AppCompatActivity() {
     private fun render(state: LoginUiState) = with(bind) {
         progressBar.isVisible = state is LoginUiState.Loading
         qrImage.isVisible = state is LoginUiState.ShowQr
-        importSessionButton.isEnabled = state !is LoginUiState.Loading
         offlineLoginButton.isVisible = state is LoginUiState.Error && state.msg == LoginViewModel.OFFLINE
+        
+        // ++ CAMBIO: El botón ahora es visible también cuando se muestra el QR ++
+        multiUserLoginButton.isVisible = state is LoginUiState.Idle || state is LoginUiState.Error || state is LoginUiState.ShowQr
 
         statusText.text = when (state) {
             is LoginUiState.Idle -> "WaMi"
@@ -228,9 +234,29 @@ class LoginActivity : AppCompatActivity() {
             is LoginUiState.Error -> state.msg
             is LoginUiState.LoggedIn -> {
                 openMain()
-                "Let's Go!"
+                "Logged in as: ${state.sessionId}"
             }
         }
+    }
+    
+    private fun showMultiUserInputDialog() {
+        val input = EditText(this).apply {
+            hint = "Enter Session ID (UUID)"
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Multi-user Login")
+            .setMessage("Enter an existing session ID to connect without scanning a QR code.")
+            .setView(input)
+            .setPositiveButton("Connect") { _, _ ->
+                val sessionId = input.text.toString().trim()
+                if (sessionId.isNotEmpty()) {
+                    vm.setSessionAndRestart(sessionId)
+                } else {
+                    toast("Session ID cannot be empty.")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun isOnline(): Boolean {
@@ -244,7 +270,6 @@ class LoginActivity : AppCompatActivity() {
         finish()
     }
 
-    // ++ FUNCIÓN ACTUALIZADA PARA TOASTS LARGOS Y DETALLADOS
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }

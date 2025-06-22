@@ -4,11 +4,13 @@ package com.radwrld.wami.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.radwrld.wami.data.ContactRepository
 import com.radwrld.wami.model.Contact
-import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.network.SocketManager
+import com.radwrld.wami.model.SearchResultItem
+import com.radwrld.wami.repository.SearchRepository
 import com.radwrld.wami.repository.WhatsAppRepository
-import com.radwrld.wami.storage.MessageStorage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -18,100 +20,93 @@ data class ConversationListState(
     val error: String? = null
 )
 
+// ++ NUEVO: Estado para la UI de búsqueda
+data class SearchState(
+    val query: String = "",
+    val results: List<SearchResultItem> = emptyList(),
+    val isSearching: Boolean = false
+)
+
 class ConversationListViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = WhatsAppRepository(application)
-    private val socketManager: SocketManager = ApiClient.getSocketManager(application)
-    private val messageStorage = MessageStorage(application) // ++ NUEVA dependencia
+    private val whatsAppRepository = WhatsAppRepository(application)
+    private val contactRepository = ContactRepository(application)
+    // ++ NUEVO: Repositorio de búsqueda
+    private val searchRepository = SearchRepository(application)
 
-    private val _state = MutableStateFlow(ConversationListState())
-    val state = _state.asStateFlow()
+    private val _isLoading = MutableStateFlow(false)
+    private val _error = MutableStateFlow<String?>(null)
+    
+    // ++ NUEVO: Flujo para el estado de búsqueda
+    private val _searchState = MutableStateFlow(SearchState())
+    val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+    private var searchJob: Job? = null
+
+
+    // El estado de la UI se construye combinando el Flow de contactos del repositorio
+    // con los estados de carga y error.
+    val conversationState: StateFlow<ConversationListState> = combine(
+        contactRepository.contactsFlow,
+        _isLoading,
+        _error
+    ) { conversations, isLoading, error ->
+        ConversationListState(
+            conversations = conversations,
+            isLoading = isLoading,
+            error = error
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ConversationListState()
+    )
 
     init {
-        loadFromCache()
-        load() // Network refresh
-        listenForIncomingMessages()
-    }
-
-    private fun loadFromCache() {
-        val cachedConversations = repository.getCachedConversations()
-        _state.update {
-            it.copy(conversations = cachedConversations.sortedByDescending { c -> c.lastMessageTimestamp })
-        }
+        load()
     }
 
     fun load() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            repository.refreshAndGetConversations()
-                .onSuccess { conversations ->
-                    // ++ LÓGICA ACTUALIZADA: Obtener el último mensaje localmente
-                    val updatedConversations = conversations.map { contact ->
-                        val lastMessage = messageStorage.getLastMessage(contact.id)
-                        if (lastMessage != null) {
-                            contact.copy(
-                                lastMessage = lastMessage.text ?: "Media",
-                                lastMessageTimestamp = lastMessage.timestamp
-                            )
-                        } else {
-                            contact // Mantener el del servidor si no hay mensajes locales
-                        }
-                    }
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            conversations = updatedConversations.sortedByDescending { c -> c.lastMessageTimestamp }
-                        )
-                    }
+            _isLoading.value = true
+            _error.value = null
+            whatsAppRepository.refreshAndGetConversations()
+                .onSuccess { conversationsFromServer ->
+                    contactRepository.saveContacts(conversationsFromServer)
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.message) }
+                    _error.value = error.message
                 }
+            _isLoading.value = false
         }
     }
 
-    private fun listenForIncomingMessages() {
-        socketManager.incomingMessages.onEach { message ->
-            _state.update { currentState ->
-                val currentConversations = currentState.conversations.toMutableList()
-                val conversationIndex = currentConversations.indexOfFirst { it.id == message.jid }
-                val updatedConversation: Contact
-
-                if (conversationIndex != -1) {
-                    val existing = currentConversations.removeAt(conversationIndex)
-                    updatedConversation = existing.copy(
-                        lastMessage = message.text ?: "Media",
-                        lastMessageTimestamp = message.timestamp,
-                        unreadCount = if (!message.isOutgoing) existing.unreadCount + 1 else existing.unreadCount
-                    )
-                } else {
-                    updatedConversation = Contact(
-                        id = message.jid,
-                        name = message.senderName ?: message.jid.split('@').firstOrNull() ?: "Unknown",
-                        isGroup = message.jid.endsWith("@g.us"),
-                        phoneNumber = if (!message.jid.endsWith("@g.us")) message.jid.split('@').firstOrNull() else null,
-                        lastMessage = message.text ?: "Media",
-                        lastMessageTimestamp = message.timestamp,
-                        unreadCount = 1,
-                        avatarUrl = "${repository.getBaseUrl()}/avatar/${message.jid}"
-                    )
-                }
-                
-                val finalList = (listOf(updatedConversation) + currentConversations)
-                    .distinctBy { it.id }
-                    .sortedByDescending { it.lastMessageTimestamp }
-
-                repository.updateAndSaveConversations(finalList)
-                
-                currentState.copy(conversations = finalList)
+    fun hide(jid: String) {
+        viewModelScope.launch {
+            val contactToHide = conversationState.value.conversations.find { it.id == jid }
+            if (contactToHide != null) {
+                contactRepository.deleteContact(contactToHide)
             }
-        }.launchIn(viewModelScope)
+        }
     }
 
-    fun hide(jid: String) {
-        val currentList = _state.value.conversations
-        val updatedList = currentList.filterNot { it.id == jid }
-        repository.updateAndSaveConversations(updatedList)
-        _state.update { it.copy(conversations = updatedList) }
+    /**
+     * ++ NUEVO: Se activa cuando el texto de búsqueda cambia.
+     * Inicia una búsqueda con un retardo (debounce) para no buscar en cada letra.
+     */
+    fun onSearchQueryChanged(query: String) {
+        searchJob?.cancel()
+        _searchState.value = _searchState.value.copy(query = query)
+
+        if (query.isBlank()) {
+            _searchState.value = SearchState() // Resetea el estado de búsqueda
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(300L) // Debounce para evitar búsquedas excesivas
+            _searchState.value = _searchState.value.copy(isSearching = true)
+            val results = searchRepository.search(query)
+            _searchState.value = _searchState.value.copy(results = results)
+        }
     }
 }

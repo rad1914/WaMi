@@ -1,5 +1,5 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/TextFormatter.kt
-package com.radwrld.wami.ui // Package name updated as per error log
+package com.radwrld.wami.ui
 
 import android.content.Context
 import android.graphics.Color
@@ -7,26 +7,15 @@ import android.graphics.Typeface
 import android.text.*
 import android.text.style.*
 import android.view.View
-import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
 import com.radwrld.wami.R
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
-/**
- * A utility object for parsing Markdown-style text and converting it to a styled CharSequence.
- * Supports bold, italic, underline, strikethrough, links, inline code, code blocks,
- * blockquotes, and spoilers.
- */
 object TextFormatter {
 
-    /**
-     * Formats the given text with Markdown-style spans.
-     * @param context The context, used for resolving colors.
-     * @param text The raw string to format.
-     * @return A CharSequence with all formatting spans applied.
-     */
     fun format(context: Context, text: String?): CharSequence {
         if (text.isNullOrEmpty()) {
             return ""
@@ -34,20 +23,18 @@ object TextFormatter {
 
         val spannable = SpannableStringBuilder(text)
 
-        // The order of application is important to handle nested styles correctly.
-        // We typically go from block-level formats to inline, and from longer markup to shorter.
+        // Apply styles in order of complexity and nesting potential
         applyBlockquotes(context, spannable)
         applyCodeBlocks(context, spannable)
         applyInlineCode(context, spannable)
         applyLinks(spannable)
         applySpoilers(context, spannable)
 
-        // Bold and Underline can be nested. The order here allows for combinations like **__text__**.
-        applyStyle(spannable, Pattern.compile("\\*\\*(.*?)\\*\\*"), { StyleSpan(Typeface.BOLD) })
-        applyStyle(spannable, Pattern.compile("__(.*?)__"), { UnderlineSpan() })
-        // Italic with '*' must come after bold with '**' to avoid conflicts.
-        applyStyle(spannable, Pattern.compile("\\*(.*?)\\*"), { StyleSpan(Typeface.ITALIC) })
-        applyStyle(spannable, Pattern.compile("~~(.*?)~~"), { StrikethroughSpan() })
+        // Basic markdown styles
+        applyStyle(spannable, Pattern.compile("\\*\\*(.*?)\\*\\*")) { StyleSpan(Typeface.BOLD) }
+        applyStyle(spannable, Pattern.compile("__(.*?)__")) { UnderlineSpan() }
+        applyStyle(spannable, Pattern.compile("\\*(.*?)\\*")) { StyleSpan(Typeface.ITALIC) }
+        applyStyle(spannable, Pattern.compile("~~(.*?)~~")) { StrikethroughSpan() }
 
         return spannable
     }
@@ -55,24 +42,20 @@ object TextFormatter {
     private fun applyStyle(spannable: SpannableStringBuilder, pattern: Pattern, spanBuilder: () -> Any) {
         val matches = mutableListOf<java.util.regex.MatchResult>()
         val matcher: Matcher = pattern.matcher(spannable)
-        // Find all matches first to avoid issues with concurrent modification
         while (matcher.find()) {
             matches.add(matcher.toMatchResult())
         }
 
-        // Apply spans from the end of the string to the beginning to keep indices valid
         for (match in matches.asReversed()) {
-            // Safe to assume group 1 exists due to regex pattern (.*?)
             val fullMatchStart = match.start()
             val fullMatchEnd = match.end()
             val contentStart = match.start(1)
             val contentEnd = match.end(1)
-            
+
             val markupLength = (fullMatchEnd - fullMatchStart - (contentEnd - contentStart)) / 2
 
             spannable.setSpan(spanBuilder(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
 
-            // Delete the markup characters
             spannable.delete(contentEnd, contentEnd + markupLength)
             spannable.delete(fullMatchStart, fullMatchStart + markupLength)
         }
@@ -85,19 +68,18 @@ object TextFormatter {
             matches.add(matcher.toMatchResult())
         }
         
-        // FIXME: Replaced unresolved R.color.code_background. Add this color to your colors.xml.
-        val codeBackgroundColor = Color.parseColor("#F0F0F0") 
-        // FIXME: Replaced unresolved R.color.code_text. Add this color to your colors.xml.
-        val codeTextColor = Color.parseColor("#C83232")
+        // Use theme attributes for colors to support light/dark/dynamic themes
+        val codeBackgroundColor = MaterialColors.getColor(context, MaterialR.attr.colorSurfaceContainerHighest, Color.GRAY)
+        val codeTextColor = MaterialColors.getColor(context, MaterialR.attr.colorOnSurfaceVariant, Color.BLACK)
 
         for (match in matches.asReversed()) {
             val fullMatchStart = match.start()
             val contentStart = match.start(1)
             val contentEnd = match.end(1)
 
-            // Prevent formatting inside already-formatted code blocks
-            val existingSpans = spannable.getSpans(contentStart, contentEnd, TypefaceSpan::class.java)
-            if (existingSpans.any { it.family == "monospace" }) continue
+            // Avoid applying code style over an existing one
+            val existingSpans = spannable.getSpans(contentStart, contentEnd, Any::class.java)
+            if (existingSpans.any { it is TypefaceSpan && it.family == "monospace" }) continue
 
             spannable.setSpan(TypefaceSpan("monospace"), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(BackgroundColorSpan(codeBackgroundColor), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -131,6 +113,7 @@ object TextFormatter {
             val end = match.end()
 
             spannable.replace(start, end, text)
+            // URLSpan is automatically themed by Android.
             spannable.setSpan(URLSpan(url), start, start + text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
@@ -143,14 +126,17 @@ object TextFormatter {
             matches.add(matcher.toMatchResult())
         }
         
-        val stripeColor = MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, Color.GRAY)
+        // Use colorOutline for a subtle indicator that aligns with M3 borders/dividers.
+        val stripeColor = MaterialColors.getColor(context, MaterialR.attr.colorOutline, Color.GRAY)
+        val stripeWidth = 10 // Consider using a dimen resource
+        val gapWidth = 20    // Consider using a dimen resource
 
         for (match in matches.asReversed()) {
             val fullLineStart = match.start()
             val fullLineEnd = match.end()
             val marker = match.group(1) ?: ""
 
-            spannable.setSpan(QuoteSpan(stripeColor, 10, 20), fullLineStart, fullLineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            spannable.setSpan(QuoteSpan(stripeColor, stripeWidth, gapWidth), fullLineStart, fullLineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             spannable.setSpan(StyleSpan(Typeface.ITALIC), fullLineStart, fullLineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             
             spannable.delete(fullLineStart, fullLineStart + marker.length)
@@ -180,25 +166,29 @@ object TextFormatter {
 
     private class SpoilerSpan(context: Context) : ClickableSpan() {
         private var isRevealed = false
-        // FIXME: Replaced unresolved R.color.spoiler_background_hidden. Add this color to your colors.xml.
-        private val hiddenColor = Color.DKGRAY
-        // FIXME: Replaced unresolved R.color.spoiler_background_revealed. Add this color to your colors.xml.
+        
+        // Resolve spoiler color from the Material You theme attributes.
+        private val hiddenColor = MaterialColors.getColor(context, MaterialR.attr.colorSurfaceVariant, Color.DKGRAY)
         private val revealedColor = Color.TRANSPARENT
 
         override fun onClick(widget: View) {
             isRevealed = !isRevealed
-            // Re-triggers updateDrawState by invalidating the view's text layout
-            if (widget is TextView) {
-                widget.text = widget.text
-            }
+            // Invalidate the view to trigger a redraw with the new state,
+            // which is more efficient than resetting the text.
+            widget.invalidate()
         }
 
         override fun updateDrawState(ds: TextPaint) {
             super.updateDrawState(ds)
-            ds.bgColor = if (isRevealed) revealedColor else hiddenColor
-            // Hides the text by matching its color to the background
-            ds.color = if (isRevealed) ds.linkColor else hiddenColor
             ds.isUnderlineText = false
+            if (isRevealed) {
+                ds.bgColor = revealedColor
+                // Restore default text color by not setting it.
+            } else {
+                // Hide text by making its color the same as the background.
+                ds.bgColor = hiddenColor
+                ds.color = hiddenColor
+            }
         }
     }
 }

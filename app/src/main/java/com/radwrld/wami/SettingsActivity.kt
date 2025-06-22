@@ -19,9 +19,6 @@ import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -41,14 +38,7 @@ class SettingsActivity : AppCompatActivity() {
         const val SERVER_CONFIG_PREFS_NAME = "server_config_pref"
     }
 
-    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        uri?.let { exportSessionToUri(it) }
-    }
-
-    private val importLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { importSessionFromUri(it) }
-    }
-
+    // --- LAUNCHERS DE IMPORTAR/EXPORTAR ELIMINADOS ---
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,14 +65,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // --- Account Settings ---
         binding.logoutText.setOnClickListener { confirm("Logout?", "This will delete your local session.", ::logout) }
-        binding.exportSessionText.setOnClickListener { exportLauncher.launch("wami-session.zip") }
-        binding.importSessionText.setOnClickListener {
-            confirm(
-                "Import Session Data?",
-                "This will overwrite your current session on the server. Please log in again after importing.",
-                { importLauncher.launch("application/zip") }
-            )
-        }
+        
+        // --- LISTENERS DE IMPORTAR/EXPORTAR ELIMINADOS ---
+        // Se pueden ocultar o eliminar las vistas correspondientes del archivo de layout XML.
+        binding.exportSessionText.visibility = View.GONE
+        binding.importSessionText.visibility = View.GONE
 
 
         // --- Experimental Settings ---
@@ -90,8 +77,6 @@ class SettingsActivity : AppCompatActivity() {
         binding.offlineModeSwitch.setOnCheckedChangeListener { _, checked ->
             prefs.edit().putBoolean(OFFLINE_MODE_KEY, checked).apply()
         }
-
-        // The 'pruneAppDataText' listener has been removed.
         
         binding.removeAppCacheText.setOnClickListener { confirm("Remove App Cache?", "This can free up storage space.", ::removeAppCache) }
         binding.resetHiddenConversationsText.setOnClickListener { confirm("Reset Hidden Conversations?", "Your hidden conversations will become visible.", ::resetHiddenConversations) }
@@ -151,53 +136,7 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
     
-    private fun exportSessionToUri(uri: Uri) {
-        lifecycleScope.launch {
-            try {
-                val response = ApiClient.getDownloadingInstance(this@SettingsActivity).exportSession()
-                if (response.isSuccessful && response.body() != null) {
-                    withContext(Dispatchers.IO) {
-                        contentResolver.openOutputStream(uri)?.use { out ->
-                            response.body()!!.byteStream().copyTo(out)
-                        }
-                    }
-                    toast("Session exported successfully.")
-                } else {
-                    toast("Export failed: ${response.message()}")
-                }
-            } catch (e: Exception) {
-                toast("Export error: ${e.message}")
-            }
-        }
-    }
-    
-    private fun importSessionFromUri(uri: Uri) {
-        lifecycleScope.launch {
-            try {
-                val inputStream = contentResolver.openInputStream(uri)
-                if (inputStream == null) {
-                    toast("Failed to open file.")
-                    return@launch
-                }
-                
-                val fileBytes = inputStream.readBytes()
-                inputStream.close()
-                val requestFile = fileBytes.toRequestBody("application/zip".toMediaTypeOrNull())
-
-                val body = MultipartBody.Part.createFormData("file", "wami-session.zip", requestFile)
-
-                val response = ApiClient.getInstance(this@SettingsActivity).importSession(body)
-                if (response.isSuccessful) {
-                    toast("Session imported. Please log in again.")
-                    logout()
-                } else {
-                    toast("Import failed: ${response.errorBody()?.string() ?: response.message()}")
-                }
-            } catch (e: Exception) {
-                toast("Import error: ${e.message}")
-            }
-        }
-    }
+    // --- FUNCIONES exportSessionToUri E importSessionFromUri ELIMINADAS ---
 
     private fun removeAppCache() {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -233,15 +172,13 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun resetAppPreferences() {
-        // Clear both preference files used by the app
         prefs.edit().clear().apply()
         getSharedPreferences(SERVER_CONFIG_PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
 
         toast("All app preferences have been reset. The app will now close.")
 
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { Thread.sleep(1500) } // Give toast time to show
-            // A restart is required for changes to take full effect.
+            withContext(Dispatchers.IO) { Thread.sleep(1500) }
             val intent = packageManager.getLaunchIntentForPackage(packageName)
             val componentName = intent!!.component
             val mainIntent = Intent.makeRestartActivityTask(componentName)
@@ -260,7 +197,7 @@ class SettingsActivity : AppCompatActivity() {
             try {
                 ApiClient.getInstance(this@SettingsActivity).logout()
             } catch (e: Exception) {
-                // Ignore network errors on logout, as we are clearing local data anyway
+                // Ignorar errores de red
             }
             ApiClient.close()
             serverConfig.saveSessionId(null)
