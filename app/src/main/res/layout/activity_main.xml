@@ -59,8 +59,8 @@
 
             <ImageButton
                 android:id="@+id/nav_messages"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_gravity="center_vertical"
                 android:layout_marginHorizontal="16dp"
                 android:background="@drawable/pill_button_background_selector"
@@ -71,8 +71,8 @@
 
             <ImageButton
                 android:id="@+id/nav_add"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_gravity="center_vertical"
                 android:layout_marginHorizontal="16dp"
                 android:background="@android:color/transparent"
@@ -83,8 +83,8 @@
 
             <ImageButton
                 android:id="@+id/nav_contacts"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_gravity="center_vertical"
                 android:layout_marginHorizontal="16dp"
                 android:background="@drawable/pill_button_background_selector"
