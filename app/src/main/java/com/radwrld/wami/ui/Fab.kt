@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/Fab.kt
 // @path: app/src/main/java/com/radwrld/wami/AddContactDialog.kt
 
 package com.radwrld.wami
@@ -18,7 +19,6 @@ class AddContactDialog(
 override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    // Make the background transparent to show rounded corners
     window?.setBackgroundDrawableResource(android.R.color.transparent)
 
     setContentView(R.layout.dialog_add_contact)

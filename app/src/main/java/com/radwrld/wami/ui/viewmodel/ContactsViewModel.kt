@@ -29,7 +29,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
         _isLoading,
         _error
     ) { contacts, isLoading, error ->
-        // La lógica de ordenamiento ahora está aquí, en un solo lugar
+
         val (groups, individuals) = contacts.partition { it.isGroup }
         val sortedList = individuals.sortedBy { it.name.lowercase() } + groups.sortedBy { it.name.lowercase() }
         ContactsUiState(
@@ -49,7 +49,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             _error.value = null
             whatsAppRepository.refreshAndGetConversations()
                 .onSuccess { conversationsFromServer ->
-                    // Guardar los contactos en el repositorio; la UI se actualizará sola
+
                     contactRepository.saveContacts(conversationsFromServer)
                 }
                 .onFailure { error ->

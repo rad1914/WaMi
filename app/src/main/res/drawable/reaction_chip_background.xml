@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- @path: app/src/main/res/drawable/reaction_chip_background.xml -->
 <!-- @path: app/src/main/res/drawable/bg_reaction_chip.xml -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
@@ -47,7 +48,7 @@ class WhatsAppRepository(private val context: Context) {
 
     suspend fun getMessageHistory(jid: String, before: Long? = null) = runCatching {
         val timestampCursor = before ?: System.currentTimeMillis() + 1000
-        // ++ CORRECCIÓN: Se eliminó el parámetro `before` de la llamada a la API
+
         api.getHistory(URLEncoder.encode(jid, "UTF-8")).map {
             Message(
                 id = it.id,
@@ -93,7 +94,6 @@ class WhatsAppRepository(private val context: Context) {
         ).takeIf { it.success } ?: error("Send failed")
     }
 
-    // ++ FUNCIÓN ACTUALIZADA: Se eliminó el parámetro `fromMe`
     suspend fun sendReaction(jid: String, messageId: String, emoji: String) =
         runCatching {
             api.sendReaction(SendReactionRequest(jid, messageId, emoji))

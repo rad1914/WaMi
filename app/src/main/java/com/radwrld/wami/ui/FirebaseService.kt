@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/FirebaseService.kt
 // @path: app/src/main/java/com/radwrld/wami/adapter/FirebaseService.kt
 package com.radwrld.wami.services
 
@@ -12,13 +13,12 @@ class FirebaseService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM", "New token: $token")
-        // Here you would send the token to your server
+
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // Check if the message contains a data payload
         if (remoteMessage.data.isNotEmpty()) {
             try {
                 val data = remoteMessage.data

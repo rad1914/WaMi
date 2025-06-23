@@ -39,7 +39,7 @@ class ContactsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // El ViewModel ahora se encarga de sincronizar
+
         viewModel.syncContacts()
     }
 
@@ -83,15 +83,12 @@ class ContactsActivity : AppCompatActivity() {
 
     private fun logout() {
         lifecycleScope.launch {
-            try { ApiClient.getInstance(this@ContactsActivity).logout() } catch (e: Exception) { /* Ignorar */ }
-            
-            // La lógica de limpiar datos de sesión se mantiene
+            try { ApiClient.getInstance(this@ContactsActivity).logout() } catch (e: Exception) {  }
+
             ServerConfigStorage(this@ContactsActivity).apply {
                 saveSessionId(null)
                 saveLoginState(false)
             }
-            // Limpiar los contactos a través del repositorio sería ideal
-            // lifecycleScope.launch { ContactRepository(application).saveContacts(emptyList()) }
 
             val intent = Intent(this@ContactsActivity, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

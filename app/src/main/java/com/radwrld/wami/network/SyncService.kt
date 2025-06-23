@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/SyncService.kt
 package com.radwrld.wami.sync
 
 import android.app.Notification
@@ -23,7 +24,7 @@ class SyncService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // El SyncManager se inicializa solo una vez, cuando el servicio se crea.
+
         SyncManager.initialize(this)
         Logger.i("SyncService", "SyncService created.")
     }
@@ -37,10 +38,10 @@ class SyncService : Service() {
             }
             ACTION_STOP -> {
                 Logger.i("SyncService", "Service stopping...")
-                stopSelf() // Esto llamará a onDestroy()
+                stopSelf()
             }
         }
-        // Si el sistema mata el servicio, queremos que se reinicie.
+
         return START_STICKY
     }
 
@@ -56,7 +57,7 @@ class SyncService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Wami Conectado")
             .setContentText("Escuchando nuevos mensajes en tiempo real.")
-            .setSmallIcon(R.drawable.ic_notification) // Asegúrate de tener este ícono
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .build()
 
@@ -68,7 +69,7 @@ class SyncService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Wami Sync Service",
-                NotificationManager.IMPORTANCE_LOW // Baja importancia para que no sea intrusiva
+                NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
@@ -78,12 +79,12 @@ class SyncService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Logger.i("SyncService", "Service destroyed, shutting down SyncManager.")
-        // Apaga el SyncManager para limpiar todo.
+
         SyncManager.shutdown()
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        // No usamos binding, así que retornamos null.
+
         return null
     }
 }

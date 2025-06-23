@@ -23,14 +23,12 @@ object TextFormatter {
 
         val spannable = SpannableStringBuilder(text)
 
-        // Apply styles in order of complexity and nesting potential
         applyBlockquotes(context, spannable)
         applyCodeBlocks(context, spannable)
         applyInlineCode(context, spannable)
         applyLinks(spannable)
         applySpoilers(context, spannable)
 
-        // Basic markdown styles
         applyStyle(spannable, Pattern.compile("\\*\\*(.*?)\\*\\*")) { StyleSpan(Typeface.BOLD) }
         applyStyle(spannable, Pattern.compile("__(.*?)__")) { UnderlineSpan() }
         applyStyle(spannable, Pattern.compile("\\*(.*?)\\*")) { StyleSpan(Typeface.ITALIC) }
@@ -67,8 +65,7 @@ object TextFormatter {
         while (matcher.find()) {
             matches.add(matcher.toMatchResult())
         }
-        
-        // Use theme attributes for colors to support light/dark/dynamic themes
+
         val codeBackgroundColor = MaterialColors.getColor(context, MaterialR.attr.colorSurfaceContainerHighest, Color.GRAY)
         val codeTextColor = MaterialColors.getColor(context, MaterialR.attr.colorOnSurfaceVariant, Color.BLACK)
 
@@ -77,7 +74,6 @@ object TextFormatter {
             val contentStart = match.start(1)
             val contentEnd = match.end(1)
 
-            // Avoid applying code style over an existing one
             val existingSpans = spannable.getSpans(contentStart, contentEnd, Any::class.java)
             if (existingSpans.any { it is TypefaceSpan && it.family == "monospace" }) continue
 
@@ -113,7 +109,7 @@ object TextFormatter {
             val end = match.end()
 
             spannable.replace(start, end, text)
-            // URLSpan is automatically themed by Android.
+
             spannable.setSpan(URLSpan(url), start, start + text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
@@ -125,11 +121,10 @@ object TextFormatter {
         while (matcher.find()) {
             matches.add(matcher.toMatchResult())
         }
-        
-        // Use colorOutline for a subtle indicator that aligns with M3 borders/dividers.
+
         val stripeColor = MaterialColors.getColor(context, MaterialR.attr.colorOutline, Color.GRAY)
-        val stripeWidth = 10 // Consider using a dimen resource
-        val gapWidth = 20    // Consider using a dimen resource
+        val stripeWidth = 10
+        val gapWidth = 20   
 
         for (match in matches.asReversed()) {
             val fullLineStart = match.start()
@@ -166,15 +161,13 @@ object TextFormatter {
 
     private class SpoilerSpan(context: Context) : ClickableSpan() {
         private var isRevealed = false
-        
-        // Resolve spoiler color from the Material You theme attributes.
+
         private val hiddenColor = MaterialColors.getColor(context, MaterialR.attr.colorSurfaceVariant, Color.DKGRAY)
         private val revealedColor = Color.TRANSPARENT
 
         override fun onClick(widget: View) {
             isRevealed = !isRevealed
-            // Invalidate the view to trigger a redraw with the new state,
-            // which is more efficient than resetting the text.
+
             widget.invalidate()
         }
 
@@ -183,9 +176,9 @@ object TextFormatter {
             ds.isUnderlineText = false
             if (isRevealed) {
                 ds.bgColor = revealedColor
-                // Restore default text color by not setting it.
+
             } else {
-                // Hide text by making its color the same as the background.
+
                 ds.bgColor = hiddenColor
                 ds.color = hiddenColor
             }

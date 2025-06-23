@@ -63,8 +63,7 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // ELIMINADO: ApiClient.connectSocket()
-        // SyncManager maneja la conexión automáticamente.
+
     }
 
     private fun setupUI() = with(binding) {

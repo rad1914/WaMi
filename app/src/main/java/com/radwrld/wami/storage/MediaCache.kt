@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/storage/MediaCache.kt
 // @path: app/src/main/java/com/radwrld/wami/util/MediaCache.kt
 package com.radwrld.wami.util
 
@@ -41,13 +42,11 @@ object MediaCache {
         null
     }
 
-    // ++ CAMBIO APLICADO: Acepta una 'cacheKey' genérica en lugar de 'sha' ++
     fun getCachedFile(context: Context, cacheKey: String, ext: String): File? {
         val file = File(cacheDir(context), "$cacheKey.$ext")
         return file.takeIf { it.exists() }
     }
 
-    // ++ CAMBIO APLICADO: Acepta una 'cacheKey' genérica y la usa para buscar y guardar ++
     suspend fun downloadAndCache(context: Context, url: String, cacheKey: String, ext: String): File? {
         getCachedFile(context, cacheKey, ext)?.let { return it }
         return withContext(Dispatchers.IO) {

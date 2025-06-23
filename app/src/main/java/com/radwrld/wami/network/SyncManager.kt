@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/SyncManager.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
@@ -20,7 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.net.URISyntaxException
 import kotlin.math.pow
 
-// --- Abstracciones sin cambios ---
 object Logger {
     fun d(tag: String, msg: String) = Log.d(tag, msg)
     fun i(tag: String, msg: String) = Log.i(tag, msg)
@@ -28,9 +28,8 @@ object Logger {
     fun e(tag: String, msg: String, t: Throwable? = null) = Log.e(tag, msg, t)
 }
 
-// DTO para las actualizaciones de reacciones del socket
 private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
-// DTO para actualizaciones de estado de mensajes del socket
+
 private data class FullMessageStatusUpdateDto(val jid: String, val id: String, val status: String)
 
 object MessageMapper {
@@ -77,7 +76,6 @@ class DefaultSocketEventHandler(
     companion object { private const val TAG = "DefaultSocketEventHandler" }
 }
 
-// --- SyncManager ahora es controlado por SyncService ---
 object SyncManager {
     private const val TAG = "SyncManager"
 
@@ -111,7 +109,7 @@ object SyncManager {
             }
 
             try {
-                // El token de sesión ahora se pasa en `auth` para la conexión del socket
+
                 val opts = IO.Options().apply { auth = mapOf("token" to token) }
                 socket = IO.socket(config.getCurrentServer(), opts)
                 setupSocketListeners()
@@ -149,7 +147,7 @@ object SyncManager {
             on(Socket.EVENT_CONNECT,    onConnect)
             on(Socket.EVENT_DISCONNECT, onDisconnect)
             on(Socket.EVENT_CONNECT_ERROR, onError)
-            // Los nombres de los eventos se alinean con los emitidos por el servidor
+
             on("whatsapp-message", onIncoming)
             on("whatsapp-message-status-update", onStatusUpdate)
             on("whatsapp-reaction-update", onReactionUpdate)

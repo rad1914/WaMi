@@ -18,11 +18,6 @@ import java.util.Locale
 private const val VIEW_TYPE_CONTACT = 1
 private const val VIEW_TYPE_MESSAGE = 2
 
-/**
- * Adaptador para mostrar los resultados de búsqueda (contactos y mensajes) en un RecyclerView.
- * ++ MODIFICADO: Se eliminó ViewBinding para usar findViewById y evitar errores de compilación
- * si los layouts XML no existen aún.
- */
 class SearchResultAdapter(
     private val onItemClicked: (contact: Contact) -> Unit
 ) : ListAdapter<SearchResultItem, RecyclerView.ViewHolder>(SearchDiffCallback()) {
@@ -59,25 +54,19 @@ class SearchResultAdapter(
         }
     }
 
-    /**
-     * ViewHolder para resultados de tipo Contacto.
-     * Usa findViewById para encontrar las vistas.
-     */
+    
     inner class ContactResultViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val contactName: TextView = itemView.findViewById(R.id.tvContactName)
         private val contactIdentifier: TextView = itemView.findViewById(R.id.tvContactIdentifier)
 
         fun bind(contact: Contact) {
             contactName.text = contact.name
-            contactIdentifier.text = "Contact" // o contact.id si prefieres
+            contactIdentifier.text = "Contact"
             itemView.setOnClickListener { onItemClicked(contact) }
         }
     }
 
-    /**
-     * ViewHolder para resultados de tipo Mensaje.
-     * Usa findViewById para encontrar las vistas.
-     */
+    
     inner class MessageResultViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val chatName: TextView = itemView.findViewById(R.id.tvChatName)
         private val messageContent: TextView = itemView.findViewById(R.id.tvMessageContent)

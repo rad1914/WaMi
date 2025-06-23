@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent

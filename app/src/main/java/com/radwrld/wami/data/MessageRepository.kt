@@ -27,8 +27,8 @@ class MessageRepository(context: Context) {
     }
     
     fun getMessages(jid: String): Flow<List<Message>> = flow {
-        emit(getOrCreateFlow(jid).value) // Emitir valor inicial
-        emitAll(getOrCreateFlow(jid))    // Emitir actualizaciones subsecuentes
+        emit(getOrCreateFlow(jid).value)
+        emitAll(getOrCreateFlow(jid))   
     }
 
     private suspend fun updateAndNotify(jid: String) {

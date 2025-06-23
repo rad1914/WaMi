@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/NotificationUtils.kt
 // @path: app/src/main/java/com/radwrld/wami/util/NotificationUtils.kt
 package com.radwrld.wami.util
 
@@ -40,8 +41,6 @@ object NotificationUtils {
             .setAutoCancel(true)
             .build()
 
-        // Use the messageId to generate a unique notification ID.
-        // We use its hashCode() to get an Integer.
         notificationManager.notify(messageId.hashCode(), notification)
     }
 }

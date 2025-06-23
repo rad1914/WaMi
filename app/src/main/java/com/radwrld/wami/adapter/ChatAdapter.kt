@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/adapter/ChatAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.content.Context
@@ -33,9 +34,6 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
         else -> old == new
     }
 
-    // ++ SUGERENCIA APLICADA: Se asegura que la comparación de contenido se base en el objeto de datos.
-    // Siendo `Message` una data class, la comparación `==` es suficiente para detectar cambios en
-    // cualquier campo (como `status` o `reactions`) y refrescar la vista.
     override fun areContentsTheSame(old: ChatListItem, new: ChatListItem): Boolean = old == new
 }
 
@@ -72,7 +70,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         when (val item = getItem(position)) {
             is ChatListItem.MessageItem -> (holder as? BaseMessageViewHolder)?.bind(item.message)
             is ChatListItem.DividerItem -> (holder as? DividerViewHolder)?.bind(item)
-            is ChatListItem.WarningItem -> { /* No-op */ }
+            is ChatListItem.WarningItem -> {  }
         }
     }
 
@@ -104,7 +102,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         fun collapse() {
             reactionPanel.isVisible = false
-            // La visibilidad del layout de reacciones ahora depende solo de si hay reacciones.
+
             (getItem(bindingAdapterPosition) as? ChatListItem.MessageItem)?.message?.let {
                 reactionsLayout.isVisible = it.reactions.isNotEmpty()
             }
@@ -136,8 +134,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             bubble.isVisible = false
             ivSticker.isVisible = true
             ivSticker.setOnClickListener { onMediaClickListener?.invoke(message) }
-            
-            // ++ SUGERENCIA APLICADA: Se prioriza la ruta local, pero se usa mediaUrl como fallback para Glide.
+
             val mediaToShow = message.localMediaPath?.let { File(it) } ?: message.mediaUrl
             
             Glide.with(itemView.context)
@@ -159,9 +156,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                 messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
                 messageContent.ivPlayIcon.isVisible = message.isVideo()
 
-                // ++ SUGERENCIA APLICADA: Se prioriza la carga desde la ruta local. Si no está disponible,
-                // se intenta cargar directamente desde la URL del servidor. Esto mejora la experiencia
-                // al mostrar imágenes y videos antes de que se completen las descargas locales.
                 val mediaToLoad = if (!message.localMediaPath.isNullOrBlank()) {
                     File(message.localMediaPath)
                 } else {

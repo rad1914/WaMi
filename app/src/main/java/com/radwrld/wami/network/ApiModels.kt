@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/ApiModels.kt
 package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
@@ -48,7 +49,6 @@ data class SendMessageRequest(
     val tempId: String
 )
 
-// ++ MODELO ACTUALIZADO: Se eliminó el campo `fromMe` para alinearse con el backend que ya no lo requiere.
 data class SendReactionRequest(
     val jid: String,
     val messageId: String,

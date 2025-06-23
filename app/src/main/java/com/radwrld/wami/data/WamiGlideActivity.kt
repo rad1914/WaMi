@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/data/WamiGlideActivity.kt
 // @path: app/src/main/java/com/radwrld/wami/data/WamiGlideModule.kt
 package com.radwrld.wami
 
@@ -13,16 +14,11 @@ import java.io.InputStream
 
 @GlideModule
 class WamiGlideModule : AppGlideModule() {
-    /**
-     * Replaces Glide's default networking client with our app's shared,
-     * authenticated OkHttpClient instance. This ensures that Authorization
-     * headers are added to all image download requests made by Glide.
-     */
+    
     override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
-        // Ensure our client is initialized
+
         ApiClient.getDownloadingInstance(context)
-        
-        // Use the public, authenticated OkHttpClient from our ApiClient
+
         ApiClient.downloadHttpClient?.let { client ->
             registry.replace(
                 GlideUrl::class.java,

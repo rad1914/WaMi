@@ -21,9 +21,8 @@ class ChatViewModel(
     private val contactName: String
 ) : AndroidViewModel(app) {
 
-    // Dependencias actualizadas para la nueva arquitectura
     private val messageRepository = MessageRepository(getApplication())
-    private val whatsAppRepository = WhatsAppRepository(getApplication()) // Para llamadas a la API
+    private val whatsAppRepository = WhatsAppRepository(getApplication())
     
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -31,7 +30,6 @@ class ChatViewModel(
     private val _errors = MutableSharedFlow<String>()
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    // La única fuente de verdad para los mensajes es el Flow del repositorio
     val visibleMessages: StateFlow<List<Message>> = messageRepository.getMessages(jid)
         .stateIn(
             scope = viewModelScope,
@@ -40,9 +38,7 @@ class ChatViewModel(
         )
 
     init {
-        // El bloque init ahora está vacío. 
-        // SyncManager maneja las actualizaciones en tiempo real.
-        // La carga de historial se hace con la función `loadOlderMessages`.
+
     }
 
     fun loadOlderMessages() = viewModelScope.launch {
@@ -53,7 +49,7 @@ class ChatViewModel(
         
         whatsAppRepository.getMessageHistory(jid, before = oldestTimestamp).onSuccess { olderMessages ->
             if (olderMessages.isNotEmpty()) {
-                // Agrega los mensajes más antiguos al repositorio local
+
                 messageRepository.appendMessages(jid, olderMessages)
             }
         }.onFailure {

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/MediaViewActivity.kt
 package com.radwrld.wami
 
 import android.graphics.drawable.Drawable

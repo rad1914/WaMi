@@ -10,30 +10,18 @@ import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Repositorio para manejar la lógica de búsqueda en toda la aplicación.
- * Busca tanto en contactos como en mensajes.
- */
 class SearchRepository(context: Context) {
-    // Usamos los 'Storage' directamente para una búsqueda simple y no reactiva.
+
     private val contactStorage = ContactStorage(context)
     private val messageStorage = MessageStorage(context)
 
-    /**
-     * Realiza una búsqueda en contactos y mensajes.
-     * Esta operación puede ser intensiva, por lo que se ejecuta en el hilo de IO.
-     *
-     * @param query El texto a buscar.
-     * @return Una lista de [SearchResultItem] que contiene contactos y mensajes coincidentes.
-     */
+    
     suspend fun search(query: String): List<SearchResultItem> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
 
         val contactResults = searchContacts(query)
         val messageResults = searchMessages(query)
 
-        // Combina los resultados, los mensajes primero, y luego los contactos.
-        // Los mensajes ya están ordenados por fecha descendente.
         messageResults + contactResults
     }
 
@@ -56,7 +44,6 @@ class SearchRepository(context: Context) {
             }
         }
 
-        // Ordenar todos los mensajes encontrados por fecha, los más recientes primero.
         return messageResults.sortedByDescending { it.message.timestamp }
     }
 }

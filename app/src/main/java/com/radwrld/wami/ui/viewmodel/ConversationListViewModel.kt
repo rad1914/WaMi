@@ -20,7 +20,6 @@ data class ConversationListState(
     val error: String? = null
 )
 
-// ++ NUEVO: Estado para la UI de búsqueda
 data class SearchState(
     val query: String = "",
     val results: List<SearchResultItem> = emptyList(),
@@ -31,20 +30,16 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
     private val whatsAppRepository = WhatsAppRepository(application)
     private val contactRepository = ContactRepository(application)
-    // ++ NUEVO: Repositorio de búsqueda
+
     private val searchRepository = SearchRepository(application)
 
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
-    
-    // ++ NUEVO: Flujo para el estado de búsqueda
+
     private val _searchState = MutableStateFlow(SearchState())
     val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
     private var searchJob: Job? = null
 
-
-    // El estado de la UI se construye combinando el Flow de contactos del repositorio
-    // con los estados de carga y error.
     val conversationState: StateFlow<ConversationListState> = combine(
         contactRepository.contactsFlow,
         _isLoading,
@@ -89,21 +84,18 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
-    /**
-     * ++ NUEVO: Se activa cuando el texto de búsqueda cambia.
-     * Inicia una búsqueda con un retardo (debounce) para no buscar en cada letra.
-     */
+    
     fun onSearchQueryChanged(query: String) {
         searchJob?.cancel()
         _searchState.value = _searchState.value.copy(query = query)
 
         if (query.isBlank()) {
-            _searchState.value = SearchState() // Resetea el estado de búsqueda
+            _searchState.value = SearchState()
             return
         }
 
         searchJob = viewModelScope.launch {
-            delay(300L) // Debounce para evitar búsquedas excesivas
+            delay(300L)
             _searchState.value = _searchState.value.copy(isSearching = true)
             val results = searchRepository.search(query)
             _searchState.value = _searchState.value.copy(results = results)
