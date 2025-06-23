@@ -1,25 +1,26 @@
-<!-- @path: app/src/main/res/layout/item_message_info.xml -->
-<merge xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    tools:parentTag="android.widget.LinearLayout"
+    android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:gravity="center_vertical">
+    tools:parentTag="android.widget.LinearLayout">
 
     <TextView
         android:id="@+id/tv_timestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="4dp"
-        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textAppearance="?attr/textAppearanceLabelSmall"
         android:textColor="?attr/colorOnSurfaceVariant"
-        tools:text="10:42 PM" />
+        tools:text="10:42" />
 
     <ImageView
         android:id="@+id/iv_status"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:visibility="gone"
         tools:src="@drawable/ic_read_receipt"
-        tools:tint="?attr/colorSecondary" />
-</merge>
+        tools:tint="?attr/colorSecondary"
+        tools:visibility="visible" />
+</LinearLayout>

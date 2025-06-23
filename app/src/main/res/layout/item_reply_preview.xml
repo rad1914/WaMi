@@ -1,20 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/layout/item_reply_preview.xml -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:clipToPadding="false"
     android:paddingVertical="2dp"
-    android:paddingStart="8dp"
     android:paddingEnd="80dp">
 
     <LinearLayout
         android:id="@+id/reaction_panel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginBottom="4dp"
         android:background="@drawable/bg_reaction_panel"
         android:elevation="3dp"
@@ -23,18 +20,20 @@
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp"
         android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bubble_layout"
+        app:layout_constraintStart_toStartOf="@id/bubble_layout"
         tools:visibility="visible" />
-        
+
     <LinearLayout
         android:id="@+id/bubble_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/reaction_panel"
-        android:layout_alignParentStart="true"
         android:background="@drawable/bg_incoming_message"
         android:orientation="vertical"
         android:paddingHorizontal="10dp"
-        android:paddingVertical="6dp">
+        android:paddingVertical="6dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
             android:id="@+id/tv_sender_name"
@@ -49,7 +48,7 @@
 
         <include
             android:id="@+id/quote_view"
-            layout="@layout/item_reply_preview" />
+            layout="@layout/view_reply_content" />
 
         <include
             android:id="@+id/message_content"
@@ -61,25 +60,25 @@
         android:id="@+id/reaction_group"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/bubble_layout"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginStart="4dp"
         android:layout_marginTop="-8dp"
         android:elevation="2dp"
         app:flexWrap="wrap"
         app:justifyContent="flex_start"
+        app:layout_constraintStart_toStartOf="@id/bubble_layout"
+        app:layout_constraintTop_toBottomOf="@id/bubble_layout"
         tools:visibility="visible" />
-        
+
     <TextView
         android:id="@+id/tv_timestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/reaction_group"
-        android:layout_alignStart="@id/bubble_layout"
         android:layout_marginStart="4dp"
         android:layout_marginTop="2dp"
         android:textAppearance="?attr/textAppearanceLabelSmall"
         android:textColor="?attr/colorOnSurfaceVariant"
+        app:layout_constraintStart_toStartOf="@id/bubble_layout"
+        app:layout_constraintTop_toBottomOf="@id/reaction_group"
         tools:text="03:28 PM" />
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

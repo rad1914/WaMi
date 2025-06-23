@@ -1,100 +1,41 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/res/layout/item_incoming_message.xml -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:clipToPadding="false"
-    android:paddingVertical="2dp"
-    android:paddingStart="8dp"
-    android:paddingEnd="80dp">
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="2dp">
 
     <LinearLayout
         android:id="@+id/reaction_panel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
+        android:layout_marginBottom="2dp"
         android:background="@drawable/bg_reaction_panel"
-        android:elevation="3dp"
-        android:gravity="center_vertical"
+        android:elevation="2dp"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="4dp"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="@+id/bubble_layout"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="visible">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_1"
-            android:text="👍"
-            android:textSize="24sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_2"
-            android:text="❤️"
-            android:textSize="24sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_3"
-            android:text="😂"
-            android:textSize="24sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_4"
-            android:text="😮"
-            android:textSize="24sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_5"
-            android:text="😢"
-            android:textSize="24sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="6dp"
-            android:tag="reaction_6"
-            android:text="🙏"
-            android:textSize="24sp" />
-    </LinearLayout>
-
-    <ImageView
-        android:id="@+id/iv_sticker"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:contentDescription="@string/sticker"
-        android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/ic_media_placeholder"
+        app:layout_constraintBottom_toTopOf="@id/bubble_layout"
+        app:layout_constraintStart_toStartOf="@id/bubble_layout"
         tools:visibility="visible" />
 
     <LinearLayout
         android:id="@+id/bubble_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="6dp"
-        app:layout_constrainedWidth="true"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/reaction_panel"
-        app:layout_constraintHorizontal_bias="0.0"
-        
         android:background="@drawable/bg_incoming_message"
-        tools:background="@drawable/bg_incoming_message">
+        android:orientation="vertical"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:visibility="gone"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible">
 
         <TextView
             android:id="@+id/tv_sender_name"
@@ -115,7 +56,24 @@
             android:id="@+id/message_content"
             layout="@layout/item_message_content" />
 
+        <include
+            android:id="@+id/message_info"
+            layout="@layout/item_message_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:layout_marginTop="2dp" />
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/iv_sticker"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_media_placeholder"
+        tools:visibility="visible" />
 
     <com.google.android.flexbox.FlexboxLayout
         android:id="@+id/reaction_group"
@@ -123,23 +81,14 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:layout_marginTop="-8dp"
-        android:elevation="2dp"
+        android:background="@drawable/bg_reaction_group"
+        android:elevation="1dp"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
+        android:visibility="gone"
         app:flexWrap="wrap"
-        app:justifyContent="flex_start"
         app:layout_constraintStart_toStartOf="@+id/bubble_layout"
         app:layout_constraintTop_toBottomOf="@+id/bubble_layout"
         tools:visibility="visible" />
-
-    <TextView
-        android:id="@+id/tv_timestamp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:layout_marginTop="2dp"
-        android:textAppearance="?attr/textAppearanceLabelSmall"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        app:layout_constraintStart_toStartOf="@+id/bubble_layout"
-        app:layout_constraintTop_toBottomOf="@+id/reaction_group"
-        tools:text="03:28 PM" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

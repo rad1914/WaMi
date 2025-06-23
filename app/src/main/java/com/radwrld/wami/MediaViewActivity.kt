@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/MediaViewActivity.kt
 package com.radwrld.wami
 
 import android.graphics.drawable.Drawable
@@ -14,9 +13,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
-import com.radwrld.wami.databinding.ActivityMediaViewBinding
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.DataSource
+import com.radwrld.wami.databinding.ActivityMediaViewBinding
 
 class MediaViewActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMediaViewBinding
@@ -27,49 +26,37 @@ class MediaViewActivity : AppCompatActivity() {
         setContentView(binding.root)
         hideSystemUI()
 
-        val uri = intent.data
-        val type = intent.type
-
-        if (uri == null || type == null) {
-            toast("Media not found"); finish(); return
-        }
+        val uri = intent.data ?: return finishWithToast("Media not found")
+        val type = intent.type ?: return finishWithToast("Media not found")
 
         binding.btnCloseMedia.setOnClickListener { finish() }
 
         when {
-            type.startsWith("image/") -> loadImage(uri)
-            type.startsWith("video/") -> loadVideo(uri)
-            else -> toast("Unsupported media type").also { finish() }
+            type.startsWith("image/") -> showImage(uri)
+            type.startsWith("video/") -> showVideo(uri)
+            else -> finishWithToast("Unsupported media type")
         }
     }
 
-    private fun loadImage(uri: Uri) {
+    private fun showImage(uri: Uri) {
         binding.ivMediaFull.visibility = View.VISIBLE
         binding.progressBarMedia.visibility = View.VISIBLE
-
         Glide.with(this).load(uri).listener(object : RequestListener<Drawable> {
-            override fun onLoadFailed(
-                e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean
-            ) = false.also {
+            override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, first: Boolean) = false.also {
                 binding.progressBarMedia.visibility = View.GONE
                 toast("Failed to load image")
             }
-
-            override fun onResourceReady(
-                resource: Drawable, model: Any, target: Target<Drawable>,
-                dataSource: DataSource, isFirstResource: Boolean
-            ) = false.also {
+            override fun onResourceReady(r: Drawable, model: Any, t: Target<Drawable>, d: DataSource, first: Boolean) = false.also {
                 binding.progressBarMedia.visibility = View.GONE
             }
         }).into(binding.ivMediaFull)
     }
 
-    private fun loadVideo(uri: Uri) {
+    private fun showVideo(uri: Uri) {
         binding.vvMediaFull.visibility = View.VISIBLE
         binding.progressBarMedia.visibility = View.VISIBLE
-
         binding.vvMediaFull.apply {
-            setMediaController(MediaController(this@MediaViewActivity).also { it.setAnchorView(this) })
+            setMediaController(MediaController(this@MediaViewActivity).apply { setAnchorView(this@apply) })
             setVideoURI(uri)
             setOnPreparedListener {
                 binding.progressBarMedia.visibility = View.GONE
@@ -92,4 +79,5 @@ class MediaViewActivity : AppCompatActivity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun finishWithToast(msg: String) = toast(msg).also { finish() }
 }

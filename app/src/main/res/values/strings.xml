@@ -11,7 +11,7 @@
     <string name="cd_send">Send message</string>
     <string name="cd_video_call">Video call</string>
     <string name="cd_voice_message">Record voice message</string>
-    <string name="chat_warning_message">This experimental Android app is still in development. Some features, like self-message encryption, are under testing and may not work reliably. Report issues or suggest improvements on GitHub: https://github.com/rad1914/WaMi</string>
+    <string name="chat_warning_message">This experimental Android app is still in development. Some features are under testing and may not work reliably. Report suggest improvements on GitHub: https://github.com/rad1914/WaMi</string>
     <string name="close">Close</string>
     <string name="hint_message">Type a message</string>
     <string name="message_hint">Message…</string>
@@ -26,4 +26,7 @@
     <string name="play_video_button">Play video button</string>
     <string name="sticker">Sticker</string>
     <string name="reaction_format">%1$s %2$d</string>
+    
+    <string name="yesterday">Ayer</string>
+
 </resources>

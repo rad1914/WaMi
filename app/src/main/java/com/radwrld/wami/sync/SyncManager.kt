@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/sync/SyncManager.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
