@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/adapter/ChatAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.content.Context
@@ -33,6 +32,10 @@ class ChatDiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
         old is ChatListItem.DividerItem && new is ChatListItem.DividerItem -> old.timestamp == new.timestamp
         else -> old == new
     }
+
+    // ++ SUGERENCIA APLICADA: Se asegura que la comparación de contenido se base en el objeto de datos.
+    // Siendo `Message` una data class, la comparación `==` es suficiente para detectar cambios en
+    // cualquier campo (como `status` o `reactions`) y refrescar la vista.
     override fun areContentsTheSame(old: ChatListItem, new: ChatListItem): Boolean = old == new
 }
 
@@ -101,7 +104,10 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         fun collapse() {
             reactionPanel.isVisible = false
-            reactionsLayout.isVisible = false
+            // La visibilidad del layout de reacciones ahora depende solo de si hay reacciones.
+            (getItem(bindingAdapterPosition) as? ChatListItem.MessageItem)?.message?.let {
+                reactionsLayout.isVisible = it.reactions.isNotEmpty()
+            }
             messageInfo.root.isVisible = false
         }
 
@@ -123,9 +129,6 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             bindBubbleContent(message)
             bindReactions(message)
             bindReactionPanel(message)
-
-            val fifteenMinutesAgo = System.currentTimeMillis() - (15 * 60 * 1000)
-            if (message.timestamp > fifteenMinutesAgo) messageInfo.root.isVisible = true
         }
 
         private fun bindSticker(message: Message) {
@@ -134,12 +137,14 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             ivSticker.isVisible = true
             ivSticker.setOnClickListener { onMediaClickListener?.invoke(message) }
             
-            val path = message.localMediaPath
-            if (!path.isNullOrBlank()) {
-                Glide.with(itemView.context).load(File(path)).into(ivSticker)
-            } else {
-                ivSticker.setImageResource(R.drawable.ic_media_placeholder)
-            }
+            // ++ SUGERENCIA APLICADA: Se prioriza la ruta local, pero se usa mediaUrl como fallback para Glide.
+            val mediaToShow = message.localMediaPath?.let { File(it) } ?: message.mediaUrl
+            
+            Glide.with(itemView.context)
+                .load(mediaToShow)
+                .placeholder(R.drawable.ic_media_placeholder)
+                .error(R.drawable.ic_image_error)
+                .into(ivSticker)
         }
 
         private fun bindBubbleContent(message: Message) {
@@ -148,20 +153,26 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                 if (isVisible) text = TextFormatter.format(context, message.text!!)
             }
 
-            val hasMedia = !message.localMediaPath.isNullOrBlank() || !message.mediaUrl.isNullOrBlank()
+            val hasMedia = message.hasMedia()
             messageContent.mediaContainer.isVisible = hasMedia
             if (hasMedia) {
                 messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
-                val localPath = message.localMediaPath
-                messageContent.ivPlayIcon.isVisible = message.isVideo() && !localPath.isNullOrBlank()
+                messageContent.ivPlayIcon.isVisible = message.isVideo()
 
-                if (!localPath.isNullOrBlank()) {
-                    Glide.with(itemView.context).load(File(localPath))
-                        .placeholder(R.drawable.ic_media_placeholder).error(R.drawable.ic_image_error)
-                        .into(messageContent.ivMedia)
+                // ++ SUGERENCIA APLICADA: Se prioriza la carga desde la ruta local. Si no está disponible,
+                // se intenta cargar directamente desde la URL del servidor. Esto mejora la experiencia
+                // al mostrar imágenes y videos antes de que se completen las descargas locales.
+                val mediaToLoad = if (!message.localMediaPath.isNullOrBlank()) {
+                    File(message.localMediaPath)
                 } else {
-                    messageContent.ivMedia.setImageResource(R.drawable.ic_media_placeholder)
+                    message.mediaUrl
                 }
+
+                Glide.with(itemView.context)
+                    .load(mediaToLoad)
+                    .placeholder(R.drawable.ic_media_placeholder)
+                    .error(R.drawable.ic_image_error)
+                    .into(messageContent.ivMedia)
             }
 
             replyView.root.isVisible = message.quotedMessageId != null
@@ -175,6 +186,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
 
         private fun bindReactions(message: Message) {
             reactionsLayout.removeAllViews()
+            reactionsLayout.isVisible = message.reactions.isNotEmpty()
             if (message.reactions.isNotEmpty()) {
                 val inflater = LayoutInflater.from(itemView.context)
                 message.reactions.forEach { (emoji, count) ->
@@ -244,7 +256,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         }
     }
 
-        class DividerViewHolder(private val binding: ItemDividerBinding) : RecyclerView.ViewHolder(binding.root) {
+    class DividerViewHolder(private val binding: ItemDividerBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ChatListItem.DividerItem) {
             binding.tvDivider.text = getFormattedDate(itemView.context, item.timestamp)
         }
@@ -253,10 +265,9 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
             val messageCal = Calendar.getInstance().apply { timeInMillis = timestamp }
             val todayCal = Calendar.getInstance()
             
-            // Corrige el caso para "hoy" para que muestre la hora
             if (messageCal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
                 messageCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR)) {
-                return DateFormat.getTimeFormat(context).format(Date(timestamp))
+                return context.getString(R.string.today)
             }
             
             val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
@@ -265,10 +276,9 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                 return context.getString(R.string.yesterday)
             }
             
-            return SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(timestamp))
+            return SimpleDateFormat("MMMM dd", Locale.getDefault()).format(Date(timestamp))
         }
     }
-
 
     class WarningViewHolder(binding: ItemWarningBinding) : RecyclerView.ViewHolder(binding.root)
 

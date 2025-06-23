@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/ApiModels.kt
 package com.radwrld.wami.network
 
 import com.google.gson.annotations.SerializedName
@@ -36,7 +35,7 @@ data class Conversation(
     @SerializedName("last_message_timestamp") val lastMessageTimestamp: Long?,
     @SerializedName("unreadCount") val unreadCount: Int?
 ) {
-    val isGroup: Boolean = isGroupInt == 1
+    val isGroup: Boolean get() = isGroupInt == 1
 }
 
 data class SessionResponse(val sessionId: String)
@@ -49,7 +48,7 @@ data class SendMessageRequest(
     val tempId: String
 )
 
-// ++ MODELO ACTUALIZADO: Se eliminó el campo `fromMe`
+// ++ MODELO ACTUALIZADO: Se eliminó el campo `fromMe` para alinearse con el backend que ya no lo requiere.
 data class SendReactionRequest(
     val jid: String,
     val messageId: String,

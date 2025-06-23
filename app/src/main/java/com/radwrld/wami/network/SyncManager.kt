@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/sync/SyncManager.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.net.URISyntaxException
 import kotlin.math.pow
 
-// --- Abstracciones (Logger, DTOs, Mapper, EventHandler) sin cambios ---
+// --- Abstracciones sin cambios ---
 object Logger {
     fun d(tag: String, msg: String) = Log.d(tag, msg)
     fun i(tag: String, msg: String) = Log.i(tag, msg)
@@ -29,7 +28,9 @@ object Logger {
     fun e(tag: String, msg: String, t: Throwable? = null) = Log.e(tag, msg, t)
 }
 
+// DTO para las actualizaciones de reacciones del socket
 private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
+// DTO para actualizaciones de estado de mensajes del socket
 private data class FullMessageStatusUpdateDto(val jid: String, val id: String, val status: String)
 
 object MessageMapper {
@@ -76,8 +77,7 @@ class DefaultSocketEventHandler(
     companion object { private const val TAG = "DefaultSocketEventHandler" }
 }
 
-
-// --- SyncManager ya no implementa DefaultLifecycleObserver ---
+// --- SyncManager ahora es controlado por SyncService ---
 object SyncManager {
     private const val TAG = "SyncManager"
 
@@ -111,11 +111,10 @@ object SyncManager {
             }
 
             try {
+                // El token de sesión ahora se pasa en `auth` para la conexión del socket
                 val opts = IO.Options().apply { auth = mapOf("token" to token) }
                 socket = IO.socket(config.getCurrentServer(), opts)
                 setupSocketListeners()
-                // ELIMINADO: Ya no observa el ciclo de vida de la app
-                // ProcessLifecycleOwner.get().lifecycle.addObserver(this)
                 isInitialized = true
                 Logger.i(TAG, "SyncManager initialized.")
             } catch (e: URISyntaxException) {
@@ -123,8 +122,6 @@ object SyncManager {
             }
         }
     }
-
-    // ELIMINADOS: onStart y onStop. El servicio los controla.
 
     fun connect() {
         if (!isInitialized) {
@@ -143,7 +140,6 @@ object SyncManager {
     fun shutdown() {
         job.cancel()
         disconnect()
-        // ELIMINADO: Ya no es un observador
         isInitialized = false
         Logger.i(TAG, "SyncManager shut down.")
     }
@@ -153,6 +149,7 @@ object SyncManager {
             on(Socket.EVENT_CONNECT,    onConnect)
             on(Socket.EVENT_DISCONNECT, onDisconnect)
             on(Socket.EVENT_CONNECT_ERROR, onError)
+            // Los nombres de los eventos se alinean con los emitidos por el servidor
             on("whatsapp-message", onIncoming)
             on("whatsapp-message-status-update", onStatusUpdate)
             on("whatsapp-reaction-update", onReactionUpdate)
@@ -169,7 +166,7 @@ object SyncManager {
         val reason = args.getOrNull(0)?.toString() ?: "unknown"
         Logger.w(TAG, "Socket disconnected: $reason")
         _socketState.value = false
-        if (isInitialized) { // No reconectar si estamos haciendo shutdown
+        if (isInitialized) {
             scheduleReconnect()
         }
     }
@@ -183,7 +180,7 @@ object SyncManager {
     private fun scheduleReconnect() {
         if (!isInitialized) return
         retryAttempts++
-        val delayMs = (2.0.pow(retryAttempts.toDouble()) * 1000L).toLong().coerceAtMost(60_000L) // Aumentado el máximo
+        val delayMs = (2.0.pow(retryAttempts.toDouble()) * 1000L).toLong().coerceAtMost(60_000L)
         scope.launch {
             delay(delayMs)
             Logger.d(TAG, "Reconnecting (attempt #$retryAttempts)...")

@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/model/Models.kt
 package com.radwrld.wami.model
 
 import java.util.UUID
@@ -33,6 +32,7 @@ data class Message(
     val mediaSha256: String? = null
 ) {
     // ++ CAMBIO APLICADO: Se basa la existencia de medios en mediaUrl en lugar de la ruta local.
+    // Esto se alinea con la lógica del backend de que el cliente debe descargar el medio.
     fun hasMedia(): Boolean = !mediaUrl.isNullOrBlank()
     fun isVideo(): Boolean = mimetype?.startsWith("video/") == true
     fun hasText(): Boolean = !text.isNullOrBlank()

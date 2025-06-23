@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/WhatsappApi.kt
 package com.radwrld.wami.network
 
 import okhttp3.MultipartBody
@@ -11,16 +10,15 @@ interface WhatsAppApi {
     @GET("history/{jid}")
     suspend fun getHistory(
         @Path("jid", encoded = true) jid: String,
-        @Query("before") before: Long,
-        @Query("limit") limit: Int = 50
+        @Query("limit") limit: Int = 100 // El backend ahora usa 'limit', no 'before'
     ): List<MessageHistoryItem>
-    
+
     @POST("history/sync/{jid}")
     suspend fun syncHistory(@Path("jid", encoded = true) jid: String): SyncResponse
 
     @Streaming
-    @GET
-    suspend fun downloadFile(@Url url: String): Response<ResponseBody>
+    @GET("media/{messageId}") // La URL del backend es /media/{messageId}
+    suspend fun downloadFile(@Path("messageId") messageId: String): Response<ResponseBody>
 
     @POST("send")
     suspend fun sendMessage(@Body request: SendMessageRequest): SendResponse
@@ -35,7 +33,7 @@ interface WhatsAppApi {
     ): SendResponse
 
     @POST("send/reaction")
-    suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
+    suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void> // El backend devuelve 200 OK sin cuerpo en caso de éxito
 
     @GET("session/status")
     suspend fun getStatus(): StatusResponse
@@ -48,6 +46,4 @@ interface WhatsAppApi {
 
     @GET("chats")
     suspend fun getConversations(): List<Conversation>
-
-    // --- ENDPOINTS DE IMPORTAR/EXPORTAR ELIMINADOS ---
 }

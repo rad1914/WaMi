@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/sync/SyncService.kt
 package com.radwrld.wami.sync
 
 import android.app.Notification

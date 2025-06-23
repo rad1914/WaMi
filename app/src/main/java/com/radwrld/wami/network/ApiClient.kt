@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/ApiClient.kt
 package com.radwrld.wami.network
 
 import android.content.Context
@@ -21,6 +20,7 @@ object ApiClient {
     @Volatile var downloadHttpClient: OkHttpClient? = null
         private set
 
+    // El interceptor de autorización se mantiene, es correcto.
     private fun authInterceptor(context: Context) = Interceptor { chain ->
         val token = ServerConfigStorage(context.applicationContext).getSessionId()
         val request = if (token.isNullOrEmpty()) {
@@ -64,6 +64,8 @@ object ApiClient {
         }
     }
 
+    // ++ ACTUALIZADO: El cliente de descarga ahora no necesita una URL base diferente,
+    // ya que la URL de descarga se construye dinámicamente en la interfaz de la API.
     fun getDownloadingInstance(context: Context): WhatsAppApi {
         return downloadRetrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
             downloadRetrofit?.create(WhatsAppApi::class.java) ?: run {
