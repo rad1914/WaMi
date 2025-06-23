@@ -109,9 +109,9 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     viewModel.conversationState.collect {
                         binding.swipeRefreshLayout.isRefreshing = it.isLoading
-                        if (viewModel.searchState.value.query.isBlank()) {
-                            conversationAdapter.submitList(it.conversations)
-                        }
+
+                        conversationAdapter.submitList(it.conversations) 
+                        
                         it.error?.let { e ->
                             Toast.makeText(this@MainActivity, "Error: $e", Toast.LENGTH_LONG).show()
                             if ("401" in e) logout(false)
@@ -120,12 +120,18 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch {
                     viewModel.searchState.collect {
-                        binding.rvMessages.adapter =
-                            if (it.query.isBlank()) conversationAdapter.also {
-                                it.submitList(viewModel.conversationState.value.conversations)
-                            } else searchAdapter.also { adapter ->
-                                adapter.submitList(it.results)
+                        if (it.query.isBlank()) {
+
+                            if (binding.rvMessages.adapter != conversationAdapter) {
+                                binding.rvMessages.adapter = conversationAdapter
                             }
+                        } else {
+
+                            if (binding.rvMessages.adapter != searchAdapter) {
+                                binding.rvMessages.adapter = searchAdapter
+                            }
+                            searchAdapter.submitList(it.results)
+                        }
                     }
                 }
             }
@@ -167,6 +173,8 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent(this, ChatActivity::class.java).apply {
             putExtra("EXTRA_JID", contact.id)
             putExtra("EXTRA_NAME", contact.name)
+
+            putExtra("EXTRA_AVATAR_URL", contact.avatarUrl)
         })
     }
 

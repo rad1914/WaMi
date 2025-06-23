@@ -21,54 +21,62 @@ class ConversationAdapter(
 
     private var conversations = emptyList<Contact>()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ConversationViewHolder(
-        ItemConversationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-    )
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ConversationViewHolder {
+        val binding = ItemConversationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return ConversationViewHolder(binding)
+    }
 
-    override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) =
+    override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
         holder.bind(conversations[position])
+    }
 
     override fun getItemCount() = conversations.size
 
     fun submitList(newList: List<Contact>) {
-        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-            override fun getOldListSize() = conversations.size
-            override fun getNewListSize() = newList.size
-            override fun areItemsTheSame(o: Int, n: Int) = conversations[o].id == newList[n].id
-            override fun areContentsTheSame(o: Int, n: Int) = conversations[o] == newList[n]
-        })
+        val diffCallback = object : DiffUtil.Callback() {
+            override fun getOldListSize(): Int = conversations.size
+            override fun getNewListSize(): Int = newList.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return conversations[oldItemPosition].id == newList[newItemPosition].id
+            }
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+                return conversations[oldItemPosition] == newList[newItemPosition]
+            }
+        }
+        val diffResult = DiffUtil.calculateDiff(diffCallback)
         conversations = newList
-        diff.dispatchUpdatesTo(this)
+        diffResult.dispatchUpdatesTo(this)
     }
 
     inner class ConversationViewHolder(private val b: ItemConversationBinding) :
         RecyclerView.ViewHolder(b.root) {
 
-        fun bind(contact: Contact) = with(b) {
-            tvContactName.text = contact.name
-            tvLastMessage.text = contact.lastMessage?.let {
-                TextFormatter.format(root.context, it)
+        fun bind(contact: Contact) {
+
+            b.tvName.text = contact.name
+            b.tvLastMessage.text = contact.lastMessage?.let {
+                TextFormatter.format(b.root.context, it)
             } ?: "Tap to start chatting"
 
-            tvUnreadCount.run {
-                visibility = if (contact.unreadCount > 0) View.VISIBLE else View.GONE
-                text = contact.unreadCount.toString()
-            }
+            b.tvUnreadCount.visibility = if (contact.unreadCount > 0) View.VISIBLE else View.GONE
+            b.tvUnreadCount.text = contact.unreadCount.toString()
 
-            tvTimestamp.text = contact.lastMessageTimestamp?.let(::formatTimestamp).orEmpty()
+            b.tvTimestamp.text = contact.lastMessageTimestamp?.let(::formatTimestamp).orEmpty()
 
             val placeholder = if (contact.isGroup)
                 R.drawable.ic_group_placeholder else R.drawable.ic_profile_placeholder
 
-            Glide.with(root.context)
+            Glide.with(b.root.context)
                 .load(contact.avatarUrl)
                 .placeholder(placeholder)
                 .error(placeholder)
-                .circleCrop()
-                .into(ivAvatar)
+                .into(b.avatarImageView)
 
-            root.setOnClickListener { onItemClicked(contact) }
-            root.setOnLongClickListener { onItemLongClicked(contact, it); true }
+            b.root.setOnClickListener { onItemClicked(contact) }
+            b.root.setOnLongClickListener {
+                onItemLongClicked(contact, it)
+                true
+            }
         }
     }
 

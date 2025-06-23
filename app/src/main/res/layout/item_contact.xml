@@ -1,20 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/layout/item_contact.xml -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:paddingVertical="10dp"
+    android:paddingHorizontal="16dp"
     android:gravity="center_vertical"
-    android:background="?android:attr/selectableItemBackground">
+    android:background="?attr/selectableItemBackground">
 
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/ivContactAvatar"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:contentDescription="Contact Avatar"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
         tools:src="@drawable/ic_profile_placeholder" />
 
     <LinearLayout

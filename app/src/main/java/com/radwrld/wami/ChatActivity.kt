@@ -69,7 +69,8 @@ class ChatActivity : AppCompatActivity() {
     private fun setupUI() = with(binding) {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
-        btnBack.setOnClickListener { finish() }
+
+        toolbar.setNavigationOnClickListener { finish() }
 
         swipeRefreshLayout.setOnRefreshListener {
             viewModel.loadOlderMessages()

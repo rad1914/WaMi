@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/layout/item_reaction.xml -->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -10,5 +9,5 @@
     android:paddingHorizontal="8dp"
     android:paddingVertical="4dp"
     android:textColor="?attr/colorOnSecondaryContainer"
-    android:textSize="14sp"
+    android:textAppearance="?attr/textAppearanceBodyMedium"
     tools:text="👍 2" />

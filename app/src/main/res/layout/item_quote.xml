@@ -26,6 +26,6 @@
         android:maxLines="2"
         android:ellipsize="end"
         android:textColor="?attr/colorOnSurfaceVariant"
-        tools:text="This is the text of the message being replied to." />
+        tools:text="This is the text of the message being replied to."/>
 
 </LinearLayout>

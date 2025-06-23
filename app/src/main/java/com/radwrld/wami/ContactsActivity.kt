@@ -31,7 +31,7 @@ class ContactsActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityContactsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
         setupRecyclerView()
         setupListeners()
         observeViewModel()
@@ -44,7 +44,7 @@ class ContactsActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        binding.ivBack.setOnClickListener {
+        binding.toolbar.setNavigationOnClickListener {
             finish()
         }
     }
@@ -73,7 +73,7 @@ class ContactsActivity : AppCompatActivity() {
                     state.error?.let { errorMsg ->
                         Toast.makeText(this@ContactsActivity, "Error: $errorMsg", Toast.LENGTH_LONG).show()
                         if (errorMsg.contains("401")) {
-                           logout()
+                           logout(false)
                         }
                     }
                 }
@@ -81,9 +81,12 @@ class ContactsActivity : AppCompatActivity() {
         }
     }
 
-    private fun logout() {
+    private fun logout(callServer: Boolean) {
         lifecycleScope.launch {
-            try { ApiClient.getInstance(this@ContactsActivity).logout() } catch (e: Exception) {  }
+            if (callServer) {
+                try { ApiClient.getInstance(this@ContactsActivity).logout() } catch (e: Exception) {  }
+            }
+            ApiClient.close()
 
             ServerConfigStorage(this@ContactsActivity).apply {
                 saveSessionId(null)

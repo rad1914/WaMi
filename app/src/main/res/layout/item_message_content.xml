@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/layout/item_message_content.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -52,6 +51,6 @@
         android:layout_marginTop="2dp"
         android:textAppearance="?attr/textAppearanceBodyLarge"
         tools:text="This is the main message or caption."
-        android:textIsSelectable="false" />
+        android:textIsSelectable="false"/>
 
 </LinearLayout>

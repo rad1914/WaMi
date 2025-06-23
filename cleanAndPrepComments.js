@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // @path: cleanAndPrepComments.js
 
 import { promises as fs } from "fs";
