@@ -17,74 +17,69 @@ class SyncService : Service() {
 
     companion object {
         const val ACTION_START = "com.radwrld.wami.sync.ACTION_START"
-        const val ACTION_STOP = "com.radwrld.wami.sync.ACTION_STOP"
-        private const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "SyncServiceChannel"
+        const val ACTION_STOP  = "com.radwrld.wami.sync.ACTION_STOP"
+        private const val NOTIF_ID    = 1
+        private const val CHANNEL_ID  = "SyncServiceChannel"
+        private const val CHANNEL_NAME = "Wami Sync Service"
     }
 
     override fun onCreate() {
         super.onCreate()
-
         SyncManager.initialize(this)
-        Logger.i("SyncService", "SyncService created.")
+        Logger.i("SyncService", "Service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                startForegroundService()
-                Logger.i("SyncService", "Service starting, connecting socket...")
+                buildForegroundNotification()
+                Logger.i("SyncService", "Starting—connecting socket")
                 SyncManager.connect()
             }
-            ACTION_STOP -> {
-                Logger.i("SyncService", "Service stopping...")
+            ACTION_STOP  -> {
+                Logger.i("SyncService", "Stopping service")
                 stopSelf()
             }
         }
-
+        // Keep service alive unless explicitly stopped
         return START_STICKY
     }
 
-    private fun startForegroundService() {
-        createNotificationChannel()
-
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent,
+    private fun buildForegroundNotification() {
+        createChannelIfNeeded()
+        val intent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Wami Conectado")
-            .setContentText("Escuchando nuevos mensajes en tiempo real.")
+            .setContentText("Escuchando mensajes en tiempo real")
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(intent)
+            .setOngoing(true)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(NOTIF_ID, notif)
     }
 
-    private fun createNotificationChannel() {
+    private fun createChannelIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
-                "Wami Sync Service",
+            val chan = NotificationChannel(
+                CHANNEL_ID, CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(serviceChannel)
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(chan)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Logger.i("SyncService", "Service destroyed, shutting down SyncManager.")
-
+        Logger.i("SyncService", "Destroyed—shutting down SyncManager")
         SyncManager.shutdown()
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 }

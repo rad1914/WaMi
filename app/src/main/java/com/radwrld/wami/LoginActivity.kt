@@ -1,32 +1,29 @@
 // @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
 package com.radwrld.wami
 
-import android.app.Application
-import android.content.*
-import android.graphics.*
-import android.net.*
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.util.Base64
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
-import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.radwrld.wami.databinding.ActivityLoginBinding
-import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.network.WhatsAppApi
 import com.radwrld.wami.storage.ServerConfigStorage
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import retrofit2.HttpException
-import java.net.*
+import com.radwrld.wami.sync.SyncService
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var bind: ActivityLoginBinding
     private val vm by viewModels<LoginViewModel> {
+        // El ContentResolver ya no es necesario, pero mantenemos la factory por si se usa en otro lugar
         LoginViewModelFactory(application, ServerConfigStorage(this), contentResolver)
     }
 
@@ -49,17 +46,19 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (vm.uiState.value is LoginUiState.Idle || vm.uiState.value is LoginUiState.Error) {
-            if (isOnline()) vm.start() else vm.notifyNoNet()
-        }
+        // La lógica de inicio ahora es más simple
+        if (isOnline()) vm.start() else vm.notifyNoNet()
     }
 
     private fun render(state: LoginUiState) = with(bind) {
         progressBar.isVisible = state is LoginUiState.Loading
         qrImage.isVisible = state is LoginUiState.ShowQr
-        offlineLoginButton.isVisible = state is LoginUiState.Error &&
-                (state.msg.startsWith("Offline:") || state.msg.contains("connect to the internet"))
-        multiUserLoginButton.isVisible = state is LoginUiState.Idle || state is LoginUiState.Error || state is LoginUiState.ShowQr
+        
+        // El botón de offline solo aparece en errores de red específicos
+        val isOfflineError = state is LoginUiState.Error && state.msg.contains("Sin conexión")
+        offlineLoginButton.isVisible = isOfflineError
+        
+        multiUserLoginButton.isVisible = state !is LoginUiState.LoggedIn
 
         statusText.text = when (state) {
             is LoginUiState.Idle -> "WaMi"
@@ -71,34 +70,38 @@ class LoginActivity : AppCompatActivity() {
             is LoginUiState.Error -> state.msg
             is LoginUiState.LoggedIn -> {
                 openMain()
-                "Let's Go!"
+                "¡Vamos!"
             }
         }
     }
 
     private fun showSessionInput() {
-        val input = EditText(this).apply { hint = "Enter Session ID" }
+        val input = EditText(this).apply { hint = "Ingresa ID de sesión" }
         AlertDialog.Builder(this)
-            .setTitle("Multi-user Login")
-            .setMessage("Enter existing session ID")
+            .setTitle("Inicio multi-usuario")
+            .setMessage("Ingresa un ID de sesión existente")
             .setView(input)
-            .setPositiveButton("Connect") { _, _ ->
+            .setPositiveButton("Conectar") { _, _ ->
                 input.text.toString().takeIf { it.isNotBlank() }?.let {
                     vm.setSessionAndRestart(it)
-                } ?: toast("Session ID cannot be empty.")
+                } ?: toast("El ID de sesión no puede estar vacío.")
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 
     private fun isOnline(): Boolean {
-        val net = (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager).activeNetwork ?: return false
-        return (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager)
-            .getNetworkCapabilities(net)
-            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(net) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun openMain() {
+        // Inicia el servicio en segundo plano al iniciar sesión
+        val serviceIntent = Intent(this, SyncService::class.java).apply { action = SyncService.ACTION_START }
+        startService(serviceIntent)
+        
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }

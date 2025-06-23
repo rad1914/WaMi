@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/SyncManager.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
@@ -19,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.URISyntaxException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.pow
 
 object Logger {
@@ -29,11 +29,27 @@ object Logger {
 }
 
 private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
-
 private data class FullMessageStatusUpdateDto(val jid: String, val id: String, val status: String)
 
 object MessageMapper {
-    fun fromDto(dto: MessageHistoryItem): Message = Message( id = dto.id, jid = dto.jid, text = dto.text, isOutgoing = dto.isOutgoing > 0, type = dto.type, status = dto.status, timestamp = dto.timestamp, name = dto.name, senderName = dto.name, mediaUrl = dto.mediaUrl, localMediaPath = null, mimetype = dto.mimetype, quotedMessageId = dto.quotedMessageId, quotedMessageText = dto.quotedMessageText, reactions = dto.reactions ?: emptyMap(), mediaSha256 = dto.mediaSha256 )
+    fun fromDto(dto: MessageHistoryItem): Message = Message(
+        id = dto.id,
+        jid = dto.jid,
+        text = dto.text,
+        isOutgoing = dto.isOutgoing > 0,
+        type = dto.type,
+        status = dto.status,
+        timestamp = dto.timestamp,
+        name = dto.name,
+        senderName = dto.name,
+        mediaUrl = dto.mediaUrl,
+        localMediaPath = null,
+        mimetype = dto.mimetype,
+        quotedMessageId = dto.quotedMessageId,
+        quotedMessageText = dto.quotedMessageText,
+        reactions = dto.reactions ?: emptyMap(),
+        mediaSha256 = dto.mediaSha256
+    )
 }
 
 interface SocketEventHandler {
@@ -48,31 +64,47 @@ class DefaultSocketEventHandler(
     private val contactRepo: ContactRepository
 ) : SocketEventHandler {
     private val gson = Gson()
+
     override suspend fun handleIncomingMessages(json: String) {
         runCatching {
-            val type = object : TypeToken<List<MessageHistoryItem>>() {}.type
-            val items: List<MessageHistoryItem> = gson.fromJson(json, type)
+            val listType = object : TypeToken<List<MessageHistoryItem>>() {}.type
+            val items: List<MessageHistoryItem> = gson.fromJson(json, listType)
             items.forEach { dto ->
-                val message = MessageMapper.fromDto(dto)
-                messageRepo.addMessage(message.jid, message)
-                if (!message.isOutgoing) {
-                    NotificationUtils.showNotification(context = context, jid = message.jid, contactName = message.senderName ?: message.jid, message = message.text ?: "Media", messageId = message.id)
+                val msg = MessageMapper.fromDto(dto)
+                messageRepo.addMessage(msg.jid, msg)
+                if (!msg.isOutgoing) {
+                    NotificationUtils.showNotification(
+                        context = context,
+                        jid = msg.jid,
+                        contactName = msg.senderName ?: msg.jid,
+                        message = msg.text ?: "Media",
+                        messageId = msg.id
+                    )
                 }
             }
-        }.onFailure { t -> Logger.e(TAG, "Failed processing incoming messages: $json", t) }
+        }.onFailure { t ->
+            Logger.e(TAG, "Failed processing incoming messages: $json", t)
+        }
     }
+
     override suspend fun handleStatusUpdate(json: String) {
         runCatching {
             val update = gson.fromJson(json, FullMessageStatusUpdateDto::class.java)
             messageRepo.updateMessageStatus(update.jid, update.id, update.status)
-        }.onFailure { t -> Logger.e(TAG, "Failed processing status update: $json", t) }
+        }.onFailure { t ->
+            Logger.e(TAG, "Failed processing status update: $json", t)
+        }
     }
+
     override suspend fun handleReactionUpdate(json: String) {
         runCatching {
             val update = gson.fromJson(json, ReactionUpdateDto::class.java)
             messageRepo.updateMessageReactions(update.jid, update.id, update.reactions)
-        }.onFailure { t -> Logger.e(TAG, "Failed processing reaction update: $json", t) }
+        }.onFailure { t ->
+            Logger.e(TAG, "Failed processing reaction update: $json", t)
+        }
     }
+
     companion object { private const val TAG = "DefaultSocketEventHandler" }
 }
 
@@ -80,50 +112,64 @@ object SyncManager {
     private const val TAG = "SyncManager"
 
     @Volatile private var socket: Socket? = null
-    private lateinit var applicationContext: Context
-    private lateinit var messageRepository: MessageRepository
-    private lateinit var contactRepository: ContactRepository
-    private lateinit var eventHandler: SocketEventHandler
-    private var retryAttempts = 0
-    private var job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private val isInitialized = AtomicBoolean(false)
+
+    private lateinit var appContext: Context
+    private lateinit var msgRepo: MessageRepository
+    private lateinit var contactRepo: ContactRepository
+    private lateinit var handler: SocketEventHandler
+
+    private var retryCount = 0
+    private val supervisor = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + supervisor)
+
     private val _socketState = MutableStateFlow(false)
-    val socketState: StateFlow<Boolean> get() = _socketState.asStateFlow()
-    @Volatile private var isInitialized = false
+    val socketState: StateFlow<Boolean> = _socketState.asStateFlow()
+
+    private val _qrCodeUrl = MutableStateFlow<String?>(null)
+    val qrCodeUrl: StateFlow<String?> = _qrCodeUrl.asStateFlow()
+
+    private val _isAuthenticated = MutableStateFlow(false)
+    val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
     fun initialize(context: Context) {
-        if (isInitialized) return
-        synchronized(this) {
-            if (isInitialized) return
+        if (isInitialized.getAndSet(true)) return
 
-            applicationContext = context.applicationContext
-            messageRepository = MessageRepository(applicationContext)
-            contactRepository = ContactRepository(applicationContext)
-            eventHandler = DefaultSocketEventHandler(applicationContext, messageRepository, contactRepository)
+        appContext  = context.applicationContext
+        msgRepo     = MessageRepository(appContext)
+        contactRepo = ContactRepository(appContext)
+        handler     = DefaultSocketEventHandler(appContext, msgRepo, contactRepo)
 
-            val config = ServerConfigStorage(applicationContext)
-            val token = config.getSessionId()
-            if (token.isNullOrEmpty()) {
-                Logger.e(TAG, "Cannot initialize: sessionId missing.")
-                return
-            }
-
-            try {
-
-                val opts = IO.Options().apply { auth = mapOf("token" to token) }
-                socket = IO.socket(config.getCurrentServer(), opts)
-                setupSocketListeners()
-                isInitialized = true
-                Logger.i(TAG, "SyncManager initialized.")
-            } catch (e: URISyntaxException) {
-                Logger.e(TAG, "Socket URI syntax error", e)
-            }
+        val config = ServerConfigStorage(appContext)
+        val token  = config.getSessionId().orEmpty()
+        if (token.isBlank()) {
+            Logger.e(TAG, "Cannot initialize: missing session token")
+            return
         }
+
+        try {
+            resetLoginState()
+            
+            val opts = IO.Options().apply {
+                auth = mapOf("token" to token)
+                reconnection = false
+            }
+            socket = IO.socket(config.getCurrentServer(), opts)
+            registerListeners()
+            Logger.i(TAG, "Initialized with server=${config.getCurrentServer()}")
+        } catch (e: URISyntaxException) {
+            Logger.e(TAG, "Invalid socket URI", e)
+        }
+    }
+    
+    fun resetLoginState() {
+        _qrCodeUrl.value = null
+        _isAuthenticated.value = false
     }
 
     fun connect() {
-        if (!isInitialized) {
-            Logger.w(TAG, "Not initialized; cannot connect.")
+        if (!isInitialized.get()) {
+            Logger.w(TAG, "Connect called before initialize()")
             return
         }
         socket?.takeIf { !it.connected() }?.connect()
@@ -133,71 +179,80 @@ object SyncManager {
         socket?.disconnect()
     }
 
-    fun isConnected(): Boolean = socket?.connected() ?: false
+    fun isConnected(): Boolean = socket?.connected() == true
 
     fun shutdown() {
-        job.cancel()
+        supervisor.cancel()
         disconnect()
-        isInitialized = false
-        Logger.i(TAG, "SyncManager shut down.")
+        socket = null
+        isInitialized.set(false)
+        Logger.i(TAG, "SyncManager shutdown complete")
     }
 
-    private fun setupSocketListeners() {
-        socket?.apply {
-            on(Socket.EVENT_CONNECT,    onConnect)
-            on(Socket.EVENT_DISCONNECT, onDisconnect)
-            on(Socket.EVENT_CONNECT_ERROR, onError)
-
-            on("whatsapp-message", onIncoming)
-            on("whatsapp-message-status-update", onStatusUpdate)
-            on("whatsapp-reaction-update", onReactionUpdate)
+    private fun registerListeners() = socket?.apply {
+        on(Socket.EVENT_CONNECT) {
+            Logger.i(TAG, "Socket connected")
+            retryCount = 0
+            _socketState.value = true
+            _qrCodeUrl.value = null
         }
-    }
-
-    private val onConnect = Emitter.Listener {
-        Logger.i(TAG, "Socket connected.")
-        retryAttempts = 0
-        _socketState.value = true
-    }
-
-    private val onDisconnect = Emitter.Listener { args ->
-        val reason = args.getOrNull(0)?.toString() ?: "unknown"
-        Logger.w(TAG, "Socket disconnected: $reason")
-        _socketState.value = false
-        if (isInitialized) {
+        on(Socket.EVENT_DISCONNECT) { args ->
+            Logger.w(TAG, "Socket disconnected: ${args.getOrNull(0)?.toString().orEmpty()}")
+            _socketState.value = false
+            _isAuthenticated.value = false
             scheduleReconnect()
         }
-    }
+        on(Socket.EVENT_CONNECT_ERROR) { args ->
+            Logger.e(TAG, "Socket error: ${args.getOrNull(0)?.toString().orEmpty()}")
+            scheduleReconnect()
+        }
 
-    private val onError = Emitter.Listener { args ->
-        val error = args.getOrNull(0)?.toString() ?: "unknown"
-        Logger.e(TAG, "Socket connection error: $error")
-        scheduleReconnect()
+        on("qr") { args ->
+            Logger.i(TAG, "QR event received")
+            val qr = args.getOrNull(0) as? String
+            _qrCodeUrl.value = qr
+        }
+        on("authenticated") {
+            Logger.i(TAG, "Authenticated event received")
+            _qrCodeUrl.value = null
+            _isAuthenticated.value = true
+        }
+        on("disconnected") {
+             Logger.w(TAG, "Received server-side disconnect event")
+            _isAuthenticated.value = false
+        }
+
+        on("whatsapp-message") { args ->
+            Logger.d(TAG, "Received whatsapp-message: ${args.getOrNull(0)}")
+            scope.launch {
+                args.getOrNull(0)?.toString()?.let { handler.handleIncomingMessages(it) }
+            }
+        }
+        on("whatsapp-message-status-update") { args ->
+            Logger.d(TAG, "Received status-update: ${args.getOrNull(0)}")
+            scope.launch {
+                args.getOrNull(0)?.toString()?.let { handler.handleStatusUpdate(it) }
+            }
+        }
+        on("whatsapp-reaction-update") { args ->
+            Logger.d(TAG, "Received reaction-update: ${args.getOrNull(0)}")
+            scope.launch {
+                args.getOrNull(0)?.toString()?.let { handler.handleReactionUpdate(it) }
+            }
+        }
     }
 
     private fun scheduleReconnect() {
-        if (!isInitialized) return
-        retryAttempts++
-        val delayMs = (2.0.pow(retryAttempts.toDouble()) * 1000L).toLong().coerceAtMost(60_000L)
+        if (!isInitialized.get()) return
+        retryCount++
+        val delayMs = (2.0.pow(retryCount.toDouble()) * 1000L)
+            .toLong()
+            .coerceAtMost(60_000L)
+
         scope.launch {
             delay(delayMs)
-            Logger.d(TAG, "Reconnecting (attempt #$retryAttempts)...")
+            Logger.d(TAG, "Reconnecting attempt #$retryCount")
             connect()
         }
-    }
-
-    private val onIncoming = Emitter.Listener { args ->
-        Logger.d(TAG, "Received whatsapp-message: ${args.getOrNull(0)}")
-        scope.launch { args.getOrNull(0)?.toString()?.let { eventHandler.handleIncomingMessages(it) } }
-    }
-
-    private val onStatusUpdate = Emitter.Listener { args ->
-        Logger.d(TAG, "Received whatsapp-message-status-update: ${args.getOrNull(0)}")
-        scope.launch { args.getOrNull(0)?.toString()?.let { eventHandler.handleStatusUpdate(it) } }
-    }
-
-    private val onReactionUpdate = Emitter.Listener { args ->
-        Logger.d(TAG, "Received whatsapp-reaction-update: ${args.getOrNull(0)}")
-        scope.launch { args.getOrNull(0)?.toString()?.let { eventHandler.handleReactionUpdate(it) } }
     }
 }
