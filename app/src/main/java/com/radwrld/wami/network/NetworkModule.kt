@@ -1,8 +1,10 @@
+// @path: app/src/main/java/com/radwrld/wami/network/ApiClient.kt
 package com.radwrld.wami.network
 
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -57,6 +59,7 @@ data class Message(
     val mediaUrl: String? = null,
     val localMediaPath: String? = null,
     val mimetype: String? = null,
+    val fileName: String? = null,
     val quotedMessageId: String? = null,
     val quotedMessageText: String? = null,
     val reactions: Map<String, Int> = emptyMap(),
@@ -66,6 +69,7 @@ data class Message(
     fun isVideo(): Boolean = mimetype?.startsWith("video/") == true
     fun hasText(): Boolean = !text.isNullOrBlank()
     fun isSticker(): Boolean = type == "sticker"
+    fun isDocument(): Boolean = type == "document" || type == "audio"
 }
 
 data class SendResponse(val success: Boolean, val messageId: String?, val tempId: String?, val timestamp: Long?, val error: String?)
@@ -86,6 +90,7 @@ data class MessageHistoryItem(
     @SerializedName("name") val name: String?,
     @SerializedName("media_url") val mediaUrl: String?,
     @SerializedName("mimetype") val mimetype: String?,
+    @SerializedName("fileName") val fileName: String?,
     @SerializedName("quoted_message_id") val quotedMessageId: String?,
     @SerializedName("quoted_message_text") val quotedMessageText: String?,
     @SerializedName("reactions") val reactions: Map<String, Int>?,
@@ -95,7 +100,7 @@ data class MessageHistoryItem(
 fun MessageHistoryItem.toDomain(): Message = Message(
     id = this.id, jid = this.jid, text = this.text, isOutgoing = this.isOutgoing > 0,
     type = this.type, status = this.status, timestamp = this.timestamp, name = this.name,
-    senderName = this.name, mediaUrl = this.mediaUrl, mimetype = this.mimetype,
+    senderName = this.name, mediaUrl = this.mediaUrl, mimetype = this.mimetype, fileName = this.fileName,
     quotedMessageId = this.quotedMessageId, quotedMessageText = this.quotedMessageText,
     reactions = this.reactions ?: emptyMap(), mediaSha256 = this.mediaSha256
 )
@@ -121,8 +126,8 @@ interface WhatsAppApi {
     suspend fun syncHistory(@Path("jid", encoded = true) jid: String): SyncResponse
 
     @Streaming
-    @GET("media/{messageId}")
-    suspend fun downloadFile(@Path("messageId") messageId: String): Response<ResponseBody>
+    @GET
+    suspend fun downloadFile(@Url url: String): Response<ResponseBody>
 
     @POST("send")
     suspend fun sendMessage(@Body request: SendMessageRequest): SendResponse
@@ -153,22 +158,29 @@ object ApiClient {
     @Volatile private var api: WhatsAppApi? = null
     @Volatile private var downloadApi: WhatsAppApi? = null
 
-    // FIX: Restored public property `downloadHttpClient` that WamiGlideActivity expects
     @Volatile var downloadHttpClient: OkHttpClient? = null
         private set
 
     fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
     private fun createOkHttpClient(context: Context, useLongTimeouts: Boolean): OkHttpClient {
+        val serverConfig = ServerConfigStorage(context.applicationContext)
+        val backendHost = try { Uri.parse(serverConfig.getCurrentServer()).host } catch (_: Exception) { null }
+
         return OkHttpClient.Builder()
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = if (useLongTimeouts) HttpLoggingInterceptor.Level.NONE else HttpLoggingInterceptor.Level.BODY
             })
             .addInterceptor { chain ->
-                val token = ServerConfigStorage(context).getSessionId()
-                val request = if (token.isNullOrEmpty()) chain.request()
-                else chain.request().newBuilder().header("Authorization", "Bearer $token").build()
-                chain.proceed(request)
+                val token = serverConfig.getSessionId()
+                val originalRequest = chain.request()
+
+                val requestBuilder = if (!token.isNullOrEmpty() && originalRequest.url.host == backendHost) {
+                    originalRequest.newBuilder().header("Authorization", "Bearer $token")
+                } else {
+                    originalRequest.newBuilder()
+                }
+                chain.proceed(requestBuilder.build())
             }
             .apply {
                 if (useLongTimeouts) {
@@ -197,7 +209,7 @@ object ApiClient {
         downloadApi ?: synchronized(this) {
             downloadApi ?: run {
                 val client = downloadHttpClient ?: createOkHttpClient(context.applicationContext, true).also {
-                    downloadHttpClient = it // Initialize the public property here
+                    downloadHttpClient = it
                 }
                 createRetrofit(context, client).create(WhatsAppApi::class.java).also { downloadApi = it }
             }
@@ -348,9 +360,15 @@ object SyncManager {
 
     private suspend fun handleIncomingMessages(json: String) {
         runCatching {
+            val serverUrl = ApiClient.getBaseUrl(appContext)
             val items: List<MessageHistoryItem> = gson.fromJson(json, object : TypeToken<List<MessageHistoryItem>>() {}.type)
             items.forEach { dto ->
-                val msg = dto.toDomain()
+                val msg = dto.toDomain().run {
+                    copy(mediaUrl = mediaUrl?.let { path ->
+                        if (path.startsWith("http")) path else "$serverUrl$path"
+                    })
+                }
+
                 msgRepo.addMessage(msg.jid, msg)
                 if (!msg.isOutgoing) {
                     NotificationUtils.showNotification(

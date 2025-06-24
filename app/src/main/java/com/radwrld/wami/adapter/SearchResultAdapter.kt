@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/adapter/SearchResultAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater

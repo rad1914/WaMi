@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/src/main/AndroidManifest.xml -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -29,6 +28,9 @@
         </activity>
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".ChatActivity" android:exported="false" android:label="Chat" />
+
+        <activity android:name=".AboutActivity" android:exported="false" android:label="About Contact" />
+
         <activity android:name=".SettingsActivity" android:exported="false" />
         <activity android:name=".ContactsActivity" android:exported="false" />
         <activity android:name=".MediaViewActivity" android:exported="false" android:theme="@style/Theme.Material3.DayNight.NoActionBar" />

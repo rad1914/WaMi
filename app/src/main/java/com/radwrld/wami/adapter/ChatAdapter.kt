@@ -145,28 +145,44 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         }
 
         private fun bindBubbleContent(message: Message) {
-            messageContent.tvMessage.apply {
-                isVisible = message.hasText()
-                if (isVisible) text = TextFormatter.format(context, message.text!!)
-            }
-
-            val hasMedia = message.hasMedia()
-            messageContent.mediaContainer.isVisible = hasMedia
-            if (hasMedia) {
+            // Reset visibility
+            messageContent.mediaContainer.isVisible = false
+            messageContent.tvMessage.isVisible = false
+            
+            if (message.hasMedia()) {
+                messageContent.mediaContainer.isVisible = true
                 messageContent.mediaContainer.setOnClickListener { onMediaClickListener?.invoke(message) }
                 messageContent.ivPlayIcon.isVisible = message.isVideo()
 
-                val mediaToLoad = if (!message.localMediaPath.isNullOrBlank()) {
-                    File(message.localMediaPath)
-                } else {
-                    message.mediaUrl
+                if (message.isDocument()) {
+                    // Fallback UI for Documents & Audio
+                    messageContent.ivMedia.setImageResource(R.drawable.ic_media_placeholder) // Use a generic placeholder you already have
+                    messageContent.tvMessage.text = message.fileName ?: "Document" // Show filename as text
+                    messageContent.tvMessage.isVisible = true
+                    messageContent.ivPlayIcon.isVisible = false // Hide play icon for docs
+                } else { 
+                    // UI for Image or Video
+                    messageContent.tvMessage.apply {
+                        isVisible = message.hasText()
+                        if (isVisible) text = TextFormatter.format(context, message.text!!)
+                    }
+                    val mediaToLoad = if (!message.localMediaPath.isNullOrBlank()) {
+                        File(message.localMediaPath)
+                    } else {
+                        message.mediaUrl
+                    }
+                    Glide.with(itemView.context)
+                        .load(mediaToLoad)
+                        .placeholder(R.drawable.ic_media_placeholder)
+                        .error(R.drawable.ic_image_error)
+                        .into(messageContent.ivMedia)
                 }
-
-                Glide.with(itemView.context)
-                    .load(mediaToLoad)
-                    .placeholder(R.drawable.ic_media_placeholder)
-                    .error(R.drawable.ic_image_error)
-                    .into(messageContent.ivMedia)
+            } else {
+                // UI for text-only messages
+                messageContent.tvMessage.apply {
+                    isVisible = message.hasText()
+                    if (isVisible) text = TextFormatter.format(context, message.text!!)
+                }
             }
 
             replyView.root.isVisible = message.quotedMessageId != null

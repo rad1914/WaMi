@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/SearchResultItem.kt
 package com.radwrld.wami.ui.viewmodel
 
 import com.radwrld.wami.network.Contact

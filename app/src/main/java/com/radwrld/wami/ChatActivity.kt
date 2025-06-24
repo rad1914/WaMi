@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +26,7 @@ import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -70,6 +72,18 @@ class ChatActivity : AppCompatActivity() {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
 
+        // --- INICIO DE LA MODIFICACIÓN ---
+        tvContactName.setOnClickListener {
+            // No abrir la pantalla de "About" para un grupo
+            if (isGroup) return@setOnClickListener
+
+            val intent = Intent(this@ChatActivity, AboutActivity::class.java).apply {
+                putExtra(AboutActivity.EXTRA_JID, jid)
+            }
+            startActivity(intent)
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
+
         toolbar.setNavigationOnClickListener { finish() }
 
         swipeRefreshLayout.setOnRefreshListener {
@@ -78,17 +92,46 @@ class ChatActivity : AppCompatActivity() {
 
         adapter = ChatAdapter(isGroup).apply {
             onMediaClickListener = { msg ->
-                lifecycleScope.launch {
-                    progressBar.visibility = View.VISIBLE
-                    val file = viewModel.getMediaFile(msg)
-                    progressBar.visibility = View.GONE
-                    if (file != null) {
-                        startActivity(Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
-                            setDataAndType(file.toUri(), msg.mimetype)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        })
-                    } else {
-                        Toast.makeText(this@ChatActivity, "Media downloading…", Toast.LENGTH_SHORT).show()
+                if (msg.type == "image" || msg.type == "video") {
+                    // Lógica existente para imágenes y videos
+                    lifecycleScope.launch {
+                        progressBar.visibility = View.VISIBLE
+                        val file = viewModel.getMediaFile(msg)
+                        progressBar.visibility = View.GONE
+                        if (file != null) {
+                            startActivity(Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
+                                val authority = "${applicationContext.packageName}.provider"
+                                val fileUri = FileProvider.getUriForFile(this@ChatActivity, authority, file)
+                                setDataAndType(fileUri, msg.mimetype)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            })
+                        } else {
+                            Toast.makeText(this@ChatActivity, "Media downloading…", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    // Nueva lógica para audio y documentos
+                    lifecycleScope.launch {
+                        progressBar.visibility = View.VISIBLE
+                        val file: File? = viewModel.getMediaFile(msg)
+                        progressBar.visibility = View.GONE
+
+                        if (file != null) {
+                            try {
+                                val authority = "${applicationContext.packageName}.provider"
+                                val fileUri = FileProvider.getUriForFile(this@ChatActivity, authority, file)
+
+                                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(fileUri, msg.mimetype)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                startActivity(Intent.createChooser(viewIntent, "Open file with"))
+                            } catch (e: Exception) {
+                                Toast.makeText(this@ChatActivity, "No app found to open this file.", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                             Toast.makeText(this@ChatActivity, "File downloading...", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
@@ -127,8 +170,7 @@ class ChatActivity : AppCompatActivity() {
 
         btnAttach.setOnClickListener {
             pickFile.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                type = "image/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*","video/*","image/webp"))
+                type = "*/*" // Permitir todos los tipos de archivo
                 addCategory(Intent.CATEGORY_OPENABLE)
             })
         }

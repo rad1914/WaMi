@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
+// @path: app/src/main/java/com/radwrld/wami/repository/WhatsappRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
@@ -60,6 +60,7 @@ class WhatsAppRepository(private val context: Context) {
                 senderName = it.name,
                 mediaUrl = it.mediaUrl?.let { path -> if (path.startsWith("http")) path else "$serverUrl$path" },
                 mimetype = it.mimetype,
+                fileName = it.fileName,
                 quotedMessageId = it.quotedMessageId,
                 quotedMessageText = it.quotedMessageText,
                 reactions = it.reactions.orEmpty(),
