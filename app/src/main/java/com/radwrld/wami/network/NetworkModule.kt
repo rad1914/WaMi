@@ -42,10 +42,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
-// =================================================================================================
-// SECTION: Domain Models
-// =================================================================================================
-
 data class Contact(
     val id: String,
     val name: String,
@@ -80,11 +76,6 @@ data class Message(
     fun hasText(): Boolean = !text.isNullOrBlank()
     fun isSticker(): Boolean = type == "sticker"
 }
-
-
-// =================================================================================================
-// SECTION: API Data Models & Mapper
-// =================================================================================================
 
 data class SendResponse(
     val success: Boolean,
@@ -161,10 +152,6 @@ data class SyncResponse(
     val success: Boolean,
     val message: String
 )
-
-// =================================================================================================
-// SECTION: REST API (Retrofit)
-// =================================================================================================
 
 interface WhatsAppApi {
     @GET("history/{jid}")
@@ -278,11 +265,6 @@ object ApiClient {
         downloadHttpClient = null
     }
 }
-
-
-// =================================================================================================
-// SECTION: Real-time Sync (Socket.IO)
-// =================================================================================================
 
 object Logger {
     fun d(tag: String, msg: String) = Log.d(tag, msg)
@@ -513,11 +495,6 @@ object SyncManager {
         }
     }
 }
-
-
-// =================================================================================================
-// SECTION: Android Service
-// =================================================================================================
 
 class SyncService : Service() {
 
