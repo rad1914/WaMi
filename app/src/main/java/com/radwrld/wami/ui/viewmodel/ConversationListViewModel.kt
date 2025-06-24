@@ -66,7 +66,13 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             _error.value = null
             whatsAppRepository.refreshAndGetConversations()
                 .onSuccess { conversationsFromServer ->
-                    contactRepository.saveContacts(conversationsFromServer)
+
+                    val existingConversations = conversationState.value.conversations
+                    val combinedMap = existingConversations.associateBy { it.id }.toMutableMap()
+                    conversationsFromServer.forEach { serverContact ->
+                        combinedMap[serverContact.id] = serverContact
+                    }
+                    contactRepository.saveContacts(combinedMap.values.toList())
                 }
                 .onFailure { error ->
                     _error.value = error.message

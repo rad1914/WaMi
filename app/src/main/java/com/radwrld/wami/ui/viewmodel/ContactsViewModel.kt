@@ -50,7 +50,14 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             whatsAppRepository.refreshAndGetConversations()
                 .onSuccess { conversationsFromServer ->
 
-                    contactRepository.saveContacts(conversationsFromServer)
+                    val existingContacts = uiState.value.contacts
+
+                    val combinedMap = existingContacts.associateBy { it.id }.toMutableMap()
+                    conversationsFromServer.forEach { serverContact ->
+                        combinedMap[serverContact.id] = serverContact
+                    }
+
+                    contactRepository.saveContacts(combinedMap.values.toList())
                 }
                 .onFailure { error ->
                     _error.value = error.message

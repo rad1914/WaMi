@@ -66,14 +66,13 @@ class LoginViewModel(
                 }
             }
         }
-        
-        // NUEVO: Observar errores de autenticación del SyncManager
+
         viewModelScope.launch {
             SyncManager.authError.collect { hasError ->
                 if (hasError) {
                     toastEvents.emit("Sesión inválida. Creando una nueva.")
-                    config.saveSessionId(null) // Limpiar la sesión inválida
-                    start() // Reiniciar el proceso para obtener una nueva sesión
+                    config.saveSessionId(null)
+                    start()
                 }
             }
         }
@@ -81,20 +80,18 @@ class LoginViewModel(
 
     private fun getApi() = ApiClient.getInstance(getApplication())
 
-    // MODIFICADO: Refactorizar el método start para un flujo más limpio y correcto.
     fun start() {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             try {
-                // 1. Asegurarse de que tenemos un ID de sesión. Si no, crearlo.
+
                 if (config.getSessionId().isNullOrEmpty()) {
                     uiState.value = LoginUiState.Loading("Creando nueva sesión...")
                     val newSession = getApi().createSession()
                     config.saveSessionId(newSession.sessionId)
                 }
 
-                // 2. Con un ID de sesión garantizado, inicializar y conectar.
-                SyncManager.shutdown() // Limpiar cualquier estado anterior
+                SyncManager.shutdown()
                 SyncManager.initialize(getApplication())
                 SyncManager.connect()
 
@@ -104,7 +101,6 @@ class LoginViewModel(
         }
     }
 
-    // MODIFICADO: Simplificar usando el nuevo método start()
     fun setSessionAndRestart(sessionId: String) {
         sessionJob?.cancel()
         viewModelScope.launch {

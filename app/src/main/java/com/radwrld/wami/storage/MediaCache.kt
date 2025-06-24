@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/storage/MediaCache.kt
-// @path: app/src/main/java/com/radwrld/wami/util/MediaCache.kt
 package com.radwrld.wami.util
 
 import android.content.Context

@@ -38,17 +38,15 @@ class WhatsAppRepository(private val context: Context) {
                 avatarUrl = "$serverUrl/avatar/${URLEncoder.encode(it.jid, "UTF-8")}",
                 isGroup = isGroup
             )
-        }.also { conversationStorage.saveConversations(it) }
+        }.also {
+
+            conversationStorage.mergeConversations(it)
+        }
     }
 
     fun getCachedConversations() = conversationStorage.getConversations()
 
-    fun updateAndSaveConversations(updated: List<Contact>) =
-        conversationStorage.saveConversations(updated)
-
     suspend fun getMessageHistory(jid: String, before: Long? = null) = runCatching {
-        val timestampCursor = before ?: System.currentTimeMillis() + 1000
-
         api.getHistory(URLEncoder.encode(jid, "UTF-8")).map {
             Message(
                 id = it.id,
@@ -68,11 +66,7 @@ class WhatsAppRepository(private val context: Context) {
                 mediaSha256 = it.mediaSha256
             )
         }.also { messages ->
-            if (before != null) {
-                 messageStorage.appendMessages(jid, messages)
-            } else {
-                messageStorage.saveMessages(jid, messages)
-            }
+            messageStorage.appendMessages(jid, messages)
         }
     }
 

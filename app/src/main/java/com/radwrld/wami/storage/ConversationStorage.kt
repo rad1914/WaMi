@@ -11,9 +11,23 @@ class ConversationStorage(context: Context) {
     private val gson = Gson()
 
     fun saveConversations(conversations: List<Contact>) {
+
+        val sortedList = conversations.sortedByDescending { it.lastMessageTimestamp }
         prefs.edit()
-            .putString("conversations", gson.toJson(conversations))
+            .putString("conversations", gson.toJson(sortedList))
             .apply()
+    }
+
+    
+    fun mergeConversations(newConversations: List<Contact>) {
+        val existing = getConversations()
+        val combinedMap = existing.associateBy { it.id }.toMutableMap()
+
+        newConversations.forEach { newContact ->
+            combinedMap[newContact.id] = newContact
+        }
+
+        saveConversations(combinedMap.values.toList())
     }
 
     fun getConversations(): List<Contact> = prefs
