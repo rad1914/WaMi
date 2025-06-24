@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.ItemConversationBinding
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.ui.TextFormatter
 import java.text.SimpleDateFormat
 import java.util.*

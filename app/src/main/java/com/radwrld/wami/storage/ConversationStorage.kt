@@ -4,7 +4,7 @@ package com.radwrld.wami.storage
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 
 class ConversationStorage(context: Context) {
     private val prefs = context.getSharedPreferences("conv_storage", Context.MODE_PRIVATE)

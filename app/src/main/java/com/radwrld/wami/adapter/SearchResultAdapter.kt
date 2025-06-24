@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/adapter/SearchResultAdapter.kt
 package com.radwrld.wami.adapter
 
 import android.view.LayoutInflater
@@ -9,8 +8,8 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.radwrld.wami.R
-import com.radwrld.wami.model.Contact
-import com.radwrld.wami.model.SearchResultItem
+import com.radwrld.wami.network.Contact
+import com.radwrld.wami.ui.viewmodel.SearchResultItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,10 +46,9 @@ class SearchResultAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val item = getItem(position)
-        when (holder) {
-            is ContactResultViewHolder -> holder.bind((item as SearchResultItem.ContactItem).contact)
-            is MessageResultViewHolder -> holder.bind(item as SearchResultItem.MessageItem)
+        when (val item = getItem(position)) {
+            is SearchResultItem.ContactItem -> (holder as ContactResultViewHolder).bind(item.contact)
+            is SearchResultItem.MessageItem -> (holder as MessageResultViewHolder).bind(item)
         }
     }
 
@@ -61,7 +59,7 @@ class SearchResultAdapter(
 
         fun bind(contact: Contact) {
             contactName.text = contact.name
-            contactIdentifier.text = "Contact"
+            contactIdentifier.text = "Contacto"
             itemView.setOnClickListener { onItemClicked(contact) }
         }
     }

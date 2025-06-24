@@ -5,7 +5,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.data.ContactRepository
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.repository.WhatsAppRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

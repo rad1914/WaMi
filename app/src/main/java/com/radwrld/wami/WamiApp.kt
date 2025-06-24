@@ -4,7 +4,7 @@ package com.radwrld.wami
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.material.color.DynamicColors
-import com.radwrld.wami.sync.SyncManager
+import com.radwrld.wami.network.SyncManager
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*

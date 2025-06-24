@@ -16,7 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.radwrld.wami.databinding.ActivityLoginBinding
 import com.radwrld.wami.storage.ServerConfigStorage
-import com.radwrld.wami.sync.SyncService
+import com.radwrld.wami.network.SyncService
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {

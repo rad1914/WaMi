@@ -15,7 +15,7 @@ import com.bumptech.glide.Glide
 import com.google.android.flexbox.FlexboxLayout
 import com.radwrld.wami.R
 import com.radwrld.wami.databinding.*
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.TextFormatter
 import java.io.File
 import java.text.SimpleDateFormat

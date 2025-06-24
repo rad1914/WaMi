@@ -5,7 +5,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.*
 import com.radwrld.wami.data.MessageRepository
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.util.MediaCache
 import kotlinx.coroutines.Dispatchers

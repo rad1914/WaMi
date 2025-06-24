@@ -20,7 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ChatAdapter
 import com.radwrld.wami.adapter.ChatListItem
 import com.radwrld.wami.databinding.ActivityChatBinding
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
 import kotlinx.coroutines.flow.collectLatest

@@ -2,7 +2,7 @@
 package com.radwrld.wami.data
 
 import android.content.Context
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

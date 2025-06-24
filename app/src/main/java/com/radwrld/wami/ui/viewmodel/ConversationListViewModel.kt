@@ -1,12 +1,10 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/ConversationListViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.data.ContactRepository
-import com.radwrld.wami.model.Contact
-import com.radwrld.wami.model.SearchResultItem
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.repository.SearchRepository
 import com.radwrld.wami.repository.WhatsAppRepository
 import kotlinx.coroutines.Job
@@ -104,7 +102,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             delay(300L)
             _searchState.value = _searchState.value.copy(isSearching = true)
             val results = searchRepository.search(query)
-            _searchState.value = _searchState.value.copy(results = results)
+            _searchState.value = _searchState.value.copy(results = results, isSearching = false)
         }
     }
 }

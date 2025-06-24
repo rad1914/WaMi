@@ -13,7 +13,7 @@ import androidx.lifecycle.viewModelScope
 
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.storage.ServerConfigStorage
-import com.radwrld.wami.sync.SyncManager
+import com.radwrld.wami.network.SyncManager
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*

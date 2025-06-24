@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/network/NetworkModule.kt
 package com.radwrld.wami.network
 
 import android.app.Notification
@@ -250,7 +249,7 @@ object ApiClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-    private fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
+    fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
     fun getInstance(context: Context): WhatsAppApi {
         return retrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
@@ -433,8 +432,8 @@ object SyncManager {
         disconnect()
         socket?.off()
         socket = null
-        supervisor.cancel()
         isInitialized.set(false)
+        supervisor.cancel()
         Logger.i(TAG, "SyncManager shutdown complete")
     }
 

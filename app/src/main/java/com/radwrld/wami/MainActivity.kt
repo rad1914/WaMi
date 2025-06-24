@@ -17,10 +17,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.radwrld.wami.adapter.ConversationAdapter
 import com.radwrld.wami.adapter.SearchResultAdapter
 import com.radwrld.wami.databinding.ActivityMainBinding
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.storage.ServerConfigStorage
-import com.radwrld.wami.sync.SyncService
+import com.radwrld.wami.network.SyncService
 import com.radwrld.wami.ui.viewmodel.ConversationListViewModel
 import kotlinx.coroutines.launch
 

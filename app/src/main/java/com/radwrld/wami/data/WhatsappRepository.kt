@@ -3,8 +3,8 @@ package com.radwrld.wami.repository
 
 import android.content.Context
 import androidx.core.net.toUri
-import com.radwrld.wami.model.Contact
-import com.radwrld.wami.model.Message
+import com.radwrld.wami.network.Contact
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.SendMessageRequest
 import com.radwrld.wami.network.SendReactionRequest

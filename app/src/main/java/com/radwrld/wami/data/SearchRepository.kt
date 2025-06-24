@@ -1,12 +1,11 @@
-// @path: app/src/main/java/com/radwrld/wami/data/SearchRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
-import com.radwrld.wami.model.Contact
-import com.radwrld.wami.model.Message
-import com.radwrld.wami.model.SearchResultItem
+import com.radwrld.wami.network.Contact
+import com.radwrld.wami.network.Message
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.MessageStorage
+import com.radwrld.wami.ui.viewmodel.SearchResultItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

@@ -2,7 +2,7 @@
 package com.radwrld.wami.data
 
 import android.content.Context
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.storage.ContactStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

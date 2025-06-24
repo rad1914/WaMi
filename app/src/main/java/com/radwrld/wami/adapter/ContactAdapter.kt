@@ -6,7 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.radwrld.wami.databinding.ItemContactBinding
-import com.radwrld.wami.model.Contact
+import com.radwrld.wami.network.Contact
 
 class ContactAdapter(
     private val onClick: (Contact) -> Unit
