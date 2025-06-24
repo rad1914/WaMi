@@ -1,10 +1,6 @@
 package com.radwrld.wami.network
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
+import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -23,25 +19,20 @@ import com.radwrld.wami.util.NotificationUtils
 import io.socket.client.IO
 import io.socket.client.Socket
 import java.net.URISyntaxException
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.pow
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import okhttp3.Interceptor
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody
-import okhttp3.ResponseBody
+import kotlinx.coroutines.flow.*
+import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
+// region Data Classes & Mappers
 data class Contact(
     val id: String,
     val name: String,
@@ -77,13 +68,12 @@ data class Message(
     fun isSticker(): Boolean = type == "sticker"
 }
 
-data class SendResponse(
-    val success: Boolean,
-    val messageId: String?,
-    val tempId: String?,
-    val timestamp: Long?,
-    val error: String?
-)
+data class SendResponse(val success: Boolean, val messageId: String?, val tempId: String?, val timestamp: Long?, val error: String?)
+data class SessionResponse(val sessionId: String)
+data class StatusResponse(val connected: Boolean, val qr: String?)
+data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
+data class SendReactionRequest(val jid: String, val messageId: String, val emoji: String)
+data class SyncResponse(val success: Boolean, val message: String)
 
 data class MessageHistoryItem(
     @SerializedName("id") val id: String,
@@ -103,22 +93,11 @@ data class MessageHistoryItem(
 )
 
 fun MessageHistoryItem.toDomain(): Message = Message(
-    id = this.id,
-    jid = this.jid,
-    text = this.text,
-    isOutgoing = this.isOutgoing > 0,
-    type = this.type,
-    status = this.status,
-    timestamp = this.timestamp,
-    name = this.name,
-    senderName = this.name,
-    mediaUrl = this.mediaUrl,
-    localMediaPath = null,
-    mimetype = this.mimetype,
-    quotedMessageId = this.quotedMessageId,
-    quotedMessageText = this.quotedMessageText,
-    reactions = this.reactions ?: emptyMap(),
-    mediaSha256 = this.mediaSha256
+    id = this.id, jid = this.jid, text = this.text, isOutgoing = this.isOutgoing > 0,
+    type = this.type, status = this.status, timestamp = this.timestamp, name = this.name,
+    senderName = this.name, mediaUrl = this.mediaUrl, mimetype = this.mimetype,
+    quotedMessageId = this.quotedMessageId, quotedMessageText = this.quotedMessageText,
+    reactions = this.reactions ?: emptyMap(), mediaSha256 = this.mediaSha256
 )
 
 data class Conversation(
@@ -131,34 +110,12 @@ data class Conversation(
 ) {
     val isGroup: Boolean get() = isGroupInt == 1
 }
+// endregion
 
-data class SessionResponse(val sessionId: String)
-
-data class StatusResponse(val connected: Boolean, val qr: String?)
-
-data class SendMessageRequest(
-    val jid: String,
-    val text: String,
-    val tempId: String
-)
-
-data class SendReactionRequest(
-    val jid: String,
-    val messageId: String,
-    val emoji: String
-)
-
-data class SyncResponse(
-    val success: Boolean,
-    val message: String
-)
-
+// region API Definition
 interface WhatsAppApi {
     @GET("history/{jid}")
-    suspend fun getHistory(
-        @Path("jid", encoded = true) jid: String,
-        @Query("limit") limit: Int = 100
-    ): List<MessageHistoryItem>
+    suspend fun getHistory(@Path("jid", encoded = true) jid: String, @Query("limit") limit: Int = 100): List<MessageHistoryItem>
 
     @POST("history/sync/{jid}")
     suspend fun syncHistory(@Path("jid", encoded = true) jid: String): SyncResponse
@@ -172,12 +129,7 @@ interface WhatsAppApi {
 
     @Multipart
     @POST("send/media")
-    suspend fun sendMedia(
-        @Part("jid") jid: RequestBody,
-        @Part("caption") caption: RequestBody?,
-        @Part("tempId") tempId: RequestBody,
-        @Part file: MultipartBody.Part
-    ): SendResponse
+    suspend fun sendMedia(@Part("jid") jid: RequestBody, @Part("caption") caption: RequestBody?, @Part("tempId") tempId: RequestBody, @Part file: MultipartBody.Part): SendResponse
 
     @POST("send/reaction")
     suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
@@ -194,252 +146,157 @@ interface WhatsAppApi {
     @GET("chats")
     suspend fun getConversations(): List<Conversation>
 }
+// endregion
 
+// region Networking
 object ApiClient {
-    @Volatile private var retrofit: Retrofit? = null
-    @Volatile private var downloadRetrofit: Retrofit? = null
+    @Volatile private var api: WhatsAppApi? = null
+    @Volatile private var downloadApi: WhatsAppApi? = null
 
-    @Volatile var httpClient: OkHttpClient? = null
-        private set
-
+    // FIX: Restored public property `downloadHttpClient` that WamiGlideActivity expects
     @Volatile var downloadHttpClient: OkHttpClient? = null
         private set
 
-    private fun authInterceptor(context: Context) = Interceptor { chain ->
-        val token = ServerConfigStorage(context.applicationContext).getSessionId()
-        val request = if (token.isNullOrEmpty()) {
-            chain.request()
-        } else {
-            chain.request().newBuilder().header("Authorization", "Bearer $token").build()
-        }
-        chain.proceed(request)
-    }
+    fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
 
-    private fun buildClient(context: Context, logLevel: HttpLoggingInterceptor.Level, timeouts: Boolean = false): OkHttpClient {
+    private fun createOkHttpClient(context: Context, useLongTimeouts: Boolean): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply { level = logLevel })
-            .addInterceptor(authInterceptor(context.applicationContext))
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (useLongTimeouts) HttpLoggingInterceptor.Level.NONE else HttpLoggingInterceptor.Level.BODY
+            })
+            .addInterceptor { chain ->
+                val token = ServerConfigStorage(context).getSessionId()
+                val request = if (token.isNullOrEmpty()) chain.request()
+                else chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+                chain.proceed(request)
+            }
             .apply {
-                if (timeouts) {
+                if (useLongTimeouts) {
                     readTimeout(5, TimeUnit.MINUTES)
                     writeTimeout(5, TimeUnit.MINUTES)
-                    connectTimeout(2, TimeUnit.MINUTES)
                 }
             }
             .build()
     }
 
-    private fun buildRetrofit(baseUrl: String, client: OkHttpClient): Retrofit =
-        Retrofit.Builder()
-            .baseUrl(baseUrl)
+    private fun createRetrofit(context: Context, client: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(getBaseUrl(context))
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-
-    fun getBaseUrl(context: Context): String = ServerConfigStorage(context.applicationContext).getCurrentServer()
-
-    fun getInstance(context: Context): WhatsAppApi {
-        return retrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
-            retrofit?.create(WhatsAppApi::class.java) ?: run {
-                val safeContext = context.applicationContext
-                val client = httpClient ?: buildClient(safeContext, HttpLoggingInterceptor.Level.BODY).also { httpClient = it }
-                buildRetrofit(getBaseUrl(safeContext), client).also { retrofit = it }.create(WhatsAppApi::class.java)
-            }
-        }
     }
 
-    fun getDownloadingInstance(context: Context): WhatsAppApi {
-        return downloadRetrofit?.create(WhatsAppApi::class.java) ?: synchronized(this) {
-            downloadRetrofit?.create(WhatsAppApi::class.java) ?: run {
-                val safeContext = context.applicationContext
-                val client = downloadHttpClient ?: buildClient(safeContext, HttpLoggingInterceptor.Level.NONE, timeouts = true).also { downloadHttpClient = it }
-                buildRetrofit(getBaseUrl(safeContext), client).also { downloadRetrofit = it }.create(WhatsAppApi::class.java)
+    fun getInstance(context: Context): WhatsAppApi =
+        api ?: synchronized(this) {
+            api ?: createRetrofit(context, createOkHttpClient(context.applicationContext, false))
+                .create(WhatsAppApi::class.java).also { api = it }
+        }
+
+    fun getDownloadingInstance(context: Context): WhatsAppApi =
+        downloadApi ?: synchronized(this) {
+            downloadApi ?: run {
+                val client = downloadHttpClient ?: createOkHttpClient(context.applicationContext, true).also {
+                    downloadHttpClient = it // Initialize the public property here
+                }
+                createRetrofit(context, client).create(WhatsAppApi::class.java).also { downloadApi = it }
             }
         }
-    }
 
     fun close() {
-        retrofit = null
-        downloadRetrofit = null
-        httpClient = null
+        api = null
+        downloadApi = null
         downloadHttpClient = null
     }
 }
 
-object Logger {
-    fun d(tag: String, msg: String) = Log.d(tag, msg)
-    fun i(tag: String, msg: String) = Log.i(tag, msg)
-    fun w(tag: String, msg: String) = Log.w(tag, msg)
-    fun e(tag: String, msg: String, t: Throwable? = null) = Log.e(tag, msg, t)
-}
-
-private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
-private data class FullMessageStatusUpdateDto(val jid: String, val id: String, val status: String)
-
-private interface SocketEventHandler {
-    suspend fun handleIncomingMessages(json: String)
-    suspend fun handleStatusUpdate(json: String)
-    suspend fun handleReactionUpdate(json: String)
-}
-
-private class DefaultSocketEventHandler(
-    private val context: Context,
-    private val messageRepo: MessageRepository,
-    private val contactRepo: ContactRepository
-) : SocketEventHandler {
-    private val gson = Gson()
-
-    override suspend fun handleIncomingMessages(json: String) {
-        runCatching {
-            val listType = object : TypeToken<List<MessageHistoryItem>>() {}.type
-            val items: List<MessageHistoryItem> = gson.fromJson(json, listType)
-            items.forEach { dto ->
-                val msg = dto.toDomain()
-                messageRepo.addMessage(msg.jid, msg)
-                if (!msg.isOutgoing) {
-                    NotificationUtils.showNotification(
-                        context = context,
-                        jid = msg.jid,
-                        contactName = msg.senderName ?: msg.jid,
-                        message = msg.text ?: "Media",
-                        messageId = msg.id
-                    )
-                }
-            }
-        }.onFailure { t ->
-            Logger.e(TAG, "Failed processing incoming messages: $json", t)
-        }
-    }
-
-    override suspend fun handleStatusUpdate(json: String) {
-        runCatching {
-            val update = gson.fromJson(json, FullMessageStatusUpdateDto::class.java)
-            messageRepo.updateMessageStatus(update.jid, update.id, update.status)
-        }.onFailure { t ->
-            Logger.e(TAG, "Failed processing status update: $json", t)
-        }
-    }
-
-    override suspend fun handleReactionUpdate(json: String) {
-        runCatching {
-            val update = gson.fromJson(json, ReactionUpdateDto::class.java)
-            messageRepo.updateMessageReactions(update.jid, update.id, update.reactions)
-        }.onFailure { t ->
-            Logger.e(TAG, "Failed processing reaction update: $json", t)
-        }
-    }
-
-    companion object { private const val TAG = "DefaultSocketEventHandler" }
-}
-
 object SyncManager {
     private const val TAG = "SyncManager"
-
     @Volatile private var socket: Socket? = null
     private val isInitialized = AtomicBoolean(false)
 
     private lateinit var appContext: Context
     private lateinit var msgRepo: MessageRepository
     private lateinit var contactRepo: ContactRepository
-    private lateinit var handler: SocketEventHandler
 
     private var retryCount = 0
-    private val supervisor = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + supervisor)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val gson = Gson()
 
     private val _socketState = MutableStateFlow(false)
     val socketState: StateFlow<Boolean> = _socketState.asStateFlow()
-
     private val _qrCodeUrl = MutableStateFlow<String?>(null)
     val qrCodeUrl: StateFlow<String?> = _qrCodeUrl.asStateFlow()
-
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
-
     private val _authError = MutableStateFlow(false)
     val authError: StateFlow<Boolean> = _authError.asStateFlow()
 
     fun initialize(context: Context) {
         if (isInitialized.getAndSet(true)) return
 
-        appContext  = context.applicationContext
-        msgRepo     = MessageRepository(appContext)
+        appContext = context.applicationContext
+        msgRepo = MessageRepository(appContext)
         contactRepo = ContactRepository(appContext)
-        handler     = DefaultSocketEventHandler(appContext, msgRepo, contactRepo)
 
         val config = ServerConfigStorage(appContext)
-        val token  = config.getSessionId().orEmpty()
-        if (token.isBlank()) {
-            Logger.e(TAG, "Cannot initialize: missing session token")
+        val token = config.getSessionId()
+        if (token.isNullOrBlank()) {
+            Log.e(TAG, "Cannot initialize: missing session token")
             isInitialized.set(false)
             return
         }
 
         try {
             resetLoginState()
-            
-            val opts = IO.Options().apply {
-                auth = mapOf("token" to token)
-                reconnection = false
-            }
+            val opts = IO.Options().apply { auth = mapOf("token" to token); reconnection = false }
             socket = IO.socket(config.getCurrentServer(), opts)
             registerListeners()
-            Logger.i(TAG, "Initialized with server=${config.getCurrentServer()}")
+            Log.i(TAG, "Initialized with server=${config.getCurrentServer()}")
         } catch (e: URISyntaxException) {
-            Logger.e(TAG, "Invalid socket URI", e)
+            Log.e(TAG, "Invalid socket URI", e)
         }
     }
-    
+
+    fun connect() {
+        if (!isInitialized.get()) Log.w(TAG, "Connect called before initialize()")
+        else socket?.takeIf { !it.connected() }?.connect()
+    }
+
+    fun disconnect() = socket?.disconnect()
+    fun isConnected(): Boolean = socket?.connected() == true
     fun resetLoginState() {
         _qrCodeUrl.value = null
         _isAuthenticated.value = false
         _authError.value = false
     }
 
-    fun connect() {
-        if (!isInitialized.get()) {
-            Logger.w(TAG, "Connect called before initialize()")
-            return
-        }
-        socket?.takeIf { !it.connected() }?.connect()
-    }
-
-    fun disconnect() {
-        socket?.disconnect()
-    }
-
-    fun isConnected(): Boolean = socket?.connected() == true
-
     fun shutdown() {
         disconnect()
         socket?.off()
         socket = null
         isInitialized.set(false)
-        supervisor.cancel()
-        Logger.i(TAG, "SyncManager shutdown complete")
+        scope.coroutineContext.cancelChildren()
+        Log.i(TAG, "SyncManager shutdown complete")
     }
 
     private fun registerListeners() = socket?.apply {
         on(Socket.EVENT_CONNECT) {
-            Logger.i(TAG, "Socket connected")
+            Log.i(TAG, "Socket connected")
             retryCount = 0
             _socketState.value = true
             _qrCodeUrl.value = null
             _authError.value = false
         }
-        on(Socket.EVENT_DISCONNECT) { args ->
-            Logger.w(TAG, "Socket disconnected: ${args.getOrNull(0)?.toString().orEmpty()}")
+        on(Socket.EVENT_DISCONNECT) {
+            Log.w(TAG, "Socket disconnected: ${it.getOrNull(0)}")
             _socketState.value = false
             _isAuthenticated.value = false
-
-            if (!_authError.value) {
-               scheduleReconnect()
-            }
+            if (!_authError.value) scheduleReconnect()
         }
-        on(Socket.EVENT_CONNECT_ERROR) { args ->
-            val error = args.getOrNull(0)?.toString().orEmpty()
-            Logger.e(TAG, "Socket error: $error")
-            
+        on(Socket.EVENT_CONNECT_ERROR) {
+            val error = it.getOrNull(0)?.toString() ?: "Unknown error"
+            Log.e(TAG, "Socket error: $error")
             if (error.contains("Invalid session ID")) {
                 _authError.value = true
                 disconnect()
@@ -447,36 +304,29 @@ object SyncManager {
                 scheduleReconnect()
             }
         }
-        on("qr") { args ->
-            Logger.i(TAG, "QR event received")
-            val qr = args.getOrNull(0) as? String
-            _qrCodeUrl.value = qr
-        }
+        on("qr") { _qrCodeUrl.value = it.getOrNull(0) as? String }
         on("authenticated") {
-            Logger.i(TAG, "Authenticated event received")
+            Log.i(TAG, "Authenticated event received")
             _qrCodeUrl.value = null
             _isAuthenticated.value = true
         }
         on("disconnected") {
-             Logger.w(TAG, "Received server-side disconnect event")
+            Log.w(TAG, "Received server-side disconnect event")
             _isAuthenticated.value = false
         }
         on("whatsapp-message") { args ->
-            Logger.d(TAG, "Received whatsapp-message: ${args.getOrNull(0)}")
             scope.launch {
-                args.getOrNull(0)?.toString()?.let { handler.handleIncomingMessages(it) }
+                args.getOrNull(0)?.toString()?.let { handleIncomingMessages(it) }
             }
         }
         on("whatsapp-message-status-update") { args ->
-            Logger.d(TAG, "Received status-update: ${args.getOrNull(0)}")
             scope.launch {
-                args.getOrNull(0)?.toString()?.let { handler.handleStatusUpdate(it) }
+                args.getOrNull(0)?.toString()?.let { handleStatusUpdate(it) }
             }
         }
         on("whatsapp-reaction-update") { args ->
-            Logger.d(TAG, "Received reaction-update: ${args.getOrNull(0)}")
             scope.launch {
-                args.getOrNull(0)?.toString()?.let { handler.handleReactionUpdate(it) }
+                args.getOrNull(0)?.toString()?.let { handleReactionUpdate(it) }
             }
         }
     }
@@ -484,84 +334,105 @@ object SyncManager {
     private fun scheduleReconnect() {
         if (!isInitialized.get() || _authError.value) return
         retryCount++
-        val delayMs = (2.0.pow(retryCount.toDouble()) * 1000L)
-            .toLong()
-            .coerceAtMost(60_000L)
-
+        val delayMs = (2.0.pow(retryCount) * 1000).toLong().coerceAtMost(60_000L)
         scope.launch {
             delay(delayMs)
-            Logger.d(TAG, "Reconnecting attempt #$retryCount")
+            Log.d(TAG, "Reconnecting attempt #$retryCount")
             connect()
         }
     }
+
+    // Event Handlers
+    private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
+    private data class StatusUpdateDto(val jid: String, val id: String, val status: String)
+
+    private suspend fun handleIncomingMessages(json: String) {
+        runCatching {
+            val items: List<MessageHistoryItem> = gson.fromJson(json, object : TypeToken<List<MessageHistoryItem>>() {}.type)
+            items.forEach { dto ->
+                val msg = dto.toDomain()
+                msgRepo.addMessage(msg.jid, msg)
+                if (!msg.isOutgoing) {
+                    NotificationUtils.showNotification(
+                        context = appContext, jid = msg.jid,
+                        contactName = msg.senderName ?: msg.jid, message = msg.text ?: "Media", messageId = msg.id
+                    )
+                }
+            }
+        }.onFailure { Log.e(TAG, "Failed processing incoming messages: $json", it) }
+    }
+
+    private suspend fun handleStatusUpdate(json: String) {
+        runCatching {
+            val update: StatusUpdateDto = gson.fromJson(json, StatusUpdateDto::class.java)
+            msgRepo.updateMessageStatus(update.jid, update.id, update.status)
+        }.onFailure { Log.e(TAG, "Failed processing status update: $json", it) }
+    }
+
+    private suspend fun handleReactionUpdate(json: String) {
+        runCatching {
+            val update: ReactionUpdateDto = gson.fromJson(json, ReactionUpdateDto::class.java)
+            msgRepo.updateMessageReactions(update.jid, update.id, update.reactions)
+        }.onFailure { Log.e(TAG, "Failed processing reaction update: $json", it) }
+    }
 }
+// endregion
 
+// region Android Service
 class SyncService : Service() {
-
     companion object {
         const val ACTION_START = "com.radwrld.wami.sync.ACTION_START"
         const val ACTION_STOP  = "com.radwrld.wami.sync.ACTION_STOP"
-        private const val NOTIF_ID    = 1
-        private const val CHANNEL_ID  = "SyncServiceChannel"
+        private const val NOTIF_ID = 1
+        private const val CHANNEL_ID = "SyncServiceChannel"
         private const val CHANNEL_NAME = "Wami Sync Service"
     }
 
     override fun onCreate() {
         super.onCreate()
         SyncManager.initialize(this)
-        Logger.i("SyncService", "Service created")
+        Log.i("SyncService", "Service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                buildForegroundNotification()
-                Logger.i("SyncService", "Starting—connecting socket")
+                startForeground(NOTIF_ID, createNotification())
+                Log.i("SyncService", "Starting and connecting socket")
                 SyncManager.connect()
             }
             ACTION_STOP  -> {
-                Logger.i("SyncService", "Stopping service")
+                Log.i("SyncService", "Stopping service")
                 stopSelf()
             }
         }
         return START_STICKY
     }
 
-    private fun buildForegroundNotification() {
-        createChannelIfNeeded()
-        val intent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wami Conectado")
-            .setContentText("Escuchando mensajes en tiempo real")
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(intent)
-            .setOngoing(true)
-            .build()
-
-        startForeground(NOTIF_ID, notif)
-    }
-
-    private fun createChannelIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val chan = NotificationChannel(
-                CHANNEL_ID, CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            )
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(chan)
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        Logger.i("SyncService", "Destroyed—shutting down SyncManager")
+        Log.i("SyncService", "Destroyed - shutting down SyncManager")
         SyncManager.shutdown()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun createNotification(): Notification {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+        val pendingIntent = PendingIntent.getActivity(this, 0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Wami Conectado")
+            .setContentText("Escuchando mensajes en tiempo real.")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build()
+    }
 }
+// endregion
