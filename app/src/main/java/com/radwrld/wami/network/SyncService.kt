@@ -41,7 +41,7 @@ class SyncService : Service() {
                 stopSelf()
             }
         }
-        // Keep service alive unless explicitly stopped
+
         return START_STICKY
     }
 

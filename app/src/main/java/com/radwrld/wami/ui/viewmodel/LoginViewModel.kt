@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/LoginViewModel.kt
 package com.radwrld.wami
 
 import android.app.Application
@@ -9,11 +10,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-// --- IMPORTACIÓN CORREGIDA ---
+
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.sync.SyncManager
-// --- FIN DE LA CORRECCIÓN ---
+
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,7 +22,6 @@ import retrofit2.HttpException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
-
 
 sealed class LoginUiState {
     object Idle : LoginUiState()
@@ -42,7 +42,7 @@ class LoginViewModel(
     private var sessionJob: Job? = null
 
     init {
-        // Observar los estados de SyncManager en tiempo real
+
         viewModelScope.launch {
             SyncManager.isAuthenticated.collect { isAuthenticated ->
                 if (isAuthenticated) {
@@ -59,10 +59,21 @@ class LoginViewModel(
                         uiState.value = LoginUiState.ShowQr(bitmap, "Escanea el código QR")
                     }
                 } else {
-                    // Si el QR es nulo, pero no estamos autenticados, mostramos "cargando"
+
                     if (!SyncManager.isAuthenticated.value) {
                        uiState.value = LoginUiState.Loading("Esperando código QR...")
                     }
+                }
+            }
+        }
+        
+        // NUEVO: Observar errores de autenticación del SyncManager
+        viewModelScope.launch {
+            SyncManager.authError.collect { hasError ->
+                if (hasError) {
+                    toastEvents.emit("Sesión inválida. Creando una nueva.")
+                    config.saveSessionId(null) // Limpiar la sesión inválida
+                    start() // Reiniciar el proceso para obtener una nueva sesión
                 }
             }
         }
@@ -70,35 +81,35 @@ class LoginViewModel(
 
     private fun getApi() = ApiClient.getInstance(getApplication())
 
+    // MODIFICADO: Refactorizar el método start para un flujo más limpio y correcto.
     fun start() {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             try {
-                // Asegurarse de que SyncManager esté inicializado y conectado
-                SyncManager.initialize(getApplication())
-                SyncManager.connect()
-
+                // 1. Asegurarse de que tenemos un ID de sesión. Si no, crearlo.
                 if (config.getSessionId().isNullOrEmpty()) {
                     uiState.value = LoginUiState.Loading("Creando nueva sesión...")
                     val newSession = getApi().createSession()
                     config.saveSessionId(newSession.sessionId)
-                    // Reiniciar SyncManager con el nuevo token
-                    SyncManager.shutdown()
-                    SyncManager.initialize(getApplication())
-                    SyncManager.connect()
                 }
+
+                // 2. Con un ID de sesión garantizado, inicializar y conectar.
+                SyncManager.shutdown() // Limpiar cualquier estado anterior
+                SyncManager.initialize(getApplication())
+                SyncManager.connect()
+
             } catch (e: Exception) {
                 handleError(e)
             }
         }
     }
 
+    // MODIFICADO: Simplificar usando el nuevo método start()
     fun setSessionAndRestart(sessionId: String) {
         sessionJob?.cancel()
         viewModelScope.launch {
             config.saveSessionId(sessionId)
             toastEvents.emit("Usando sesión: $sessionId")
-            SyncManager.shutdown() // Forzar reinicio del socket con el nuevo token
             start()
         }
     }

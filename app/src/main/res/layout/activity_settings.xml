@@ -192,27 +192,6 @@
                 android:visibility="gone"
                 tools:visibility="visible"/>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/offline_mode_switch"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/Widget.Wami.Switch"
-                android:minHeight="?android:attr/listPreferredItemHeight"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:text="Offline mode"
-                android:textAppearance="?attr/textAppearanceBodyLarge"/>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingBottom="8dp"
-                android:text="Block all network requests from the app"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="?attr/colorOnSurfaceVariant"/>
-
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -229,20 +208,6 @@
                 android:text="Troubleshooting"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
                 android:textColor="?attr/colorPrimary"/>
-
-            <TextView
-                android:id="@+id/remove_app_cache_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="?android:attr/listPreferredItemHeightSmall"
-                android:gravity="center_vertical"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:text="Remove app cache"
-                android:textAppearance="?attr/textAppearanceBodyLarge" />
 
             <TextView
                 android:id="@+id/reset_hidden_conversations_text"

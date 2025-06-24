@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/SyncManager.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
@@ -132,6 +133,10 @@ object SyncManager {
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
 
+    // NUEVO: StateFlow para notificar errores de sesión inválida.
+    private val _authError = MutableStateFlow(false)
+    val authError: StateFlow<Boolean> = _authError.asStateFlow()
+
     fun initialize(context: Context) {
         if (isInitialized.getAndSet(true)) return
 
@@ -144,6 +149,7 @@ object SyncManager {
         val token  = config.getSessionId().orEmpty()
         if (token.isBlank()) {
             Logger.e(TAG, "Cannot initialize: missing session token")
+            isInitialized.set(false) // Permitir re-inicialización
             return
         }
 
@@ -165,6 +171,7 @@ object SyncManager {
     fun resetLoginState() {
         _qrCodeUrl.value = null
         _isAuthenticated.value = false
+        _authError.value = false // Reiniciar el estado de error
     }
 
     fun connect() {
@@ -182,8 +189,8 @@ object SyncManager {
     fun isConnected(): Boolean = socket?.connected() == true
 
     fun shutdown() {
-        supervisor.cancel()
         disconnect()
+        socket?.off() // Eliminar todos los listeners para evitar fugas
         socket = null
         isInitialized.set(false)
         Logger.i(TAG, "SyncManager shutdown complete")
@@ -195,16 +202,28 @@ object SyncManager {
             retryCount = 0
             _socketState.value = true
             _qrCodeUrl.value = null
+            _authError.value = false // Reiniciar en conexión exitosa
         }
         on(Socket.EVENT_DISCONNECT) { args ->
             Logger.w(TAG, "Socket disconnected: ${args.getOrNull(0)?.toString().orEmpty()}")
             _socketState.value = false
             _isAuthenticated.value = false
-            scheduleReconnect()
+            // No reintentar si fue un error de autenticación.
+            if (!_authError.value) {
+               scheduleReconnect()
+            }
         }
+        // MODIFICADO: Manejar explícitamente el error de conexión por sesión inválida.
         on(Socket.EVENT_CONNECT_ERROR) { args ->
-            Logger.e(TAG, "Socket error: ${args.getOrNull(0)?.toString().orEmpty()}")
-            scheduleReconnect()
+            val error = args.getOrNull(0)?.toString().orEmpty()
+            Logger.e(TAG, "Socket error: $error")
+            
+            if (error.contains("Invalid session ID")) {
+                _authError.value = true
+                disconnect() // Detener el ciclo de reconexión
+            } else {
+                scheduleReconnect()
+            }
         }
 
         on("qr") { args ->
@@ -243,7 +262,7 @@ object SyncManager {
     }
 
     private fun scheduleReconnect() {
-        if (!isInitialized.get()) return
+        if (!isInitialized.get() || _authError.value) return // No reconectar si hay error de auth
         retryCount++
         val delayMs = (2.0.pow(retryCount.toDouble()) * 1000L)
             .toLong()

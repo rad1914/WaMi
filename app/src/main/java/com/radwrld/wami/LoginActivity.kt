@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -28,17 +29,14 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // --- SOLUCIÓN: VERIFICAR ESTADO DE LOGIN ANTES DE MOSTRAR LA UI ---
         val config = ServerConfigStorage(this)
-        // Asumiendo que tienes un método `isLoggedIn()` que lee el estado guardado.
-        if (config.isLoggedIn() && !config.getSessionId().isNullOrEmpty()) {
-            // Si ya está logueado, ve directo a la pantalla principal y no muestres esta actividad.
-            openMain()
-            return // IMPORTANTE: Detiene la ejecución de onCreate aquí.
-        }
-        // --- FIN DE LA SOLUCIÓN ---
 
-        // El resto del código solo se ejecuta si el usuario NO ha iniciado sesión.
+        if (config.isLoggedIn() && !config.getSessionId().isNullOrEmpty()) {
+
+            openMain()
+            return
+        }
+
         bind = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(bind.root)
 
@@ -56,7 +54,7 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Esta lógica ahora solo se ejecutará si el usuario no ha iniciado sesión.
+
         if (isOnline()) vm.start() else vm.notifyNoNet()
     }
 
@@ -107,12 +105,12 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun openMain() {
-        // Inicia el servicio en segundo plano al iniciar sesión
+
         val serviceIntent = Intent(this, SyncService::class.java).apply { action = SyncService.ACTION_START }
         startService(serviceIntent)
         
         startActivity(Intent(this, MainActivity::class.java))
-        finish() // Cierra LoginActivity para que el usuario no pueda volver con el botón "Atrás".
+        finish()
     }
 
     private fun toast(msg: String) {

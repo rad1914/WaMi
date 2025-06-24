@@ -3,7 +3,6 @@ package com.radwrld.wami
 
 import android.app.KeyguardManager
 import android.content.*
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
@@ -19,7 +18,6 @@ import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import kotlin.system.exitProcess
 
 class SettingsActivity : AppCompatActivity() {
@@ -33,7 +31,6 @@ class SettingsActivity : AppCompatActivity() {
         const val THEME_KEY = "theme_preference"
         const val CUSTOM_IP_KEY = "custom_ip"
         const val ENABLE_CUSTOM_IP_KEY = "enable_custom_ip"
-        const val OFFLINE_MODE_KEY = "offline_mode"
         const val HIDDEN_CONVERSATIONS_KEY = "hidden_conversations"
         const val SERVER_CONFIG_PREFS_NAME = "server_config_pref"
     }
@@ -132,12 +129,6 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.setCustomIpText.setOnClickListener { showCustomIpDialog() }
         binding.logoutText.setOnClickListener { confirm("Logout?", ::logout) }
-        binding.offlineModeSwitch.isChecked = prefs.getBoolean(OFFLINE_MODE_KEY, false)
-        binding.offlineModeSwitch.setOnCheckedChangeListener { _, checked ->
-            prefs.edit().putBoolean(OFFLINE_MODE_KEY, checked).apply()
-        }
-
-        binding.removeAppCacheText.setOnClickListener { confirm("Clear cache?", ::removeAppCache) }
         binding.resetHiddenConversationsText.setOnClickListener { confirm("Reset hidden chats?", ::resetHiddenConversations) }
         binding.resetAppPrefsText.setOnClickListener { confirm("Reset all settings?", ::resetAppPreferences) }
         binding.killAppText.setOnClickListener { confirm("Force close app?", ::killApp) }
@@ -157,21 +148,6 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
-    }
-
-    private fun removeAppCache() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val cleared = deleteDir(cacheDir)
-            withContext(Dispatchers.Main) {
-                toast(if (cleared) "Cache cleared." else "Failed to clear cache.")
-            }
-        }
-    }
-
-    private fun deleteDir(dir: File?): Boolean {
-        if (dir == null) return true
-        if (dir.isDirectory) dir.listFiles()?.forEach { if (!deleteDir(it)) return false }
-        return dir.delete()
     }
 
     private fun resetHiddenConversations() {
