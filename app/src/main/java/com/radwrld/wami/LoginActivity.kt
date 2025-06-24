@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -23,12 +22,23 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var bind: ActivityLoginBinding
     private val vm by viewModels<LoginViewModel> {
-        // El ContentResolver ya no es necesario, pero mantenemos la factory por si se usa en otro lugar
         LoginViewModelFactory(application, ServerConfigStorage(this), contentResolver)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // --- SOLUCIÓN: VERIFICAR ESTADO DE LOGIN ANTES DE MOSTRAR LA UI ---
+        val config = ServerConfigStorage(this)
+        // Asumiendo que tienes un método `isLoggedIn()` que lee el estado guardado.
+        if (config.isLoggedIn() && !config.getSessionId().isNullOrEmpty()) {
+            // Si ya está logueado, ve directo a la pantalla principal y no muestres esta actividad.
+            openMain()
+            return // IMPORTANTE: Detiene la ejecución de onCreate aquí.
+        }
+        // --- FIN DE LA SOLUCIÓN ---
+
+        // El resto del código solo se ejecuta si el usuario NO ha iniciado sesión.
         bind = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(bind.root)
 
@@ -46,7 +56,7 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // La lógica de inicio ahora es más simple
+        // Esta lógica ahora solo se ejecutará si el usuario no ha iniciado sesión.
         if (isOnline()) vm.start() else vm.notifyNoNet()
     }
 
@@ -54,7 +64,6 @@ class LoginActivity : AppCompatActivity() {
         progressBar.isVisible = state is LoginUiState.Loading
         qrImage.isVisible = state is LoginUiState.ShowQr
         
-        // El botón de offline solo aparece en errores de red específicos
         val isOfflineError = state is LoginUiState.Error && state.msg.contains("Sin conexión")
         offlineLoginButton.isVisible = isOfflineError
         
@@ -103,7 +112,7 @@ class LoginActivity : AppCompatActivity() {
         startService(serviceIntent)
         
         startActivity(Intent(this, MainActivity::class.java))
-        finish()
+        finish() // Cierra LoginActivity para que el usuario no pueda volver con el botón "Atrás".
     }
 
     private fun toast(msg: String) {
