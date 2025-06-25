@@ -35,3 +35,9 @@ jobs:
             --no-daemon \
             -x lintVitalAnalyzeRelease \
             -x lintAnalyzeDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
