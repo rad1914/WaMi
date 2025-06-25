@@ -3,12 +3,11 @@ name: Android CI
 on:
   push:
     branches:
-      - main   # or your target branch
+      - main
   pull_request:
 
 jobs:
   build:
-    name: Build on Commit
     runs-on: ubuntu-latest
 
     steps:
@@ -20,9 +19,17 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 17
+          cache: gradle
+
+      - name: Verify Java version
+        run: java -version
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Build with Gradle (override Termux properties)
+        run: |
+          ./gradlew build \
+            -Dorg.gradle.java.home="" \
+            -Dandroid.aapt2FromMavenOverride="" \
+            --no-daemon
