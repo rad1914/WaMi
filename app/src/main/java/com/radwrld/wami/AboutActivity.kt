@@ -63,7 +63,6 @@ class AboutActivity : AppCompatActivity() {
         with(binding) {
             tvProfileName.text = contact.name
 
-            // TODO: Load contact.avatarUrl into binding.profileImage using an image loading library (e.g., Coil, Glide)
             profileImage.setImageResource(R.drawable.profile_picture_placeholder)
 
             conversation?.lastMessageTimestamp?.let {
@@ -92,12 +91,12 @@ class AboutActivity : AppCompatActivity() {
 
     private fun setupActionButtons() {
         binding.btnSharedMedia.setOnClickListener {
-            // TODO: Implement navigation to a shared media screen
+
             Toast.makeText(this, "Ver multimedia (no implementado)", Toast.LENGTH_SHORT).show()
         }
 
         binding.btnCommonGroups.setOnClickListener {
-            // TODO: Implement navigation to a common groups screen
+
             Toast.makeText(this, "Ver grupos en común (no implementado)", Toast.LENGTH_SHORT).show()
         }
 

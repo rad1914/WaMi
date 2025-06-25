@@ -63,23 +63,16 @@ class ChatActivity : AppCompatActivity() {
         observeVM()
     }
 
-    override fun onResume() {
-        super.onResume()
-
-    }
-
     private fun setupUI() = with(binding) {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
 
         tvContactName.setOnClickListener {
-
             if (isGroup) return@setOnClickListener
-
-            val intent = Intent(this@ChatActivity, AboutActivity::class.java).apply {
-                putExtra(AboutActivity.EXTRA_JID, jid)
-            }
-            startActivity(intent)
+            startActivity(
+                Intent(this@ChatActivity, AboutActivity::class.java)
+                    .putExtra(AboutActivity.EXTRA_JID, jid)
+            )
         }
 
         toolbar.setNavigationOnClickListener { finish() }
@@ -91,49 +84,67 @@ class ChatActivity : AppCompatActivity() {
         adapter = ChatAdapter(isGroup).apply {
             onMediaClickListener = { msg ->
                 if (msg.type == "image" || msg.type == "video") {
-
                     lifecycleScope.launch {
                         progressBar.visibility = View.VISIBLE
                         val file = viewModel.getMediaFile(msg)
                         progressBar.visibility = View.GONE
                         if (file != null) {
-                            startActivity(Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
-                                val authority = "${applicationContext.packageName}.provider"
-                                val fileUri = FileProvider.getUriForFile(this@ChatActivity, authority, file)
-                                setDataAndType(fileUri, msg.mimetype)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            })
+                            startActivity(
+                                Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
+                                    val authority = "${applicationContext.packageName}.provider"
+                                    val fileUri = FileProvider.getUriForFile(
+                                        this@ChatActivity, authority, file
+                                    )
+                                    setDataAndType(fileUri, msg.mimetype)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                            )
                         } else {
-                            Toast.makeText(this@ChatActivity, "Media downloading…", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@ChatActivity,
+                                "Media downloading…",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 } else {
-
                     lifecycleScope.launch {
                         progressBar.visibility = View.VISIBLE
                         val file: File? = viewModel.getMediaFile(msg)
                         progressBar.visibility = View.GONE
-
                         if (file != null) {
                             try {
                                 val authority = "${applicationContext.packageName}.provider"
-                                val fileUri = FileProvider.getUriForFile(this@ChatActivity, authority, file)
-
-                                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(fileUri, msg.mimetype)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                startActivity(Intent.createChooser(viewIntent, "Open file with"))
+                                val fileUri = FileProvider.getUriForFile(
+                                    this@ChatActivity, authority, file
+                                )
+                                startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(fileUri, msg.mimetype)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        },
+                                        "Open file with"
+                                    )
+                                )
                             } catch (e: Exception) {
-                                Toast.makeText(this@ChatActivity, "No app found to open this file.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    this@ChatActivity,
+                                    "No app found to open this file.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         } else {
-                             Toast.makeText(this@ChatActivity, "File downloading...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@ChatActivity,
+                                "File downloading...",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 }
             }
-            onReactionClicked = viewModel::sendReaction
+            onReactionClicked = this@ChatActivity.viewModel::sendReaction
         }
 
         rvMessages.apply {
@@ -167,10 +178,12 @@ class ChatActivity : AppCompatActivity() {
         }
 
         btnAttach.setOnClickListener {
-            pickFile.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                type = "*/*"
-                addCategory(Intent.CATEGORY_OPENABLE)
-            })
+            pickFile.launch(
+                Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    type = "*/*"
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                }
+            )
         }
     }
 
@@ -224,7 +237,7 @@ class ChatActivity : AppCompatActivity() {
     private fun isDiffDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
-        return c1.get(Calendar.YEAR)  != c2.get(Calendar.YEAR) ||
+        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
                c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }

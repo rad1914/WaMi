@@ -1,6 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @path: app/src/main/res/values/styles.xml -->
 <resources>
+
+    <style name="SectionHeader" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">24dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelLarge</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="ListItemClickable">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">72dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="IconContainer">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_marginEnd">16dp</item>
+        <item name="android:background">@drawable/bg_icon_rounded</item>
+        <item name="android:backgroundTint">?attr/colorSecondaryContainer</item>
+    </style>
+
+    <style name="ListItemIcon">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="tint">?attr/colorOnSecondaryContainer</item>
+    </style>
+
+    <style name="ListItemTextContainer">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="ListItemTitle" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="ListItemSubtitle" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
     <style name="ChatHeaderButton" parent="Widget.Material3.Button.IconButton">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>
@@ -29,24 +91,19 @@
     </style>
 
     <style name="TextAppearance.Wami" parent="TextAppearance.Material3.BodyMedium" />
-
-    <style name="TextAppearance.Wami.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
-        </style>
+    <style name="TextAppearance.Wami.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge" />
     <style name="TextAppearance.Wami.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium"/>
     <style name="TextAppearance.Wami.TitleLarge" parent="TextAppearance.Material3.TitleLarge"/>
     <style name="TextAppearance.Wami.BodyLarge" parent="TextAppearance.Material3.BodyLarge"/>
     <style name="TextAppearance.Wami.BodyMedium" parent="TextAppearance.Material3.BodyMedium"/>
 
     <style name="ShapeAppearance.Wami" parent="ShapeAppearance.Material3.MediumComponent"/>
-
     <style name="ShapeAppearance.Wami.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
         <item name="cornerSize">12dp</item>
     </style>
-
     <style name="ShapeAppearance.Wami.MediumComponent" parent="ShapeAppearance.Material3.MediumComponent">
         <item name="cornerSize">16dp</item>
     </style>
-
     <style name="ShapeAppearance.Wami.LargeComponent" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerSize">24dp</item>
     </style>

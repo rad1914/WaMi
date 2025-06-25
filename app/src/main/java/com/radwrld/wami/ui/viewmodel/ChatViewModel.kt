@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/ChatViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
@@ -162,3 +161,6 @@ class ChatViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+
+

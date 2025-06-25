@@ -34,6 +34,7 @@
 
         <activity android:name=".SettingsActivity" android:exported="false" />
         <activity android:name=".ContactsActivity" android:exported="false" />
+        <activity android:name=".SocialActivity" android:exported="false" android:label="Groups &amp; Social" />
         <activity android:name=".MediaViewActivity" android:exported="false" android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
 
         <service

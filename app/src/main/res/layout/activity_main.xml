@@ -70,6 +70,18 @@
                 app:tint="@drawable/pill_button_tint_selector" />
 
             <ImageButton
+                android:id="@+id/nav_social"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginHorizontal="16dp"
+                android:background="@drawable/pill_button_background_selector"
+                android:contentDescription="Groups &amp; Social"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_group_placeholder"
+                app:tint="@drawable/pill_button_tint_selector" />
+
+            <ImageButton
                 android:id="@+id/nav_add"
                 android:layout_width="40dp"
                 android:layout_height="40dp"

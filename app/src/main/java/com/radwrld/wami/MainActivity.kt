@@ -52,6 +52,14 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    override fun onResume() {
+        super.onResume()
+
+        binding.navMessages.isSelected = true
+        binding.navSocial.isSelected = false
+        binding.navContacts.isSelected = false
+    }
+
     override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
         menuInflater.inflate(R.menu.main_toolbar_menu, menu)
         searchView = (menu.findItem(R.id.action_search).actionView as? SearchView)?.apply {
@@ -74,18 +82,25 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
             }
 
-            navMessages.isSelected = true
-
             navMessages.setOnClickListener {
                 navMessages.isSelected = true
+                navSocial.isSelected = false
                 navContacts.isSelected = false
+            }
+
+            navSocial.setOnClickListener {
+                navMessages.isSelected = false
+                navSocial.isSelected = true
+                navContacts.isSelected = false
+                startActivity(Intent(this@MainActivity, SocialActivity::class.java))
             }
 
             navAdd.setOnClickListener { showQuickChatDialog() }
 
             navContacts.setOnClickListener {
-                navContacts.isSelected = true
                 navMessages.isSelected = false
+                navSocial.isSelected = false
+                navContacts.isSelected = true
                 startActivity(Intent(this@MainActivity, ContactsActivity::class.java))
             }
 
@@ -110,8 +125,8 @@ class MainActivity : AppCompatActivity() {
                     viewModel.conversationState.collect {
                         binding.swipeRefreshLayout.isRefreshing = it.isLoading
 
-                        conversationAdapter.submitList(it.conversations) 
-                        
+                        conversationAdapter.submitList(it.conversations)
+
                         it.error?.let { e ->
                             Toast.makeText(this@MainActivity, "Error: $e", Toast.LENGTH_LONG).show()
                             if ("401" in e) logout(false)

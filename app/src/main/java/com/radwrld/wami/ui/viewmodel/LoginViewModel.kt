@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/LoginViewModel.kt
 package com.radwrld.wami
 
 import android.app.Application
@@ -116,9 +117,9 @@ class LoginViewModel(
 class LoginViewModelFactory(
     private val app: Application,
     private val config: ServerConfigStorage,
-    private val resolver: ContentResolver // included again
+    private val resolver: ContentResolver
 ) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T { // renamed from cls to modelClass
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return LoginViewModel(app, config) as T
@@ -126,3 +127,6 @@ class LoginViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+
+
