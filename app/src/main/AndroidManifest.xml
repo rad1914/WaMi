@@ -31,6 +31,8 @@
         <activity android:name=".ChatActivity" android:exported="false" android:label="Chat" />
 
         <activity android:name=".AboutActivity" android:exported="false" android:label="About Contact" />
+        
+        <activity android:name=".SharedMediaActivity" android:exported="false" />
 
         <activity android:name=".SettingsActivity" android:exported="false" />
         <activity android:name=".ContactsActivity" android:exported="false" />
@@ -50,6 +52,16 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+            
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

@@ -1,6 +1,7 @@
 // @path: app/src/main/java/com/radwrld/wami/AboutActivity.kt
 package com.radwrld.wami
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.LinearLayout
@@ -91,12 +92,13 @@ class AboutActivity : AppCompatActivity() {
 
     private fun setupActionButtons() {
         binding.btnSharedMedia.setOnClickListener {
-
-            Toast.makeText(this, "Ver multimedia (no implementado)", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, SharedMediaActivity::class.java).apply {
+                putExtra(EXTRA_JID, jid)
+            }
+            startActivity(intent)
         }
 
         binding.btnCommonGroups.setOnClickListener {
-
             Toast.makeText(this, "Ver grupos en común (no implementado)", Toast.LENGTH_SHORT).show()
         }
 

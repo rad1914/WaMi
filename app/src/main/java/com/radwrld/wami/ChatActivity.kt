@@ -13,7 +13,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -26,7 +25,6 @@ import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -43,12 +41,14 @@ class ChatActivity : AppCompatActivity() {
         ChatViewModelFactory(application, jid, name)
     }
 
-    private val pickFile = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) {
-            it.data?.data?.let { uri ->
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                viewModel.sendMedia(uri)
-            }
+    private val pickFile = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        it.data?.data?.also { uri ->
+            contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            viewModel.sendMedia(uri)
         }
     }
 
@@ -56,9 +56,12 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         if (jid.isBlank()) {
             Toast.makeText(this, "Error: Invalid JID.", Toast.LENGTH_LONG).show()
-            finish(); return
+            finish()
+            return
         }
-        binding = ActivityChatBinding.inflate(layoutInflater).also { setContentView(it.root) }
+        binding = ActivityChatBinding.inflate(layoutInflater)
+            .also { setContentView(it.root) }
+
         setupUI()
         observeVM()
     }
@@ -66,85 +69,21 @@ class ChatActivity : AppCompatActivity() {
     private fun setupUI() = with(binding) {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
-
         tvContactName.setOnClickListener {
-            if (isGroup) return@setOnClickListener
-            startActivity(
-                Intent(this@ChatActivity, AboutActivity::class.java)
-                    .putExtra(AboutActivity.EXTRA_JID, jid)
-            )
+            if (!isGroup) {
+                startActivity(
+                    Intent(this@ChatActivity, AboutActivity::class.java)
+                        .putExtra(AboutActivity.EXTRA_JID, jid)
+                )
+            }
         }
 
         toolbar.setNavigationOnClickListener { finish() }
-
-        swipeRefreshLayout.setOnRefreshListener {
-            viewModel.loadOlderMessages()
-        }
+        swipeRefreshLayout.setOnRefreshListener { viewModel.loadOlderMessages() }
 
         adapter = ChatAdapter(isGroup).apply {
-            onMediaClickListener = { msg ->
-                if (msg.type == "image" || msg.type == "video") {
-                    lifecycleScope.launch {
-                        progressBar.visibility = View.VISIBLE
-                        val file = viewModel.getMediaFile(msg)
-                        progressBar.visibility = View.GONE
-                        if (file != null) {
-                            startActivity(
-                                Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
-                                    val authority = "${applicationContext.packageName}.provider"
-                                    val fileUri = FileProvider.getUriForFile(
-                                        this@ChatActivity, authority, file
-                                    )
-                                    setDataAndType(fileUri, msg.mimetype)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                            )
-                        } else {
-                            Toast.makeText(
-                                this@ChatActivity,
-                                "Media downloading…",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                } else {
-                    lifecycleScope.launch {
-                        progressBar.visibility = View.VISIBLE
-                        val file: File? = viewModel.getMediaFile(msg)
-                        progressBar.visibility = View.GONE
-                        if (file != null) {
-                            try {
-                                val authority = "${applicationContext.packageName}.provider"
-                                val fileUri = FileProvider.getUriForFile(
-                                    this@ChatActivity, authority, file
-                                )
-                                startActivity(
-                                    Intent.createChooser(
-                                        Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(fileUri, msg.mimetype)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        },
-                                        "Open file with"
-                                    )
-                                )
-                            } catch (e: Exception) {
-                                Toast.makeText(
-                                    this@ChatActivity,
-                                    "No app found to open this file.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        } else {
-                            Toast.makeText(
-                                this@ChatActivity,
-                                "File downloading...",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-            }
-            onReactionClicked = this@ChatActivity.viewModel::sendReaction
+            onMediaClickListener = this@ChatActivity::onMediaClick
+            onReactionClicked  = viewModel::sendReaction
         }
 
         rvMessages.apply {
@@ -160,13 +99,13 @@ class ChatActivity : AppCompatActivity() {
         }
 
         etMessage.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val has = !s.isNullOrBlank()
-                btnSend.visibility   = if (has) View.VISIBLE else View.GONE
-                btnMic.visibility    = if (has) View.GONE    else View.VISIBLE
-                btnAttach.visibility = if (has) View.GONE    else View.VISIBLE
+                val hasText = !s.isNullOrBlank()
+                btnSend.visibility   = if (hasText) View.VISIBLE else View.GONE
+                btnMic.visibility    = if (hasText) View.GONE    else View.VISIBLE
+                btnAttach.visibility = btnMic.visibility
             }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun afterTextChanged(s: Editable?) {}
         })
 
@@ -178,27 +117,29 @@ class ChatActivity : AppCompatActivity() {
         }
 
         btnAttach.setOnClickListener {
-            pickFile.launch(
-                Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    type = "*/*"
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                }
-            )
+            pickFile.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = "*/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            })
         }
     }
 
     private fun observeVM() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+
                 launch {
                     viewModel.state.collect {
-                        binding.progressBar.visibility = if (it.loading) View.VISIBLE else View.GONE
+                        binding.progressBar.visibility =
+                            if (it.loading) View.VISIBLE else View.GONE
                         binding.swipeRefreshLayout.isRefreshing = it.loadingOlder
                     }
                 }
+
                 launch {
-                    viewModel.visibleMessages.collectLatest { msgs -> process(msgs) }
+                    viewModel.visibleMessages.collectLatest(::process)
                 }
+
                 launch {
                     viewModel.errors.collect {
                         Toast.makeText(this@ChatActivity, it, Toast.LENGTH_LONG).show()
@@ -213,11 +154,13 @@ class ChatActivity : AppCompatActivity() {
         val lm = binding.rvMessages.layoutManager as LinearLayoutManager
         val atBottom = lm.findLastVisibleItemPosition() >= adapter.itemCount - 2
 
-        val items = mutableListOf<ChatListItem>().apply {
+        val items = buildList {
             add(ChatListItem.WarningItem)
             var lastTs = 0L
-            for (m in messages) {
-                if (shouldShowDivider(lastTs, m.timestamp)) add(ChatListItem.DividerItem(m.timestamp))
+            messages.forEach { m ->
+                if (shouldShowDivider(lastTs, m.timestamp)) {
+                    add(ChatListItem.DividerItem(m.timestamp))
+                }
                 add(ChatListItem.MessageItem(m))
                 lastTs = m.timestamp
             }
@@ -225,6 +168,39 @@ class ChatActivity : AppCompatActivity() {
 
         adapter.submitList(items) {
             if (atBottom) binding.rvMessages.scrollToPosition(items.lastIndex)
+        }
+    }
+
+    private fun onMediaClick(msg: Message) {
+        lifecycleScope.launch {
+            binding.progressBar.visibility = View.VISIBLE
+            val file = viewModel.getMediaFile(msg)
+            binding.progressBar.visibility = View.GONE
+
+            if (file != null) {
+                val uri = FileProvider.getUriForFile(
+                    this@ChatActivity,
+                    "${applicationContext.packageName}.provider",
+                    file
+                )
+                val intent = if (msg.type in setOf("image", "video")) {
+                    Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
+                        setDataAndType(uri, msg.mimetype)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                } else {
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, msg.mimetype)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        },
+                        "Open file with"
+                    )
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(this@ChatActivity, "File downloading…", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -237,7 +213,7 @@ class ChatActivity : AppCompatActivity() {
     private fun isDiffDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
-        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
+        return c1.get(Calendar.YEAR)  != c2.get(Calendar.YEAR) ||
                c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }
