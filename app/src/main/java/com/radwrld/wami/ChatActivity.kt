@@ -72,9 +72,8 @@ class ChatActivity : AppCompatActivity() {
         tvContactName.text = name
         tvLastSeen.visibility = View.GONE
 
-        // --- INICIO DE LA MODIFICACIÓN ---
         tvContactName.setOnClickListener {
-            // No abrir la pantalla de "About" para un grupo
+
             if (isGroup) return@setOnClickListener
 
             val intent = Intent(this@ChatActivity, AboutActivity::class.java).apply {
@@ -82,7 +81,6 @@ class ChatActivity : AppCompatActivity() {
             }
             startActivity(intent)
         }
-        // --- FIN DE LA MODIFICACIÓN ---
 
         toolbar.setNavigationOnClickListener { finish() }
 
@@ -93,7 +91,7 @@ class ChatActivity : AppCompatActivity() {
         adapter = ChatAdapter(isGroup).apply {
             onMediaClickListener = { msg ->
                 if (msg.type == "image" || msg.type == "video") {
-                    // Lógica existente para imágenes y videos
+
                     lifecycleScope.launch {
                         progressBar.visibility = View.VISIBLE
                         val file = viewModel.getMediaFile(msg)
@@ -110,7 +108,7 @@ class ChatActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    // Nueva lógica para audio y documentos
+
                     lifecycleScope.launch {
                         progressBar.visibility = View.VISIBLE
                         val file: File? = viewModel.getMediaFile(msg)
@@ -170,7 +168,7 @@ class ChatActivity : AppCompatActivity() {
 
         btnAttach.setOnClickListener {
             pickFile.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                type = "*/*" // Permitir todos los tipos de archivo
+                type = "*/*"
                 addCategory(Intent.CATEGORY_OPENABLE)
             })
         }

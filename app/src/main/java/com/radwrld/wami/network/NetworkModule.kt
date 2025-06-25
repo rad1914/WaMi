@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/NetworkModule.kt
 // @path: app/src/main/java/com/radwrld/wami/network/ApiClient.kt
 package com.radwrld.wami.network
 
@@ -34,7 +35,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
-// region Data Classes & Mappers
 data class Contact(
     val id: String,
     val name: String,
@@ -115,9 +115,7 @@ data class Conversation(
 ) {
     val isGroup: Boolean get() = isGroupInt == 1
 }
-// endregion
 
-// region API Definition
 interface WhatsAppApi {
     @GET("history/{jid}")
     suspend fun getHistory(@Path("jid", encoded = true) jid: String, @Query("limit") limit: Int = 100): List<MessageHistoryItem>
@@ -151,9 +149,7 @@ interface WhatsAppApi {
     @GET("chats")
     suspend fun getConversations(): List<Conversation>
 }
-// endregion
 
-// region Networking
 object ApiClient {
     @Volatile private var api: WhatsAppApi? = null
     @Volatile private var downloadApi: WhatsAppApi? = null
@@ -354,7 +350,6 @@ object SyncManager {
         }
     }
 
-    // Event Handlers
     private data class ReactionUpdateDto(val id: String, val jid: String, val reactions: Map<String, Int>)
     private data class StatusUpdateDto(val jid: String, val id: String, val status: String)
 
@@ -394,9 +389,7 @@ object SyncManager {
         }.onFailure { Log.e(TAG, "Failed processing reaction update: $json", it) }
     }
 }
-// endregion
 
-// region Android Service
 class SyncService : Service() {
     companion object {
         const val ACTION_START = "com.radwrld.wami.sync.ACTION_START"
@@ -453,4 +446,4 @@ class SyncService : Service() {
             .build()
     }
 }
-// endregion
+

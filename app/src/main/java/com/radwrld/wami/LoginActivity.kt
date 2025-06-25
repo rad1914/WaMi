@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -11,12 +10,11 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.radwrld.wami.databinding.ActivityLoginBinding
-import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.network.SyncService
+import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
@@ -29,12 +27,8 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val config = ServerConfigStorage(this)
-
-        if (config.isLoggedIn() && !config.getSessionId().isNullOrEmpty()) {
-
-            openMain()
-            return
+        if (ServerConfigStorage(this).isLoggedIn()) {
+            openMain(); return
         }
 
         bind = ActivityLoginBinding.inflate(layoutInflater)
@@ -45,7 +39,7 @@ class LoginActivity : AppCompatActivity() {
         bind.multiUserLoginButton.setOnClickListener { showSessionInput() }
 
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 launch { vm.uiState.collect(::render) }
                 launch { vm.toastEvents.collect(::toast) }
             }
@@ -54,17 +48,13 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-
         if (isOnline()) vm.start() else vm.notifyNoNet()
     }
 
     private fun render(state: LoginUiState) = with(bind) {
         progressBar.isVisible = state is LoginUiState.Loading
         qrImage.isVisible = state is LoginUiState.ShowQr
-        
-        val isOfflineError = state is LoginUiState.Error && state.msg.contains("Sin conexión")
-        offlineLoginButton.isVisible = isOfflineError
-        
+        offlineLoginButton.isVisible = state is LoginUiState.Error && state.msg.contains("Sin conexión")
         multiUserLoginButton.isVisible = state !is LoginUiState.LoggedIn
 
         statusText.text = when (state) {
@@ -76,8 +66,7 @@ class LoginActivity : AppCompatActivity() {
             }
             is LoginUiState.Error -> state.msg
             is LoginUiState.LoggedIn -> {
-                openMain()
-                "¡Vamos!"
+                openMain(); "¡Vamos!"
             }
         }
     }
@@ -89,9 +78,9 @@ class LoginActivity : AppCompatActivity() {
             .setMessage("Ingresa un ID de sesión existente")
             .setView(input)
             .setPositiveButton("Conectar") { _, _ ->
-                input.text.toString().takeIf { it.isNotBlank() }?.let {
-                    vm.setSessionAndRestart(it)
-                } ?: toast("El ID de sesión no puede estar vacío.")
+                val sessionId = input.text.toString()
+                if (sessionId.isNotBlank()) vm.setSessionAndRestart(sessionId)
+                else toast("El ID de sesión no puede estar vacío.")
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -100,15 +89,14 @@ class LoginActivity : AppCompatActivity() {
     private fun isOnline(): Boolean {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val net = cm.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(net) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return cm.getNetworkCapabilities(net)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
     private fun openMain() {
-
-        val serviceIntent = Intent(this, SyncService::class.java).apply { action = SyncService.ACTION_START }
-        startService(serviceIntent)
-        
+        startService(Intent(this, SyncService::class.java).apply {
+            action = SyncService.ACTION_START
+        })
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }

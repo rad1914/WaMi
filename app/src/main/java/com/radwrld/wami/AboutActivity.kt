@@ -9,7 +9,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.radwrld.wami.databinding.ActivityAboutBinding
 import com.radwrld.wami.storage.ContactStorage
+import com.radwrld.wami.storage.ConversationStorage
+import com.radwrld.wami.storage.MessageStorage
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -17,6 +20,10 @@ class AboutActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAboutBinding
     private val jid by lazy { intent.getStringExtra(EXTRA_JID).orEmpty() }
+
+    private lateinit var contactStorage: ContactStorage
+    private lateinit var conversationStorage: ConversationStorage
+    private lateinit var messageStorage: MessageStorage
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,52 +36,48 @@ class AboutActivity : AppCompatActivity() {
         binding = ActivityAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        contactStorage = ContactStorage(this)
+        conversationStorage = ConversationStorage(this)
+        messageStorage = MessageStorage(this)
+
         setupToolbar()
         loadAndDisplayContactInfo()
         setupActionButtons()
     }
 
     private fun setupToolbar() {
-        // CAMBIO: Se mantiene tu implementación original, es más directa.
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
     private fun loadAndDisplayContactInfo() {
-        val contactStorage = ContactStorage(this)
         val contact = contactStorage.getContacts().find { it.id == jid }
-
         if (contact == null) {
             Toast.makeText(this, "Could not load contact details.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
+        val conversation = conversationStorage.getConversations().find { it.id == jid }
+        val mediaCount = messageStorage.getMessages(jid).count { it.hasMedia() }
+
         with(binding) {
             tvProfileName.text = contact.name
 
-            // TODO: Cargar la imagen del avatar usando una librería como Glide o Coil
-            // Glide.with(this@AboutActivity).load(contact.avatarUrl).into(profileImage)
+            // TODO: Load contact.avatarUrl into binding.profileImage using an image loading library (e.g., Coil, Glide)
             profileImage.setImageResource(R.drawable.profile_picture_placeholder)
 
-            // CAMBIO: 'tvJoinedDate' se reemplazó por 'tvLastSeen'.
-            // TODO: Cargar este dato real desde tu modelo de datos.
-            val lastSeenTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            tvLastSeen.text = "últ. vez hoy a las $lastSeenTime"
+            conversation?.lastMessageTimestamp?.let {
+                tvLastSeen.text = formatTimestamp(it)
+                tvLastSeen.visibility = View.VISIBLE
+            } ?: run {
+                tvLastSeen.visibility = View.GONE
+            }
 
-            // NUEVO: Se asigna texto a los nuevos campos.
-            // TODO: Cargar la info/about real del contacto.
             tvAbout.text = "¡Hola! Estoy usando Wami."
-
-            // TODO: Cargar la cuenta real de archivos compartidos.
-            tvMediaCount.text = "0"
-
-            // TODO: Calcular y mostrar la hora local real del contacto si tienes su zona horaria.
+            tvMediaCount.text = mediaCount.toString()
             tvLocalTime.text = "--:--"
-            
-            // TODO: Cargar el número real de grupos en común.
             tvCommonGroupsCount.text = "0"
 
-            // CAMBIO: La lógica para el teléfono se mantiene, pero se simplifica.
             if (!contact.phoneNumber.isNullOrBlank()) {
                 layoutPhone.visibility = View.VISIBLE
                 tvPhone.text = contact.phoneNumber
@@ -82,19 +85,19 @@ class AboutActivity : AppCompatActivity() {
                 layoutPhone.visibility = View.GONE
             }
 
-            // CAMBIO: Se actualiza el texto de los botones para ser más específico.
             btnBlock.findTextView()?.text = "Bloquear a ${contact.name}"
             btnReport.findTextView()?.text = "Reportar a ${contact.name}"
         }
     }
 
     private fun setupActionButtons() {
-        // NUEVO: Listeners para los nuevos elementos clickables.
         binding.btnSharedMedia.setOnClickListener {
+            // TODO: Implement navigation to a shared media screen
             Toast.makeText(this, "Ver multimedia (no implementado)", Toast.LENGTH_SHORT).show()
         }
 
         binding.btnCommonGroups.setOnClickListener {
+            // TODO: Implement navigation to a common groups screen
             Toast.makeText(this, "Ver grupos en común (no implementado)", Toast.LENGTH_SHORT).show()
         }
 
@@ -107,12 +110,29 @@ class AboutActivity : AppCompatActivity() {
         }
     }
 
+    private fun formatTimestamp(timestamp: Long): String {
+        val messageDate = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val now = Calendar.getInstance()
+
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        return when {
+            now.get(Calendar.YEAR) == messageDate.get(Calendar.YEAR) && now.get(Calendar.DAY_OF_YEAR) == messageDate.get(Calendar.DAY_OF_YEAR) ->
+                "últ. vez hoy a las ${timeFormat.format(Date(timestamp))}"
+            now.get(Calendar.YEAR) == messageDate.get(Calendar.YEAR) && now.get(Calendar.DAY_OF_YEAR) - 1 == messageDate.get(Calendar.DAY_OF_YEAR) ->
+                "últ. vez ayer a las ${timeFormat.format(Date(timestamp))}"
+            else -> {
+                val dateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                "últ. vez el ${dateFormat.format(Date(timestamp))}"
+            }
+        }
+    }
+
     companion object {
         const val EXTRA_JID = "EXTRA_JID"
     }
 }
 
-// NUEVO: Función de ayuda para encontrar el TextView dentro de los LinearLayout de acción.
 private fun LinearLayout.findTextView(): TextView? {
     for (i in 0 until childCount) {
         val child = getChildAt(i)

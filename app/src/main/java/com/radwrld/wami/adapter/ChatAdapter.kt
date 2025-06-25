@@ -145,7 +145,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         }
 
         private fun bindBubbleContent(message: Message) {
-            // Reset visibility
+
             messageContent.mediaContainer.isVisible = false
             messageContent.tvMessage.isVisible = false
             
@@ -155,13 +155,13 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                 messageContent.ivPlayIcon.isVisible = message.isVideo()
 
                 if (message.isDocument()) {
-                    // Fallback UI for Documents & Audio
-                    messageContent.ivMedia.setImageResource(R.drawable.ic_media_placeholder) // Use a generic placeholder you already have
-                    messageContent.tvMessage.text = message.fileName ?: "Document" // Show filename as text
+
+                    messageContent.ivMedia.setImageResource(R.drawable.ic_media_placeholder)
+                    messageContent.tvMessage.text = message.fileName ?: "Document"
                     messageContent.tvMessage.isVisible = true
-                    messageContent.ivPlayIcon.isVisible = false // Hide play icon for docs
+                    messageContent.ivPlayIcon.isVisible = false
                 } else { 
-                    // UI for Image or Video
+
                     messageContent.tvMessage.apply {
                         isVisible = message.hasText()
                         if (isVisible) text = TextFormatter.format(context, message.text!!)
@@ -178,7 +178,7 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
                         .into(messageContent.ivMedia)
                 }
             } else {
-                // UI for text-only messages
+
                 messageContent.tvMessage.apply {
                     isVisible = message.hasText()
                     if (isVisible) text = TextFormatter.format(context, message.text!!)

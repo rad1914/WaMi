@@ -1,33 +1,23 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/LoginViewModel.kt
 package com.radwrld.wami
 
 import android.app.Application
 import android.content.ContentResolver
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-
+import androidx.lifecycle.*
 import com.radwrld.wami.network.ApiClient
-import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.network.SyncManager
-
-import kotlinx.coroutines.Job
+import com.radwrld.wami.storage.ServerConfigStorage
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
+import java.net.*
 
 sealed class LoginUiState {
     object Idle : LoginUiState()
     data class LoggedIn(val sessionId: String) : LoginUiState()
     data class Loading(val msg: String) : LoginUiState()
-    data class ShowQr(val bitmap: Bitmap, val msg: String) : LoginUiState()
+    data class ShowQr(val bitmap: android.graphics.Bitmap, val msg: String) : LoginUiState()
     data class Error(val msg: String) : LoginUiState()
 }
 
@@ -38,63 +28,51 @@ class LoginViewModel(
 
     val uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val toastEvents = MutableSharedFlow<String>()
-
     private var sessionJob: Job? = null
 
     init {
-
         viewModelScope.launch {
-            SyncManager.isAuthenticated.collect { isAuthenticated ->
-                if (isAuthenticated) {
-                    config.saveLoginState(true)
-                    uiState.value = LoginUiState.LoggedIn(config.getSessionId().orEmpty())
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            SyncManager.qrCodeUrl.collect { qrUrl ->
-                if (qrUrl != null) {
-                    decodeQr(qrUrl)?.let { bitmap ->
-                        uiState.value = LoginUiState.ShowQr(bitmap, "Escanea el código QR")
-                    }
-                } else {
-
-                    if (!SyncManager.isAuthenticated.value) {
-                       uiState.value = LoginUiState.Loading("Esperando código QR...")
+            launch {
+                SyncManager.isAuthenticated.collect {
+                    if (it) {
+                        config.saveLoginState(true)
+                        uiState.value = LoginUiState.LoggedIn(config.getSessionId().orEmpty())
                     }
                 }
             }
-        }
-
-        viewModelScope.launch {
-            SyncManager.authError.collect { hasError ->
-                if (hasError) {
-                    toastEvents.emit("Sesión inválida. Creando una nueva.")
-                    config.saveSessionId(null)
-                    start()
+            launch {
+                SyncManager.qrCodeUrl.collect { url ->
+                    if (url != null) decodeQr(url)?.let {
+                        uiState.value = LoginUiState.ShowQr(it, "Escanea el código QR")
+                    } else if (!SyncManager.isAuthenticated.value) {
+                        uiState.value = LoginUiState.Loading("Esperando código QR...")
+                    }
+                }
+            }
+            launch {
+                SyncManager.authError.collect {
+                    if (it) {
+                        toastEvents.emit("Sesión inválida. Creando una nueva.")
+                        config.saveSessionId(null)
+                        start()
+                    }
                 }
             }
         }
     }
 
-    private fun getApi() = ApiClient.getInstance(getApplication())
-
     fun start() {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             try {
-
                 if (config.getSessionId().isNullOrEmpty()) {
                     uiState.value = LoginUiState.Loading("Creando nueva sesión...")
-                    val newSession = getApi().createSession()
-                    config.saveSessionId(newSession.sessionId)
+                    val session = ApiClient.getInstance(getApplication()).createSession()
+                    config.saveSessionId(session.sessionId)
                 }
-
                 SyncManager.shutdown()
                 SyncManager.initialize(getApplication())
                 SyncManager.connect()
-
             } catch (e: Exception) {
                 handleError(e)
             }
@@ -117,20 +95,18 @@ class LoginViewModel(
     private suspend fun handleError(e: Exception) {
         val msg = when (e) {
             is HttpException -> "Error del servidor: ${e.code()}"
-            is UnknownHostException, is ConnectException, is SocketTimeoutException -> "Sin conexión: El servidor no está disponible."
+            is UnknownHostException, is ConnectException, is SocketTimeoutException ->
+                "Sin conexión: El servidor no está disponible."
             else -> "Error desconocido: ${e.message}"
         }
         uiState.value = LoginUiState.Error(msg)
         toastEvents.emit(msg)
     }
-    
-    private fun decodeQr(dataUrl: String): Bitmap? = try {
-        val base64String = dataUrl.substringAfter(",", "")
-        if (base64String.isEmpty()) throw IllegalArgumentException("Invalid data URL")
 
-        val imageBytes = Base64.decode(base64String, Base64.DEFAULT)
-        
-        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+    private fun decodeQr(dataUrl: String) = try {
+        val base64 = dataUrl.substringAfter(",", "")
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     } catch (e: Exception) {
         viewModelScope.launch { toastEvents.emit("Fallo al decodificar QR.") }
         null
@@ -140,10 +116,10 @@ class LoginViewModel(
 class LoginViewModelFactory(
     private val app: Application,
     private val config: ServerConfigStorage,
-    private val resolver: ContentResolver
+    private val resolver: ContentResolver // included again
 ) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(cls: Class<T>): T {
-        if (cls.isAssignableFrom(LoginViewModel::class.java)) {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T { // renamed from cls to modelClass
+        if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return LoginViewModel(app, config) as T
         }
