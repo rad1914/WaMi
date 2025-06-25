@@ -82,18 +82,6 @@
                 app:tint="@drawable/pill_button_tint_selector" />
 
             <ImageButton
-                android:id="@+id/nav_add"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginHorizontal="16dp"
-                android:background="@android:color/transparent"
-                android:contentDescription="Fast Contact"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_add"
-                app:tint="?attr/colorOnSurfaceVariant" />
-
-            <ImageButton
                 android:id="@+id/nav_contacts"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -104,6 +92,19 @@
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_users"
                 app:tint="@drawable/pill_button_tint_selector" />
+                
+            <ImageButton
+                android:id="@+id/tweaks"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginHorizontal="16dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Fast Contact"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_add"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

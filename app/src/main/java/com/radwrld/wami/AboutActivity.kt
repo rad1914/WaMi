@@ -8,10 +8,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.radwrld.wami.databinding.ActivityAboutBinding
-import com.radwrld.wami.storage.ContactStorage
-import com.radwrld.wami.storage.ConversationStorage
+import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.storage.MessageStorage
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -22,14 +25,15 @@ class AboutActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAboutBinding
     private val jid by lazy { intent.getStringExtra(EXTRA_JID).orEmpty() }
 
-    private lateinit var contactStorage: ContactStorage
-    private lateinit var conversationStorage: ConversationStorage
+    private lateinit var repository: WhatsAppRepository
     private lateinit var messageStorage: MessageStorage
+
+    private var isBlocked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (jid.isBlank()) {
-            Toast.makeText(this, "Error: Contact not found.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error: Contacto no encontrado.", Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -37,8 +41,7 @@ class AboutActivity : AppCompatActivity() {
         binding = ActivityAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        contactStorage = ContactStorage(this)
-        conversationStorage = ConversationStorage(this)
+        repository = WhatsAppRepository(this)
         messageStorage = MessageStorage(this)
 
         setupToolbar()
@@ -51,42 +54,93 @@ class AboutActivity : AppCompatActivity() {
     }
 
     private fun loadAndDisplayContactInfo() {
-        val contact = contactStorage.getContacts().find { it.id == jid }
-        if (contact == null) {
-            Toast.makeText(this, "Could not load contact details.", Toast.LENGTH_SHORT).show()
-            finish()
-            return
+        lifecycleScope.launch {
+            val contact = repository.getCachedConversations().find { it.id == jid }
+            if (contact == null) {
+                Toast.makeText(this@AboutActivity, "No se pudieron cargar los detalles del contacto.", Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
+
+            val mediaCount = messageStorage.getMessages(jid).count { it.hasMedia() }
+            
+            with(binding) {
+                tvProfileName.text = contact.name
+                toolbar.title = contact.name
+                tvMediaCount.text = mediaCount.toString()
+
+                Glide.with(this@AboutActivity)
+                    .load(contact.avatarUrl)
+                    .apply(RequestOptions.circleCropTransform())
+                    .placeholder(R.drawable.profile_picture_placeholder)
+                    .error(R.drawable.profile_picture_placeholder)
+                    .into(profileImage)
+
+                contact.lastMessageTimestamp?.let {
+                    tvLastSeen.text = formatTimestamp(it)
+                    tvLastSeen.visibility = View.VISIBLE
+                } ?: run {
+                    tvLastSeen.visibility = View.GONE
+                }
+
+                if (contact.isGroup) {
+                    setupGroupUI(contact)
+                } else {
+                    setupUserUI(contact)
+                }
+            }
         }
+    }
 
-        val conversation = conversationStorage.getConversations().find { it.id == jid }
-        val mediaCount = messageStorage.getMessages(jid).count { it.hasMedia() }
-
+    private fun setupUserUI(contact: com.radwrld.wami.network.Contact) {
         with(binding) {
-            tvProfileName.text = contact.name
 
-            profileImage.setImageResource(R.drawable.profile_picture_placeholder)
+            layoutPhone.visibility = if (!contact.phoneNumber.isNullOrBlank()) View.VISIBLE else View.GONE
+            tvPhone.text = contact.phoneNumber
 
-            conversation?.lastMessageTimestamp?.let {
-                tvLastSeen.text = formatTimestamp(it)
-                tvLastSeen.visibility = View.VISIBLE
-            } ?: run {
-                tvLastSeen.visibility = View.GONE
-            }
-
+            btnCommonGroups.visibility = View.VISIBLE
+            layoutLocalTime.visibility = View.VISIBLE
+            btnBlock.visibility = View.VISIBLE
+            
             tvAbout.text = "¡Hola! Estoy usando Wami."
-            tvMediaCount.text = mediaCount.toString()
             tvLocalTime.text = "--:--"
-            tvCommonGroupsCount.text = "0"
-
-            if (!contact.phoneNumber.isNullOrBlank()) {
-                layoutPhone.visibility = View.VISIBLE
-                tvPhone.text = contact.phoneNumber
-            } else {
-                layoutPhone.visibility = View.GONE
-            }
-
-            btnBlock.findTextView()?.text = "Bloquear a ${contact.name}"
+            updateBlockButtonText(contact.name)
             btnReport.findTextView()?.text = "Reportar a ${contact.name}"
+
+            lifecycleScope.launch {
+                repository.getCommonGroups(contact.id)
+                    .onSuccess { commonGroups ->
+                        tvCommonGroupsCount.text = commonGroups.size.toString()
+                        btnCommonGroups.isEnabled = commonGroups.isNotEmpty()
+                    }
+                    .onFailure {
+                        tvCommonGroupsCount.text = "0"
+                        btnCommonGroups.isEnabled = false
+                    }
+            }
+        }
+    }
+
+    private fun setupGroupUI(contact: com.radwrld.wami.network.Contact) {
+         with(binding) {
+
+            layoutPhone.visibility = View.GONE
+
+            btnCommonGroups.visibility = View.GONE
+            layoutLocalTime.visibility = View.GONE
+            btnBlock.visibility = View.GONE
+
+            btnReport.findTextView()?.text = "Reportar grupo"
+
+             lifecycleScope.launch {
+                 repository.getGroupInfo(contact.id)
+                     .onSuccess { groupInfo ->
+                         tvAbout.text = if (!groupInfo.desc.isNullOrBlank()) groupInfo.desc else "Sin descripción."
+                     }
+                     .onFailure {
+                         tvAbout.text = "No se pudo cargar la descripción."
+                     }
+             }
         }
     }
 
@@ -99,22 +153,53 @@ class AboutActivity : AppCompatActivity() {
         }
 
         binding.btnCommonGroups.setOnClickListener {
-            Toast.makeText(this, "Ver grupos en común (no implementado)", Toast.LENGTH_SHORT).show()
+            val count = binding.tvCommonGroupsCount.text.toString().toIntOrNull() ?: 0
+            if (count > 0) {
+                Toast.makeText(this, "Función para ver grupos en común no implementada", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "No hay grupos en común", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnBlock.setOnClickListener {
-            Toast.makeText(this, "Bloquear contacto (no implementado)", Toast.LENGTH_SHORT).show()
-        }
+            val contactName = binding.tvProfileName.text.toString()
+            lifecycleScope.launch {
+                val result = if (isBlocked) repository.unblockContact(jid) else repository.blockContact(jid)
 
-        binding.btnReport.setOnClickListener {
-            Toast.makeText(this, "Reportar contacto (no implementado)", Toast.LENGTH_SHORT).show()
+                result.onSuccess {
+                    isBlocked = !isBlocked
+                    updateBlockButtonText(contactName)
+                    val actionText = if(isBlocked) "bloqueado" else "desbloqueado"
+                    Toast.makeText(this@AboutActivity, "$contactName ha sido $actionText.", Toast.LENGTH_SHORT).show()
+                }.onFailure { e ->
+                    Toast.makeText(this@AboutActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
+        
+        binding.btnReport.setOnClickListener {
+            val contactName = binding.tvProfileName.text.toString()
+            lifecycleScope.launch {
+                repository.reportContact(jid)
+                    .onSuccess {
+                        Toast.makeText(this@AboutActivity, "$contactName ha sido reportado.", Toast.LENGTH_LONG).show()
+                        binding.btnReport.isEnabled = false
+                        binding.btnReport.alpha = 0.5f
+                    }
+                    .onFailure { e ->
+                        Toast.makeText(this@AboutActivity, "Error al reportar: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        }
+    }
+    
+    private fun updateBlockButtonText(name: String) {
+        binding.btnBlock.findTextView()?.text = if (isBlocked) "Desbloquear" else "Bloquear"
     }
 
     private fun formatTimestamp(timestamp: Long): String {
         val messageDate = Calendar.getInstance().apply { timeInMillis = timestamp }
         val now = Calendar.getInstance()
-
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
         return when {
@@ -123,7 +208,7 @@ class AboutActivity : AppCompatActivity() {
             now.get(Calendar.YEAR) == messageDate.get(Calendar.YEAR) && now.get(Calendar.DAY_OF_YEAR) - 1 == messageDate.get(Calendar.DAY_OF_YEAR) ->
                 "últ. vez ayer a las ${timeFormat.format(Date(timestamp))}"
             else -> {
-                val dateFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                val dateFormat = SimpleDateFormat("d MMM yy", Locale.getDefault())
                 "últ. vez el ${dateFormat.format(Date(timestamp))}"
             }
         }

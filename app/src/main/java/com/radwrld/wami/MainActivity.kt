@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -66,7 +65,10 @@ class MainActivity : AppCompatActivity() {
         navContacts.isSelected = true
         startActivity(Intent(this@MainActivity, ContactsActivity::class.java))
       }
-      navAdd.setOnClickListener { showQuickChatDialog() }
+      // Se cambió el listener para que apunte al botón de tweaks
+      tweaks.setOnClickListener {
+          startActivity(Intent(this@MainActivity, TweaksActivity::class.java))
+      }
 
       swipeRefreshLayout.setOnRefreshListener { viewModel.load() }
 

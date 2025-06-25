@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/network/NetworkModule.kt
-// @path: app/src/main/java/com/radwrld/wami/network/ApiClient.kt
 package com.radwrld.wami.network
 
 import android.app.*
@@ -17,6 +16,7 @@ import com.radwrld.wami.MainActivity
 import com.radwrld.wami.R
 import com.radwrld.wami.data.ContactRepository
 import com.radwrld.wami.data.MessageRepository
+
 import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.util.NotificationUtils
 import io.socket.client.IO
@@ -78,7 +78,18 @@ data class StatusResponse(val connected: Boolean, val qr: String?)
 data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
 data class SendReactionRequest(val jid: String, val messageId: String, val emoji: String)
 data class SyncResponse(val success: Boolean, val message: String)
-
+data class BlockRequest(val jid: String)
+data class GroupParticipant(
+    @SerializedName("id") val id: String,
+    @SerializedName("admin") val admin: String?
+)
+data class GroupInfo(
+    @SerializedName("id") val id: String,
+    @SerializedName("subject") val subject: String,
+    @SerializedName("owner") val owner: String?,
+    @SerializedName("desc") val desc: String?,
+    @SerializedName("participants") val participants: List<GroupParticipant>
+)
 data class MessageHistoryItem(
     @SerializedName("id") val id: String,
     @SerializedName("jid") val jid: String,
@@ -116,12 +127,26 @@ data class Conversation(
     val isGroup: Boolean get() = isGroupInt == 1
 }
 
+data class StatusItem(
+    @SerializedName("id") val id: String,
+    @SerializedName("jid") val jid: String,
+    @SerializedName("text") val text: String?,
+    @SerializedName("type") val type: String?,
+    @SerializedName("timestamp") val timestamp: Long,
+    @SerializedName("mediaUrl") val mediaUrl: String?,
+    @SerializedName("mimetype") val mimetype: String?,
+    @SerializedName("fileName") val fileName: String?,
+    val senderName: String? = null,
+    val avatarUrl: String? = null,
+    val hasBeenSeen: Boolean = false
+)
+
 interface WhatsAppApi {
     @GET("history/{jid}")
-    suspend fun getHistory(@Path("jid", encoded = true) jid: String, @Query("limit") limit: Int = 100): List<MessageHistoryItem>
+    suspend fun getHistory(@Path("jid") jid: String, @Query("limit") limit: Int = 100): List<MessageHistoryItem>
 
     @POST("history/sync/{jid}")
-    suspend fun syncHistory(@Path("jid", encoded = true) jid: String): SyncResponse
+    suspend fun syncHistory(@Path("jid") jid: String): SyncResponse
 
     @Streaming
     @GET
@@ -148,6 +173,29 @@ interface WhatsAppApi {
 
     @GET("chats")
     suspend fun getConversations(): List<Conversation>
+
+    @POST("contacts/block")
+    suspend fun blockContact(@Body request: BlockRequest): Response<Void>
+
+    @POST("contacts/unblock")
+    suspend fun unblockContact(@Body request: BlockRequest): Response<Void>
+
+    @GET("group/{jid}")
+    suspend fun getGroupInfo(@Path("jid") jid: String): GroupInfo
+
+    @POST("contacts/report")
+    suspend fun reportContact(@Body request: BlockRequest): Response<Void>
+    
+    @GET("statuses")
+    suspend fun getStatuses(): List<StatusItem>
+
+    @Multipart
+    @POST("send/status")
+    suspend fun sendStatus(
+        @Part("caption") caption: RequestBody?,
+        @Part("tempId") tempId: RequestBody,
+        @Part file: MultipartBody.Part
+    ): SendResponse
 }
 
 object ApiClient {
@@ -239,6 +287,8 @@ object SyncManager {
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
     private val _authError = MutableStateFlow(false)
     val authError: StateFlow<Boolean> = _authError.asStateFlow()
+    private val _newStatusEvent = MutableSharedFlow<List<StatusItem>>()
+    val newStatusEvent: SharedFlow<List<StatusItem>> = _newStatusEvent.asSharedFlow()
 
     fun initialize(context: Context) {
         if (isInitialized.getAndSet(true)) return
@@ -337,6 +387,11 @@ object SyncManager {
                 args.getOrNull(0)?.toString()?.let { handleReactionUpdate(it) }
             }
         }
+        on("whatsapp-status") { args ->
+            scope.launch {
+                args.getOrNull(0)?.toString()?.let { handleIncomingStatus(it) }
+            }
+        }
     }
 
     private fun scheduleReconnect() {
@@ -387,6 +442,23 @@ object SyncManager {
             val update: ReactionUpdateDto = gson.fromJson(json, ReactionUpdateDto::class.java)
             msgRepo.updateMessageReactions(update.jid, update.id, update.reactions)
         }.onFailure { Log.e(TAG, "Failed processing reaction update: $json", it) }
+    }
+
+    private suspend fun handleIncomingStatus(json: String) {
+        runCatching {
+            val serverUrl = ApiClient.getBaseUrl(appContext)
+            val typeToken = object : TypeToken<List<StatusItem>>() {}.type
+            val items: List<StatusItem> = gson.fromJson(json, typeToken)
+            val statuses = items.map {
+                it.copy(mediaUrl = it.mediaUrl?.let { path ->
+                    if (path.startsWith("http")) path else "$serverUrl$path"
+                })
+            }
+            Log.i(TAG, "Received ${statuses.size} new status updates via Socket.IO")
+
+            _newStatusEvent.emit(statuses)
+
+        }.onFailure { Log.e(TAG, "Failed processing incoming statuses: $json", it) }
     }
 }
 
@@ -446,4 +518,3 @@ class SyncService : Service() {
             .build()
     }
 }
-

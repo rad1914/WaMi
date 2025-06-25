@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/data/WamiGlideActivity.kt
+// @path: app/src/main/java/com/radwrld/wami/network/WamiGlideModule.kt
 // @path: app/src/main/java/com/radwrld/wami/data/WamiGlideModule.kt
 package com.radwrld.wami
 

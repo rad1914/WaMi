@@ -11,10 +11,8 @@ class ConversationStorage(context: Context) {
     private val gson = Gson()
 
     fun saveConversations(conversations: List<Contact>) {
-
-        val sortedList = conversations.sortedByDescending { it.lastMessageTimestamp }
         prefs.edit()
-            .putString("conversations", gson.toJson(sortedList))
+            .putString("conversations", gson.toJson(conversations))
             .apply()
     }
 

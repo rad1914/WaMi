@@ -45,7 +45,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         _error
     ) { conversations, isLoading, error ->
         ConversationListState(
-            conversations = conversations,
+            conversations = conversations.sortedByDescending { it.lastMessageTimestamp },
             isLoading = isLoading,
             error = error
         )

@@ -103,8 +103,10 @@ class ChatAdapter(private val isGroup: Boolean) : ListAdapter<ChatListItem, Recy
         fun collapse() {
             reactionPanel.isVisible = false
 
-            (getItem(bindingAdapterPosition) as? ChatListItem.MessageItem)?.message?.let {
-                reactionsLayout.isVisible = it.reactions.isNotEmpty()
+            if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                (getItem(bindingAdapterPosition) as? ChatListItem.MessageItem)?.message?.let {
+                    reactionsLayout.isVisible = it.reactions.isNotEmpty()
+                }
             }
             messageInfo.root.isVisible = false
         }
