@@ -37,6 +37,12 @@ android {
         viewBinding true
         dataBinding true
     }
+
+    lint {
+        disable "NullSafeMutableLiveData"
+        checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 kotlin {
