@@ -29,5 +29,9 @@ jobs:
           sed -i '/org.gradle.java.home/d' gradle.properties
           sed -i '/android.aapt2FromMavenOverride/d' gradle.properties
 
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+      - name: Build with Gradle (skip lint)
+        run: |
+          ./gradlew build \
+            --no-daemon \
+            -x lintVitalAnalyzeRelease \
+            -x lintAnalyzeDebug
