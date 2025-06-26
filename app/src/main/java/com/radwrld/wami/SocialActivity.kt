@@ -20,6 +20,7 @@ import com.bumptech.glide.Glide
 import com.radwrld.wami.databinding.ActivitySocialBinding
 import com.radwrld.wami.databinding.ItemStatusCardBinding
 import com.radwrld.wami.network.StatusItem
+import com.radwrld.wami.network.SyncManager
 import com.radwrld.wami.repository.WhatsAppRepository
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,12 +46,29 @@ class SocialViewModel(private val repository: WhatsAppRepository) : ViewModel() 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    init {
+        // Escuchar eventos de nuevos estados en tiempo real
+        viewModelScope.launch {
+            SyncManager.newStatusEvent.collect { newStatusList ->
+                val currentList = _statuses.value
+                // Combinar la lista actual con la nueva y eliminar duplicados
+                val statusMap = (newStatusList + currentList).associateBy { it.id }
+                // Actualizar el UI con la lista ordenada por tiempo
+                _statuses.value = statusMap.values.toList().sortedByDescending { it.timestamp }
+            }
+        }
+    }
+
     fun fetchStatuses() {
         viewModelScope.launch {
             _isLoading.value = true
             repository.getStatuses()
-                .onSuccess { _statuses.value = it }
-                .onFailure { /* Handle error, e.g., show a toast */ }
+                .onSuccess { fetchedStatuses ->
+                    // Combinar la lista inicial con la que ya se tenga
+                    val statusMap = (fetchedStatuses + _statuses.value).associateBy { it.id }
+                    _statuses.value = statusMap.values.toList().sortedByDescending { it.timestamp }
+                }
+                .onFailure { /* Se podría mostrar un Toast o un mensaje de error aquí */ }
             _isLoading.value = false
         }
     }
@@ -59,8 +77,9 @@ class SocialViewModel(private val repository: WhatsAppRepository) : ViewModel() 
 class SocialActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySocialBinding
+    private val repository by lazy { WhatsAppRepository(applicationContext) }
     private val viewModel: SocialViewModel by viewModels {
-        SocialViewModelFactory(WhatsAppRepository(applicationContext))
+        SocialViewModelFactory(repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +89,7 @@ class SocialActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.title = "Social y Grupos"
 
         setupClickListeners()
         observeViewModel()
@@ -89,24 +108,26 @@ class SocialActivity : AppCompatActivity() {
     }
 
     private fun populateStatuses(statuses: List<StatusItem>) {
-        binding.statusContainer.removeAllViews() // Clear old views
+        binding.statusContainer.removeAllViews() // Limpiar vistas antiguas
         statuses.forEach { status ->
             val statusBinding = ItemStatusCardBinding.inflate(LayoutInflater.from(this), binding.statusContainer, false)
 
-            statusBinding.statusUserName.text = status.senderName
+            statusBinding.statusUserName.text = status.senderName ?: "Estado"
+            // Se usa el avatar del contacto para la vista previa circular
             Glide.with(this)
-                .load(status.mediaUrl)
-                .placeholder(R.drawable.ic_media_placeholder)
+                .load(status.avatarUrl)
+                .placeholder(R.drawable.profile_picture_placeholder)
+                .error(R.drawable.profile_picture_placeholder)
                 .into(statusBinding.statusImage)
 
             statusBinding.root.setOnClickListener {
-                status.mediaUrl?.let { url ->
-                    val intent = Intent(this, MediaViewActivity::class.java).apply {
-                        data = Uri.parse(url)
-                        type = status.mimetype ?: "image/*" // Default to image if mimetype is null
-                    }
-                    startActivity(intent)
-                } ?: showToast("No se puede ver el estado")
+                // Construir la URL correcta para ver el medio en alta calidad
+                val fullMediaUrl = "${repository.getBaseUrl()}/media/${status.id}"
+                val intent = Intent(this, MediaViewActivity::class.java).apply {
+                    data = Uri.parse(fullMediaUrl)
+                    type = status.mimetype ?: "image/*"
+                }
+                startActivity(intent)
             }
 
             binding.statusContainer.addView(statusBinding.root)
@@ -115,11 +136,12 @@ class SocialActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         binding.itemAddStatus.setOnClickListener {
-            // TODO: Launch image/video picker to add a new status
+            // TODO: Iniciar selector de imagen/video para añadir nuevo estado
             showToast("Añadir nuevo estado")
         }
 
         binding.fabNewChat.setOnClickListener {
+            // CORRECCIÓN: Volver al comportamiento original para evitar el error
             showToast("Iniciar un nuevo mensaje")
         }
 

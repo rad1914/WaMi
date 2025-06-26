@@ -1,4 +1,3 @@
+// @path: app/src/main/java/com/radwrld/wami/tweaks/home.kt
 package com.example.wami.tweaks
 
-// This file can contain logic, data classes, or composables
-// related to the "Home Screen" tweaks.

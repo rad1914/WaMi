@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/TweaksActivity.kt
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -23,7 +24,7 @@ class TweaksActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle arrow-back button
+
         if (item.itemId == android.R.id.home) {
             finish()
             return true

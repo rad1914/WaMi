@@ -1,4 +1,3 @@
+// @path: app/src/main/java/com/radwrld/wami/tweaks/chat.kt
 package com.example.wami.tweaks
 
-// This file can contain logic, data classes, or composables
-// related to the "Chat Screen" tweaks.
