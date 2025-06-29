@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
+// @path: app/src/main/java/com/radwrld/wami/data/WhatsAppRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context

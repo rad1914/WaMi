@@ -4,6 +4,7 @@ package com.radwrld.wami.ui.viewmodel
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.*
+import com.radwrld.wami.adapter.ChatListItem
 import com.radwrld.wami.data.MessageRepository
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.repository.WhatsAppRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class ChatViewModel(
     app: Application,
@@ -23,59 +25,72 @@ class ChatViewModel(
 
     private val messageRepository = MessageRepository(getApplication())
     private val whatsAppRepository = WhatsAppRepository(getApplication())
-    
-    private val _state = MutableStateFlow(UiState())
-    val state: StateFlow<UiState> = _state.asStateFlow()
 
+    private val _internalState = MutableStateFlow(InternalState())
     private val _errors = MutableSharedFlow<String>()
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    val visibleMessages: StateFlow<List<Message>> = messageRepository.getMessages(jid)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+    val uiState: StateFlow<UiState> = combine(
+        messageRepository.getMessages(jid),
+        _internalState
+    ) { messages, internalState ->
+        UiState(
+            loading = internalState.loading,
+            loadingOlder = internalState.loadingOlder,
+            messages = processMessagesIntoListItems(messages)
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UiState()
+    )
 
-    init {
+    fun setLoading(isLoading: Boolean) {
+        _internalState.update { it.copy(loading = isLoading) }
+    }
 
+    private fun processMessagesIntoListItems(messages: List<Message>): List<ChatListItem> {
+        return buildList {
+            add(ChatListItem.WarningItem)
+            var lastTs = 0L
+            messages.forEach { m ->
+                if (shouldShowDivider(lastTs, m.timestamp)) {
+                    add(ChatListItem.DividerItem(m.timestamp))
+                }
+                add(ChatListItem.MessageItem(m))
+                lastTs = m.timestamp
+            }
+        }
     }
 
     fun loadOlderMessages() = viewModelScope.launch {
-        if (_state.value.loadingOlder) return@launch
-        _state.update { it.copy(loadingOlder = true) }
+        if (_internalState.value.loadingOlder) return@launch
+        _internalState.update { it.copy(loadingOlder = true) }
 
-        val oldestTimestamp = visibleMessages.value.firstOrNull()?.timestamp
-        
+        val oldestTimestamp = (uiState.value.messages.find { it is ChatListItem.MessageItem } as? ChatListItem.MessageItem)?.message?.timestamp
+
         whatsAppRepository.getMessageHistory(jid, before = oldestTimestamp).onSuccess { olderMessages ->
             if (olderMessages.isNotEmpty()) {
-
                 messageRepository.appendMessages(jid, olderMessages)
             }
         }.onFailure {
             _errors.emit(it.message ?: "Failed to load older messages")
         }
         
-        _state.update { it.copy(loadingOlder = false) }
+        _internalState.update { it.copy(loadingOlder = false) }
     }
 
     fun sendText(text: String) {
         if (text.isBlank()) return
         
         val tempMessage = Message(
-            id = "temp_${UUID.randomUUID()}",
-            jid = jid,
-            text = text,
-            isOutgoing = true,
-            status = "sending",
-            timestamp = System.currentTimeMillis(),
-            name = "Me",
-            senderName = "Me"
+            id = "temp_${UUID.randomUUID()}", jid = jid, text = text,
+            isOutgoing = true, status = "sending", timestamp = System.currentTimeMillis(),
+            name = "Me", senderName = "Me"
         )
 
         viewModelScope.launch {
             messageRepository.addMessage(jid, tempMessage)
-            
             whatsAppRepository.sendTextMessage(jid, text, tempMessage.id).onSuccess { response ->
                 val newId = response.messageId ?: tempMessage.id
                 messageRepository.updateMessage(jid, tempMessage.id, newId, "sent")
@@ -93,13 +108,12 @@ class ChatViewModel(
         val mime = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
         
         val tempMessage = Message(
-            id = "temp_${UUID.randomUUID()}",
-            jid = jid, text = null, isOutgoing = true, status = "sending",
-            localMediaPath = file.absolutePath, mediaSha256 = sha, mimetype = mime, name = "Me", senderName = "Me"
+            id = "temp_${UUID.randomUUID()}", jid = jid, text = null, isOutgoing = true,
+            status = "sending", localMediaPath = file.absolutePath, mediaSha256 = sha,
+            mimetype = mime, name = "Me", senderName = "Me"
         )
 
         messageRepository.addMessage(jid, tempMessage)
-
         whatsAppRepository.sendMediaMessage(jid, tempMessage.id, file, null).onSuccess { response ->
             val newId = response.messageId ?: tempMessage.id
             messageRepository.updateMessage(jid, tempMessage.id, newId, "sent")
@@ -109,8 +123,8 @@ class ChatViewModel(
         }
     }
 
-    fun sendReaction(msg: Message, emoji: String) = viewModelScope.launch {
-        whatsAppRepository.sendReaction(jid, msg.id, emoji).onFailure {
+    fun sendReaction(messageId: String, emoji: String) = viewModelScope.launch {
+        whatsAppRepository.sendReaction(jid, messageId, emoji).onFailure {
             _errors.emit("Reaction failed")
         }
     }
@@ -126,27 +140,41 @@ class ChatViewModel(
         
         val ext = MediaCache.fileExt(msg.mimetype)
         val cacheKey = msg.mediaSha256 ?: msg.id
-
         val file = withContext(Dispatchers.IO) {
              MediaCache.downloadAndCache(
-                context = getApplication(),
-                url = msg.mediaUrl!!,
-                cacheKey = cacheKey,
-                ext = ext
+                context = getApplication(), url = msg.mediaUrl!!,
+                cacheKey = cacheKey, ext = ext
             )
         }
-
         if (file != null) {
             messageRepository.updateMessageLocalPath(jid, msg.id, file.absolutePath)
         }
-
         return file
     }
 
     data class UiState(
         val loading: Boolean = false,
+        val loadingOlder: Boolean = false,
+        val messages: List<ChatListItem> = emptyList()
+    )
+
+    private data class InternalState(
+        val loading: Boolean = false,
         val loadingOlder: Boolean = false
     )
+
+    private fun shouldShowDivider(prev: Long, cur: Long): Boolean {
+        if (prev == 0L) return true
+        val gap = cur - prev
+        return gap > TimeUnit.MINUTES.toMillis(30) || isDiffDay(prev, cur)
+    }
+
+    private fun isDiffDay(t1: Long, t2: Long): Boolean {
+        val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
+        val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
+        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
+               c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
+    }
 }
 
 class ChatViewModelFactory(
@@ -162,4 +190,3 @@ class ChatViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

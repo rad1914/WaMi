@@ -1,22 +1,4 @@
-// build.gradle (Project level)
+// @path: build.gradle
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.3'
-        classpath "com.google.gms:google-services:4.4.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.21"
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
-}
+// Con la configuración moderna de Gradle, este archivo puede estar vacío.
+// Los plugins y sus versiones se gestionan en settings.gradle.

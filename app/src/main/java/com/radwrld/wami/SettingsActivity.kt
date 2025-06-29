@@ -4,25 +4,27 @@ package com.radwrld.wami
 import android.app.KeyguardManager
 import android.content.*
 import android.os.Bundle
-import android.view.View
-import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
-import com.radwrld.wami.databinding.ActivitySettingsBinding
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.storage.ServerConfigStorage
+import com.radwrld.wami.ui.screens.CustomIpDialog
+import com.radwrld.wami.ui.screens.SettingsScreen
+import com.radwrld.wami.ui.screens.ThemeDialog
+import com.radwrld.wami.ui.theme.WamiTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.system.exitProcess
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : ComponentActivity() {
 
-    private lateinit var binding: ActivitySettingsBinding
     private lateinit var prefs: SharedPreferences
     private lateinit var serverConfig: ServerConfigStorage
 
@@ -41,158 +43,87 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivitySettingsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         serverConfig = ServerConfigStorage(this)
 
-        setupTheme()
-        setupSession()
-        setupOptions()
-    }
+        setContent {
 
-    private fun setupTheme() {
-        updateThemeText()
-        binding.themeSettingRow.setOnClickListener {
-            val options = arrayOf("Light", "Dark", "System Default")
-            val values = arrayOf("light", "dark", "system")
-            val current = prefs.getString(THEME_KEY, "system")
-            val selected = values.indexOf(current).coerceAtLeast(0)
+            val theme by remember { mutableStateOf(prefs.getString(THEME_KEY, "system")!!) }
+            var isCustomIpEnabled by remember { mutableStateOf(prefs.getBoolean(ENABLE_CUSTOM_IP_KEY, false)) }
 
-            AlertDialog.Builder(this)
-                .setTitle("Choose Theme")
-                .setSingleChoiceItems(options, selected) { dialog, which ->
-                    prefs.edit().putString(THEME_KEY, values[which]).apply()
-                    AppCompatDelegate.setDefaultNightMode(
-                        when (values[which]) {
-                            "light" -> AppCompatDelegate.MODE_NIGHT_NO
-                            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
-                            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            var showThemeDialog by remember { mutableStateOf(false) }
+            var showIpDialog by remember { mutableStateOf(false) }
+
+            WamiTheme {
+                SettingsScreen(
+                    sessionId = serverConfig.getSessionId(),
+                    theme = when (theme) {
+                        "light" -> "Light"
+                        "dark" -> "Dark"
+                        else -> "System Default"
+                    },
+                    isCustomIpEnabled = isCustomIpEnabled,
+                    onCustomIpEnabledChange = {
+                        isCustomIpEnabled = it
+                        prefs.edit().putBoolean(ENABLE_CUSTOM_IP_KEY, it).apply()
+                    },
+                    onNavigateBack = { finish() },
+                    onSessionClick = { triggerAuth() },
+                    onLogoutClick = { confirm("Logout?", ::logout) },
+                    onThemeClick = { showThemeDialog = true },
+                    onSetCustomIpClick = { showIpDialog = true },
+                    onResetHiddenConversationsClick = { confirm("Reset hidden chats?", ::resetHiddenConversations) },
+                    onKillAppClick = { confirm("Force close app?", ::killApp) },
+                    onResetPrefsClick = { confirm("Reset all settings?", ::resetAppPreferences) }
+                )
+
+                if (showThemeDialog) {
+                    ThemeDialog(
+                        currentTheme = theme,
+                        onDismiss = { showThemeDialog = false },
+                        onThemeSelected = { newTheme ->
+                            prefs.edit().putString(THEME_KEY, newTheme).apply()
+                            AppCompatDelegate.setDefaultNightMode(
+                                when (newTheme) {
+                                    "light" -> AppCompatDelegate.MODE_NIGHT_NO
+                                    "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                                }
+                            )
+                            showThemeDialog = false
                         }
                     )
-                    updateThemeText()
-                    dialog.dismiss()
                 }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-    }
 
-    private fun updateThemeText() {
-        binding.themeValueText.text = when (prefs.getString(THEME_KEY, "system")) {
-            "light" -> "Light"
-            "dark" -> "Dark"
-            else -> "System Default"
-        }
-    }
-
-    private fun setupSession() {
-        val id = serverConfig.getSessionId()
-        if (id.isNullOrBlank()) {
-            binding.sessionIdLayout.visibility = View.GONE
-            return
-        }
-        binding.sessionIdLayout.visibility = View.VISIBLE
-        binding.sessionIdLayout.setOnClickListener {
-            val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-            val intent = km.createConfirmDeviceCredentialIntent("Authentication Required", "Unlock to continue")
-            if (km.isKeyguardSecure && intent != null) authLauncher.launch(intent)
-            else showAndCopySessionId()
-        }
-    }
-
-    private fun showAndCopySessionId() {
-        val id = serverConfig.getSessionId() ?: return
-        binding.sessionIdValueText.text = id
-        AlertDialog.Builder(this)
-            .setTitle("Session ID")
-            .setMessage("Use this Token Identifier to log in on multiple devices without scanning a QR code.\n\n$id")
-            .setPositiveButton("Copy") { d, _ ->
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Session ID", id))
-                toast("Copied to clipboard")
-                d.dismiss()
+                if (showIpDialog) {
+                    CustomIpDialog(
+                        currentIp = prefs.getString(CUSTOM_IP_KEY, "") ?: "",
+                        onDismiss = { showIpDialog = false },
+                        onConfirm = { newIp ->
+                            prefs.edit().putString(CUSTOM_IP_KEY, newIp.trim()).apply()
+                            showIpDialog = false
+                        }
+                    )
+                }
             }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
-    private fun setupOptions() {
-        binding.enableCustomIpSwitch.isChecked = prefs.getBoolean(ENABLE_CUSTOM_IP_KEY, false)
-        binding.setCustomIpText.visibility = if (binding.enableCustomIpSwitch.isChecked) View.VISIBLE else View.GONE
-
-        binding.enableCustomIpSwitch.setOnCheckedChangeListener { _, checked ->
-            prefs.edit().putBoolean(ENABLE_CUSTOM_IP_KEY, checked).apply()
-            binding.setCustomIpText.visibility = if (checked) View.VISIBLE else View.GONE
-        }
-
-        binding.setCustomIpText.setOnClickListener { showCustomIpDialog() }
-        binding.logoutText.setOnClickListener { confirm("Logout?", ::logout) }
-        binding.resetHiddenConversationsText.setOnClickListener { confirm("Reset hidden chats?", ::resetHiddenConversations) }
-        binding.resetAppPrefsText.setOnClickListener { confirm("Reset all settings?", ::resetAppPreferences) }
-        binding.killAppText.setOnClickListener { confirm("Force close app?", ::killApp) }
-    }
-
-    private fun showCustomIpDialog() {
-        val input = EditText(this).apply {
-            setText(prefs.getString(CUSTOM_IP_KEY, ""))
-            hint = "127.0.0.1:3007"
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Set Custom IP")
-            .setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                prefs.edit().putString(CUSTOM_IP_KEY, input.text.toString().trim()).apply()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun resetHiddenConversations() {
-        prefs.edit().remove(HIDDEN_CONVERSATIONS_KEY).apply()
-        toast("Hidden chats reset.")
-    }
-
-    private fun resetAppPreferences() {
-        prefs.edit().clear().apply()
-        getSharedPreferences(SERVER_CONFIG_PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
-        toast("App will now close.")
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) { Thread.sleep(1000) }
-            val intent = packageManager.getLaunchIntentForPackage(packageName)
-            startActivity(Intent.makeRestartActivityTask(intent!!.component))
-            exitProcess(0)
         }
     }
 
-    private fun killApp() {
-        finishAffinity()
-        exitProcess(0)
-    }
-
-    private fun logout() {
-        lifecycleScope.launch {
-            try { ApiClient.getInstance(this@SettingsActivity).logout() } catch (_: Exception) {}
-            ApiClient.close()
-            serverConfig.saveSessionId(null)
-            serverConfig.saveLoginState(false)
-            startActivity(Intent(this@SettingsActivity, LoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            })
-            finish()
+    private fun triggerAuth() {
+        val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val intent = km.createConfirmDeviceCredentialIntent("Authentication Required", "Unlock to continue")
+        if (km.isKeyguardSecure && intent != null) {
+            authLauncher.launch(intent)
+        } else {
+            showAndCopySessionId()
         }
     }
 
-    private fun confirm(msg: String, action: () -> Unit) {
-        AlertDialog.Builder(this)
-            .setMessage(msg)
-            .setPositiveButton("Yes") { _, _ -> action() }
-            .setNegativeButton("No", null)
-            .show()
-    }
-
-    private fun toast(msg: String) =
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun showAndCopySessionId() {  }
+    private fun resetHiddenConversations() {  }
+    private fun resetAppPreferences() {  }
+    private fun killApp() {  }
+    private fun logout() {  }
+    private fun confirm(msg: String, action: () -> Unit) {  }
+    private fun toast(msg: String) {  }
 }

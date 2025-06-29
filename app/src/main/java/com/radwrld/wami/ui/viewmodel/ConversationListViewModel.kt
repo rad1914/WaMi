@@ -13,7 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-data class ConversationListState(
+data class ConversationState(
     val conversations: List<Contact> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
@@ -39,12 +39,12 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
     private var searchJob: Job? = null
 
-    val conversationState: StateFlow<ConversationListState> = combine(
+    val conversationState: StateFlow<ConversationState> = combine(
         contactRepository.contactsFlow,
         _isLoading,
         _error
     ) { conversations, isLoading, error ->
-        ConversationListState(
+        ConversationState(
             conversations = conversations.sortedByDescending { it.lastMessageTimestamp },
             isLoading = isLoading,
             error = error
@@ -52,7 +52,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ConversationListState()
+        initialValue = ConversationState()
     )
 
     init {
@@ -89,7 +89,6 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
-    
     fun onSearchQueryChanged(query: String) {
         searchJob?.cancel()
         _searchState.value = _searchState.value.copy(query = query)

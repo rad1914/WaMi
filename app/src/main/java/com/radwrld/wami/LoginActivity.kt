@@ -1,26 +1,23 @@
 // @path: app/src/main/java/com/radwrld/wami/LoginActivity.kt
+
 package com.radwrld.wami
 
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.widget.EditText
-import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import com.radwrld.wami.databinding.ActivityLoginBinding
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.radwrld.wami.network.SyncService
 import com.radwrld.wami.storage.ServerConfigStorage
-import kotlinx.coroutines.launch
+import com.radwrld.wami.ui.screens.LoginScreen
+import com.radwrld.wami.ui.theme.WamiTheme
 
-class LoginActivity : AppCompatActivity() {
+class LoginActivity : ComponentActivity() {
 
-    private lateinit var bind: ActivityLoginBinding
     private val vm by viewModels<LoginViewModel> {
         LoginViewModelFactory(application, ServerConfigStorage(this), contentResolver)
     }
@@ -32,59 +29,20 @@ class LoginActivity : AppCompatActivity() {
             openMain(); return
         }
 
-        bind = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(bind.root)
+        setContent {
+            WamiTheme {
+                val uiState by vm.uiState.collectAsStateWithLifecycle()
 
-        bind.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
-        bind.offlineLoginButton.setOnClickListener { openMain() }
-        bind.multiUserLoginButton.setOnClickListener { showSessionInput() }
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
-                launch { vm.uiState.collect(::render) }
-                launch { vm.toastEvents.collect(::toast) }
+                LoginScreen(
+                    uiState = uiState,
+                    toastEvents = vm.toastEvents,
+                    onStart = { if (isOnline()) vm.start() else vm.notifyNoNet() },
+                    onSetSession = vm::setSessionAndRestart,
+                    onNavigateToSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                    onLoggedIn = ::openMain
+                )
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (isOnline()) vm.start() else vm.notifyNoNet()
-    }
-
-    private fun render(state: LoginUiState) = with(bind) {
-        progressBar.isVisible = state is LoginUiState.Loading
-        qrImage.isVisible = state is LoginUiState.ShowQr
-        offlineLoginButton.isVisible = state is LoginUiState.Error && state.msg.contains("Sin conexión")
-        multiUserLoginButton.isVisible = state !is LoginUiState.LoggedIn
-
-        statusText.text = when (state) {
-            is LoginUiState.Idle -> "WaMi"
-            is LoginUiState.Loading -> state.msg
-            is LoginUiState.ShowQr -> {
-                qrImage.setImageBitmap(state.bitmap)
-                state.msg
-            }
-            is LoginUiState.Error -> state.msg
-            is LoginUiState.LoggedIn -> {
-                openMain(); "¡Vamos!"
-            }
-        }
-    }
-
-    private fun showSessionInput() {
-        val input = EditText(this).apply { hint = "Ingresa ID de sesión" }
-        AlertDialog.Builder(this)
-            .setTitle("Inicio multi-usuario")
-            .setMessage("Ingresa un ID de sesión existente")
-            .setView(input)
-            .setPositiveButton("Conectar") { _, _ ->
-                val sessionId = input.text.toString()
-                if (sessionId.isNotBlank()) vm.setSessionAndRestart(sessionId)
-                else toast("El ID de sesión no puede estar vacío.")
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
     }
 
     private fun isOnline(): Boolean {
@@ -100,9 +58,5 @@ class LoginActivity : AppCompatActivity() {
         })
         startActivity(Intent(this, MainActivity::class.java))
         finish()
-    }
-
-    private fun toast(msg: String) {
-        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 }
