@@ -4,36 +4,55 @@ package com.radwrld.wami.storage
 import android.content.Context
 import com.google.gson.Gson
 import com.radwrld.wami.network.Contact
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 
 class ContactStorage(context: Context) {
-    private val prefs = context.getSharedPreferences("contacts_pref", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("wami_contacts_storage", Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    private fun loadList(): MutableList<Contact> = try {
-        gson.fromJson(prefs.getString("contacts", "[]"), Array<Contact>::class.java)
-            .toMutableList()
-    } catch (e: Exception) {
-        mutableListOf()
+    private val _contactsFlow = MutableStateFlow<List<Contact>>(emptyList())
+    val contactsFlow: StateFlow<List<Contact>> = _contactsFlow.asStateFlow()
+
+    init {
+        _contactsFlow.value = loadContactsFromPrefs()
     }
 
-    private fun saveList(list: List<Contact>) {
-        prefs.edit().putString("contacts", gson.toJson(list)).apply()
+    fun getContact(jid: String): Flow<Contact?> {
+        return contactsFlow.map { list -> list.find { it.id == jid } }
     }
 
-    fun getContacts(): List<Contact> = loadList()
-
-    fun saveContacts(list: List<Contact>) = saveList(list)
-
-    fun addContact(contact: Contact) {
-        val list = loadList()
-        if (list.none { it.id == contact.id }) {
-            list.add(0, contact)
-            saveList(list)
+    fun upsertContacts(newContacts: List<Contact>) {
+        val existingContacts = _contactsFlow.value.associateBy { it.id }.toMutableMap()
+        newContacts.forEach { newContact ->
+            existingContacts[newContact.id] = newContact
         }
+        saveContactsToPrefs(existingContacts.values.toList())
+    }
+
+    fun upsertContact(contact: Contact) {
+        upsertContacts(listOf(contact))
     }
 
     fun deleteContact(contact: Contact) {
-        val updated = loadList().filterNot { it.id == contact.id }
-        saveList(updated)
+        val updatedList = _contactsFlow.value.filterNot { it.id == contact.id }
+        saveContactsToPrefs(updatedList)
+    }
+
+    private fun saveContactsToPrefs(contacts: List<Contact>) {
+        val sortedList = contacts.sortedByDescending { it.lastMessageTimestamp ?: 0 }
+        prefs.edit().putString("contacts", gson.toJson(sortedList)).apply()
+        _contactsFlow.value = sortedList
+    }
+
+    private fun loadContactsFromPrefs(): List<Contact> = try {
+        prefs.getString("contacts", null)?.let { json ->
+            gson.fromJson(json, Array<Contact>::class.java).toList()
+        } ?: emptyList()
+    } catch (e: Exception) {
+        emptyList()
     }
 }

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/theme/Color.kt
 package com.radwrld.wami.ui.theme
 
 import androidx.compose.ui.graphics.Color

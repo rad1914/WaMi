@@ -5,9 +5,9 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.*
 import com.radwrld.wami.adapter.ChatListItem
-import com.radwrld.wami.data.MessageRepository
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.storage.MessageStorage
 import com.radwrld.wami.util.MediaCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -23,31 +23,25 @@ class ChatViewModel(
     private val contactName: String
 ) : AndroidViewModel(app) {
 
-    private val messageRepository = MessageRepository(getApplication())
+    private val messageStorage = MessageStorage(getApplication())
     private val whatsAppRepository = WhatsAppRepository(getApplication())
 
     private val _internalState = MutableStateFlow(InternalState())
     private val _errors = MutableSharedFlow<String>()
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    val uiState: StateFlow<UiState> = combine(
-        messageRepository.getMessages(jid),
-        _internalState
-    ) { messages, internalState ->
-        UiState(
-            loading = internalState.loading,
-            loadingOlder = internalState.loadingOlder,
-            messages = processMessagesIntoListItems(messages)
+    val uiState: StateFlow<UiState> = messageStorage.getMessagesFlow(jid)
+        .combine(_internalState) { messages, internalState ->
+            UiState(
+                loading = internalState.loading,
+                loadingOlder = internalState.loadingOlder,
+                messages = processMessagesIntoListItems(messages)
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = UiState()
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = UiState()
-    )
-
-    fun setLoading(isLoading: Boolean) {
-        _internalState.update { it.copy(loading = isLoading) }
-    }
 
     private fun processMessagesIntoListItems(messages: List<Message>): List<ChatListItem> {
         return buildList {
@@ -67,11 +61,9 @@ class ChatViewModel(
         if (_internalState.value.loadingOlder) return@launch
         _internalState.update { it.copy(loadingOlder = true) }
 
-        val oldestTimestamp = (uiState.value.messages.find { it is ChatListItem.MessageItem } as? ChatListItem.MessageItem)?.message?.timestamp
-
-        whatsAppRepository.getMessageHistory(jid, before = oldestTimestamp).onSuccess { olderMessages ->
+        whatsAppRepository.getMessageHistory(jid).onSuccess { olderMessages ->
             if (olderMessages.isNotEmpty()) {
-                messageRepository.appendMessages(jid, olderMessages)
+                messageStorage.appendMessages(jid, olderMessages)
             }
         }.onFailure {
             _errors.emit(it.message ?: "Failed to load older messages")
@@ -82,20 +74,14 @@ class ChatViewModel(
 
     fun sendText(text: String) {
         if (text.isBlank()) return
-        
-        val tempMessage = Message(
-            id = "temp_${UUID.randomUUID()}", jid = jid, text = text,
-            isOutgoing = true, status = "sending", timestamp = System.currentTimeMillis(),
-            name = "Me", senderName = "Me"
-        )
-
+        val tempMessage = Message(id = "temp_${UUID.randomUUID()}", jid = jid, text = text, isOutgoing = true, status = "sending")
         viewModelScope.launch {
-            messageRepository.addMessage(jid, tempMessage)
+            messageStorage.addMessage(jid, tempMessage)
             whatsAppRepository.sendTextMessage(jid, text, tempMessage.id).onSuccess { response ->
                 val newId = response.messageId ?: tempMessage.id
-                messageRepository.updateMessage(jid, tempMessage.id, newId, "sent")
+                messageStorage.updateMessage(jid, tempMessage.id, newId, "sent")
             }.onFailure {
-                messageRepository.updateMessageStatus(jid, tempMessage.id, "failed")
+                messageStorage.updateMessageStatus(jid, tempMessage.id, "failed")
                 _errors.emit("Send failed: ${it.message}")
             }
         }
@@ -113,12 +99,12 @@ class ChatViewModel(
             mimetype = mime, name = "Me", senderName = "Me"
         )
 
-        messageRepository.addMessage(jid, tempMessage)
+        messageStorage.addMessage(jid, tempMessage)
         whatsAppRepository.sendMediaMessage(jid, tempMessage.id, file, null).onSuccess { response ->
             val newId = response.messageId ?: tempMessage.id
-            messageRepository.updateMessage(jid, tempMessage.id, newId, "sent")
+            messageStorage.updateMessage(jid, tempMessage.id, newId, "sent")
         }.onFailure {
-            messageRepository.updateMessageStatus(jid, tempMessage.id, "failed")
+            messageStorage.updateMessageStatus(jid, tempMessage.id, "failed")
             _errors.emit("Upload failed: ${it.message}")
         }
     }
@@ -147,7 +133,7 @@ class ChatViewModel(
             )
         }
         if (file != null) {
-            messageRepository.updateMessageLocalPath(jid, msg.id, file.absolutePath)
+            messageStorage.updateMessageLocalPath(jid, msg.id, file.absolutePath)
         }
         return file
     }
@@ -172,8 +158,7 @@ class ChatViewModel(
     private fun isDiffDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
-        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
-               c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
+        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) || c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }
 

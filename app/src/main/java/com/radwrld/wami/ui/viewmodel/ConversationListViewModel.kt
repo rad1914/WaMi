@@ -4,112 +4,90 @@ package com.radwrld.wami.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.radwrld.wami.data.ContactRepository
 import com.radwrld.wami.network.Contact
-import com.radwrld.wami.repository.SearchRepository
-import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.network.Message
+import com.radwrld.wami.storage.ContactStorage
+import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-// ==================================================================
-// ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE!
-// Estas clases de datos DEBEN estar fuera de la clase principal.
-// Así, otros archivos pueden importarlas y usarlas.
-// ==================================================================
+// --- Data Classes ---
+
+data class ConversationUiItem(
+    val contact: Contact,
+    val lastMessage: Message?
+)
+
 data class ConversationListState(
-    val conversations: List<Contact> = emptyList(),
+    val conversations: List<ConversationUiItem> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
 
+// Se define la clase SearchState que faltaba
 data class SearchState(
     val query: String = "",
-    // OJO: La clase `SearchResultItem` no estaba en los archivos originales.
-    // La cambio por `Contact` para que compile. Si tienes una clase
-    // `SearchResultItem`, úsala aquí en lugar de `Contact`.
     val results: List<Contact> = emptyList(),
-    val isSearching: Boolean = false
+    val isLoading: Boolean = false
 )
 
 
 class ConversationListViewModel(application: Application) : AndroidViewModel(application) {
+    // CORRECCIÓN: Se usan las dependencias de Storage en lugar de los Repositories
+    private val contactStorage = ContactStorage(application)
+    private val messageStorage = MessageStorage(application)
 
-    private val whatsAppRepository = WhatsAppRepository(application)
-    private val contactRepository = ContactRepository(application)
-    private val searchRepository = SearchRepository(application)
-
-    private val _isLoading = MutableStateFlow(false)
-    private val _error = MutableStateFlow<String?>(null)
-
-    private val _searchState = MutableStateFlow(SearchState())
-    val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
     private var searchJob: Job? = null
-
+    
+    // CORRECCIÓN: Se construye el estado combinando los flows de Storage
     val conversationState: StateFlow<ConversationListState> = combine(
-        contactRepository.contactsFlow,
-        _isLoading,
-        _error
-    ) { conversations, isLoading, error ->
-        ConversationListState(
-            conversations = conversations.sortedByDescending { it.lastMessageTimestamp },
-            isLoading = isLoading,
-            error = error
-        )
+        contactStorage.contactsFlow,
+        messageStorage.lastMessagesMapFlow
+    ) { contacts, lastMessagesMap ->
+        val uiItems = contacts
+            .map { contact -> ConversationUiItem(contact, lastMessagesMap[contact.id]) }
+            .sortedByDescending { it.lastMessage?.timestamp ?: it.contact.lastMessageTimestamp ?: 0 }
+        
+        ConversationListState(uiItems, isLoading = false)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ConversationListState()
+        initialValue = ConversationListState(isLoading = true)
     )
 
-    init {
-        load()
-    }
+    private val _searchState = MutableStateFlow(SearchState())
+    val searchState = _searchState.asStateFlow()
 
-    fun load() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            whatsAppRepository.refreshAndGetConversations()
-                .onSuccess { conversationsFromServer ->
-                    val existingConversations = conversationState.value.conversations
-                    val combinedMap = existingConversations.associateBy { it.id }.toMutableMap()
-                    conversationsFromServer.forEach { serverContact ->
-                        combinedMap[serverContact.id] = serverContact
-                    }
-                    contactRepository.saveContacts(combinedMap.values.toList())
-                }
-                .onFailure { error ->
-                    _error.value = error.message
-                }
-            _isLoading.value = false
-        }
-    }
+    // CORRECCIÓN: Se elimina el bloque `init` y la función `syncData()`.
+    // El SyncWorker se encarga de la sincronización en segundo plano de forma automática.
 
-    fun hide(jid: String) {
-        viewModelScope.launch {
-            val contactToHide = conversationState.value.conversations.find { it.id == jid }
-            if (contactToHide != null) {
-                contactRepository.deleteContact(contactToHide)
-            }
-        }
+    fun hide(contact: Contact) = viewModelScope.launch {
+        // CORRECCIÓN: La lógica ahora usa ContactStorage directamente
+        contactStorage.deleteContact(contact)
     }
-
 
     fun onSearchQueryChanged(query: String) {
+        _searchState.update { it.copy(query = query) }
         searchJob?.cancel()
-        _searchState.value = _searchState.value.copy(query = query)
 
         if (query.isBlank()) {
-            _searchState.value = SearchState()
+            _searchState.update { it.copy(results = emptyList(), isLoading = false) }
             return
         }
 
+        _searchState.update { it.copy(isLoading = true) }
         searchJob = viewModelScope.launch {
-            delay(300L)
-            _searchState.value = _searchState.value.copy(isSearching = true)
-            // Lógica de búsqueda...
+            delay(300) // Debounce
+
+            // CORRECCIÓN: La búsqueda se hace sobre los datos locales del Storage
+            val allContacts = contactStorage.contactsFlow.first()
+            val results = allContacts.filter { 
+                it.name.contains(query, ignoreCase = true) ||
+                it.phoneNumber?.contains(query) == true
+            }
+            _searchState.update { it.copy(isLoading = false, results = results) }
         }
     }
 }

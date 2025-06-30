@@ -1,8 +1,6 @@
 // @path: app/src/main/java/com/radwrld/wami/AboutActivity.kt
-
 package com.radwrld.wami
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -11,21 +9,19 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.collectLatest
-import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.ui.screens.AboutScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.AboutViewModel
+import com.radwrld.wami.ui.viewmodel.AboutViewModelFactory // Importa la Factory
+import kotlinx.coroutines.flow.collectLatest
+import android.content.Intent
 
 class AboutActivity : ComponentActivity() {
 
     private val jid by lazy { intent.getStringExtra(EXTRA_JID).orEmpty() }
 
     private val viewModel: AboutViewModel by viewModels {
-        AboutViewModel.provideFactory(
-            jid = jid,
-            repository = WhatsAppRepository(this)
-        )
+        AboutViewModelFactory(application, jid)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

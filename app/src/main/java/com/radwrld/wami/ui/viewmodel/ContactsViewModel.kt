@@ -4,11 +4,9 @@ package com.radwrld.wami.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.radwrld.wami.data.ContactRepository
 import com.radwrld.wami.network.Contact
-import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.storage.ContactStorage
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 
 data class ContactsUiState(
     val contacts: List<Contact> = emptyList(),
@@ -16,53 +14,21 @@ data class ContactsUiState(
     val error: String? = null
 )
 
+// CORRECCIÓN: Se refactoriza para usar ContactStorage y eliminar la lógica de sincronización.
 class ContactsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val contactRepository = ContactRepository(application)
-    private val whatsAppRepository = WhatsAppRepository(application)
-
-    private val _isLoading = MutableStateFlow(false)
-    private val _error = MutableStateFlow<String?>(null)
+    private val contactStorage = ContactStorage(application)
     
-    val uiState: StateFlow<ContactsUiState> = combine(
-        contactRepository.contactsFlow,
-        _isLoading,
-        _error
-    ) { contacts, isLoading, error ->
-
-        val (groups, individuals) = contacts.partition { it.isGroup }
-        val sortedList = individuals.sortedBy { it.name.lowercase() } + groups.sortedBy { it.name.lowercase() }
-        ContactsUiState(
-            contacts = sortedList,
-            isLoading = isLoading,
-            error = error
+    val uiState: StateFlow<ContactsUiState> = contactStorage.contactsFlow
+        .map { contacts ->
+            val (groups, individuals) = contacts.partition { it.isGroup }
+            val sortedList = individuals.sortedBy { it.name.lowercase() } + groups.sortedBy { it.name.lowercase() }
+            ContactsUiState(contacts = sortedList)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ContactsUiState(isLoading = true)
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ContactsUiState()
-    )
 
-    fun syncContacts() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            whatsAppRepository.refreshAndGetConversations()
-                .onSuccess { conversationsFromServer ->
-
-                    val existingContacts = uiState.value.contacts
-
-                    val combinedMap = existingContacts.associateBy { it.id }.toMutableMap()
-                    conversationsFromServer.forEach { serverContact ->
-                        combinedMap[serverContact.id] = serverContact
-                    }
-
-                    contactRepository.saveContacts(combinedMap.values.toList())
-                }
-                .onFailure { error ->
-                    _error.value = error.message
-                }
-            _isLoading.value = false
-        }
-    }
+    // La función syncContacts() se ha eliminado. El SyncWorker centraliza esta lógica.
 }

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -8,8 +9,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.radwrld.wami.network.Contact
-import com.radwrld.wami.ui.screens.MainScreen // Importa la pantalla desde el otro archivo
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.radwrld.wami.sync.SyncWorker
+import com.radwrld.wami.ui.screens.MainScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.ConversationListViewModel
 
@@ -23,30 +26,42 @@ class MainActivity : ComponentActivity() {
                 val conversationState by viewModel.conversationState.collectAsStateWithLifecycle()
                 val searchState by viewModel.searchState.collectAsStateWithLifecycle()
 
-                // La Activity solo llama a la pantalla. Punto.
                 MainScreen(
                     conversationState = conversationState,
                     searchState = searchState,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
-                    onRefresh = viewModel::load,
-                    onHideConversation = { jid ->
-                        viewModel.hide(jid)
-                        Toast.makeText(this, "Hidden", Toast.LENGTH_SHORT).show()
+                    onRefresh = { triggerSync() },
+                    // CORRECCIÓN FINAL Y DEFINITIVA:
+                    onHideConversation = { jid -> // Se asume que la UI pasa el jid (String).
+                        // Se busca el objeto Contacto completo en la lista actual del estado.
+                        val contactToHide = conversationState.conversations.find { it.contact.id == jid }?.contact
+                        
+                        // Si se encuentra, se pasa a la función `hide` del ViewModel.
+                        if (contactToHide != null) {
+                            viewModel.hide(contactToHide)
+                            Toast.makeText(this, "Hidden", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onOpenChat = { contact ->
                          startActivity(
                             Intent(this, ChatActivity::class.java).apply {
-                                putExtra("EXTRA_JID", contact.id)
+                                  putExtra("EXTRA_JID", contact.id)
                                 putExtra("EXTRA_NAME", contact.name)
                                 putExtra("EXTRA_AVATAR_URL", contact.avatarUrl)
-                            }
+                              }
                         )
                     },
                      onNavigateToContacts = {
-                        startActivity(Intent(this, ContactsActivity::class.java))
+                         startActivity(Intent(this, ContactsActivity::class.java))
                     }
                 )
             }
         }
+    }
+    
+    private fun triggerSync() {
+        Toast.makeText(this, "Sincronizando...", Toast.LENGTH_SHORT).show()
+        val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
+        WorkManager.getInstance(this).enqueue(workRequest)
     }
 }

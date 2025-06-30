@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/SharedMediaActivity.kt
-
 package com.radwrld.wami
 
 import android.content.Intent
@@ -13,30 +12,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.radwrld.wami.ui.screens.SharedMediaScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.SharedMediaViewModel
+import com.radwrld.wami.ui.viewmodel.SharedMediaViewModelFactory
 
 class SharedMediaActivity : ComponentActivity() {
-
-    private val viewModel: SharedMediaViewModel by viewModels()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val jid = intent.getStringExtra("EXTRA_JID")
-        if (jid == null) {
+        if (jid.isNullOrBlank()) { // Se mejora la comprobación
             finish()
             return
         }
+
+        val viewModel: SharedMediaViewModel by viewModels {
+            SharedMediaViewModelFactory(application, jid)
+        }
         
-        viewModel.loadMedia(jid)
+        // La llamada a `loadMedia` ya no es necesaria aquí, el `init` del ViewModel lo hace.
 
         setContent {
             WamiTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
                 SharedMediaScreen(
                     uiState = uiState,
                     onMediaClick = { mediaItem ->
-
                         val intent = Intent(this, MediaViewActivity::class.java).apply {
                             data = Uri.parse(mediaItem.uri)
                             type = mediaItem.type

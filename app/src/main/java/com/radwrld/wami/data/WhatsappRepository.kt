@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
-// @path: app/src/main/java/com/radwrld/wami/data/WhatsAppRepository.kt
 package com.radwrld.wami.repository
 
 import android.content.Context
@@ -14,8 +13,6 @@ import com.radwrld.wami.network.SendMessageRequest
 import com.radwrld.wami.network.SendReactionRequest
 import com.radwrld.wami.network.StatusItem
 import com.radwrld.wami.network.toDomain
-import com.radwrld.wami.storage.ConversationStorage
-import com.radwrld.wami.storage.MessageStorage
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.delay
@@ -24,43 +21,38 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
+// CORRECCIÓN: Esta clase ahora solo se enfoca en la API, sin dependencias a Storage.
 class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
-    private val conversationStorage = ConversationStorage(context)
-    private val messageStorage = MessageStorage(context)
     private val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
 
     fun getBaseUrl() = serverUrl
 
-    suspend fun refreshAndGetConversations() = runCatching {
+    // CORRECCIÓN: Este método ahora solo busca y mapea los datos, no los guarda.
+    // Quien lo llame (SyncWorker) será responsable de guardar el resultado.
+    suspend fun fetchConversations(): Result<List<Contact>> = runCatching {
         api.getConversations().map {
             val isGroup = it.jid.endsWith("@g.us")
             Contact(
                 id = it.jid,
                 name = it.name ?: "Unknown",
                 phoneNumber = if (isGroup) null else it.jid.substringBefore('@'),
-                lastMessage = it.lastMessage,
                 lastMessageTimestamp = it.lastMessageTimestamp,
                 unreadCount = it.unreadCount ?: 0,
                 avatarUrl = "$serverUrl/avatar/${it.jid}",
                 isGroup = isGroup
             )
-        }.also {
-            conversationStorage.mergeConversations(it)
         }
     }
 
-    fun getCachedConversations() = conversationStorage.getConversations()
-
-    suspend fun getMessageHistory(jid: String, before: Long? = null) = runCatching {
+    // CORRECCIÓN: Este método solo busca y mapea. No guarda.
+    suspend fun getMessageHistory(jid: String): Result<List<Message>> = runCatching {
         api.getHistory(jid).map { historyItem ->
             historyItem.toDomain().run {
                 copy(mediaUrl = mediaUrl?.let { path ->
                     if (path.startsWith("http")) path else "$serverUrl$path"
                 })
-            }
-        }.also { messages ->
-            messageStorage.appendMessages(jid, messages)
+             }
         }
     }
 
@@ -70,21 +62,21 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
-        val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
+         val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
         val part = MultipartBody.Part.createFormData(
             "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
-        )
+         )
         api.sendMedia(
             jid.toRequestBody("text/plain".toMediaTypeOrNull()),
             caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
             tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
-            part
+             part
         ).takeIf { it.success } ?: error("Send failed")
     }
 
     suspend fun sendReaction(jid: String, messageId: String, emoji: String) =
         runCatching {
-            api.sendReaction(SendReactionRequest(jid, messageId, emoji))
+             api.sendReaction(SendReactionRequest(jid, messageId, emoji))
         }
 
     suspend fun blockContact(jid: String) = runCatching {
@@ -92,7 +84,7 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun unblockContact(jid: String) = runCatching {
-        api.unblockContact(BlockRequest(jid))
+         api.unblockContact(BlockRequest(jid))
     }
 
     suspend fun reportContact(jid: String) = runCatching {
@@ -100,20 +92,21 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun getGroupInfo(jid: String): Result<GroupInfo> = runCatching {
-        api.getGroupInfo(jid)
+         api.getGroupInfo(jid)
     }
 
-    suspend fun getCommonGroups(contactJid: String): Result<List<Contact>> = runCatching {
-        val allConversations = getCachedConversations()
-        val userGroups = allConversations.filter { it.isGroup }
+    // CORRECCIÓN: Esta lógica debería estar en un ViewModel, pero por ahora la arreglamos
+    // para que no dependa de `contactStorage`.
+    suspend fun getCommonGroups(contactJid: String, allLocalContacts: List<Contact>): Result<List<Contact>> = runCatching {
+        val userGroups = allLocalContacts.filter { it.isGroup }
         val commonGroups = mutableListOf<Contact>()
 
-        for (groupContact in userGroups) {
+         for (groupContact in userGroups) {
             try {
                 val groupInfo = getGroupInfo(groupContact.id).getOrThrow()
                 if (groupInfo.participants.any { it.id == contactJid }) {
                     commonGroups.add(groupContact)
-                }
+                 }
             } catch (e: Exception) {
                 Log.w("WhatsAppRepository", "Falló al obtener información para el grupo ${groupContact.id}", e)
             }
@@ -122,14 +115,14 @@ class WhatsAppRepository(private val context: Context) {
         commonGroups
     }
 
-    suspend fun getStatuses(): Result<List<StatusItem>> = runCatching {
-        val contacts = conversationStorage.getConversations().associateBy { it.id }
+    suspend fun getStatuses(allLocalContacts: List<Contact>): Result<List<StatusItem>> = runCatching {
+         val contactsMap = allLocalContacts.associateBy { it.id }
         api.getStatuses().map { status ->
             status.copy(
                 avatarUrl = "$serverUrl/avatar/${status.jid}",
-                senderName = contacts[status.jid]?.name ?: status.jid.substringBefore('@'),
+                senderName = contactsMap[status.jid]?.name ?: status.jid.substringBefore('@'),
                 mediaUrl = status.mediaUrl?.let { if (it.startsWith("http")) it else "$serverUrl$it" }
-            )
+             )
         }
     }
 

@@ -1,4 +1,5 @@
-// @path: <project-root>/app/build.gradle
+// @path: app/build.gradle
+
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -36,8 +37,6 @@ android {
 
     kotlinOptions {
         jvmTarget = '17'
-        // FIX: Changed listOf(...) to [...] for Groovy syntax
-        freeCompilerArgs += ['-Xcontext-receivers', '-Xjvm-default=all']
     }
 
     buildFeatures {
@@ -46,6 +45,8 @@ android {
         dataBinding false
     }
 
+    // SOLUCIÓN (PARTE 1): Se restaura este bloque para alinear la versión del
+    // compilador de Compose con tu versión de Kotlin (1.9.22).
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.10'
     }
@@ -78,7 +79,7 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material'
     implementation 'androidx.compose.material:material-icons-extended'
-    
+
     // Accompanist for Swipe-to-Refresh
     implementation "com.google.accompanist:accompanist-swiperefresh:0.34.0"
 
@@ -101,8 +102,13 @@ dependencies {
     // Image Loading
     implementation 'io.coil-kt:coil-compose:2.6.0'
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-    kapt 'com.github.bumptech.glide:compiler:4.16.0'
+    // SOLUCIÓN (PARTE 2): Mantenemos comentado el procesador de Glide,
+    // que era la causa del error original.
+    // kapt 'com.github.bumptech.glide:compiler:4.16.0'
     implementation 'com.github.bumptech.glide:okhttp3-integration:4.16.0'
+
+    // WorkManager (necesario para CoroutineWorker)
+    implementation 'androidx.work:work-runtime-ktx:2.8.1'
 
     // PhotoView
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'

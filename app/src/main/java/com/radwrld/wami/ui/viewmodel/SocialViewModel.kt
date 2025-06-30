@@ -1,38 +1,46 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/SocialViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.network.StatusItem
+import com.radwrld.wami.network.SyncManager
 import com.radwrld.wami.repository.WhatsAppRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import com.radwrld.wami.storage.ContactStorage
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class SocialViewModel(
-    private val repository: WhatsAppRepository
-) : ViewModel() {
+data class SocialUiState(
+    val statuses: List<StatusItem> = emptyList(),
+    val isLoading: Boolean = false
+)
 
-    private val _statuses = MutableStateFlow<List<StatusItem>>(emptyList())
-    val statuses = _statuses.asStateFlow()
+class SocialViewModel(application: Application) : AndroidViewModel(application) {
+    private val whatsAppRepository = WhatsAppRepository(application)
+    private val contactStorage = ContactStorage(application)
+    private val _uiState = MutableStateFlow(SocialUiState(isLoading = true))
+    val uiState = _uiState.asStateFlow()
+
+    init {
+        fetchStatuses()
+        viewModelScope.launch {
+            SyncManager.newStatusEvent.collect { newStatuses ->
+                _uiState.update { currentState ->
+                    val combined = (newStatuses + currentState.statuses).distinctBy { it.id }
+                    currentState.copy(statuses = combined)
+                }
+            }
+        }
+    }
 
     fun fetchStatuses() {
         viewModelScope.launch {
-
+            _uiState.update { it.copy(isLoading = true) }
+            val contacts = contactStorage.contactsFlow.first()
+            whatsAppRepository.getStatuses(contacts)
+                .onSuccess { statuses -> _uiState.update { it.copy(statuses = statuses, isLoading = false) } }
+                .onFailure { _uiState.update { it.copy(isLoading = false) } }
         }
-    }
-}
-
-class SocialViewModelFactory(
-    private val repository: WhatsAppRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SocialViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return SocialViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

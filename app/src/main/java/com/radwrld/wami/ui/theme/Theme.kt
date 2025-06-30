@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/theme/Theme.kt
 package com.radwrld.wami.ui.theme
 
 import android.os.Build
@@ -6,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-// Paletas de colores base. Puedes personalizarlas si el color dinámico no está disponible.
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
@@ -22,7 +22,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun WamiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Habilitar el color dinámico en Android 12+
+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

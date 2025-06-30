@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screens/MainScreen.kt
 package com.radwrld.wami.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -30,6 +31,7 @@ import com.radwrld.wami.R
 import com.radwrld.wami.network.Contact
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.viewmodel.ConversationListState
+import com.radwrld.wami.ui.viewmodel.ConversationUiItem
 import com.radwrld.wami.ui.viewmodel.SearchState
 import com.radwrld.wami.ui.viewmodel.SearchResultItem
 import java.text.SimpleDateFormat
@@ -48,11 +50,11 @@ fun MainScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+             TopAppBar(
                 title = { Text("Messages") },
-                actions = { IconButton(onClick = { /* TODO */ }) {
+                actions = { IconButton(onClick = {  }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
+                      }
                 }
             )
         },
@@ -61,46 +63,44 @@ fun MainScreen(
         SwipeRefresh(
             state = rememberSwipeRefreshState(isRefreshing = conversationState.isLoading),
             onRefresh = onRefresh,
-            modifier = Modifier.padding(paddingValues)
+             modifier = Modifier.padding(paddingValues)
         ) {
-            // =================================================================
-            // NUEVA ESTRATEGIA: UNA SOLA LÓGICA PARA LA LISTA
-            // =================================================================
+
             val itemsToShow: List<Any> = if (searchState.query.isBlank()) {
                 conversationState.conversations
             } else {
                 searchState.results
             }
 
-            LazyColumn(
+             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(
                     items = itemsToShow,
-                    key = { item ->
+                     key = { item ->
                         when (item) {
-                            is Contact -> "contact-${item.id}"
+                            is ConversationUiItem -> "conversation-${item.contact.id}"
                             is SearchResultItem.ContactItem -> "search-contact-${item.contact.id}"
                             is SearchResultItem.MessageItem -> "search-message-${item.message.id}"
                             else -> UUID.randomUUID().toString()
                         }
-                    }
+                     }
                 ) { item ->
-                    // Un solo 'when' para decidir qué dibujar, a prueba de errores.
+
                     when (item) {
-                        is Contact -> {
-                            ConversationItem(
-                                contact = item,
-                                onClick = { onOpenChat(item) },
-                                onLongClick = { onHideConversation(item.id) }
+                        is ConversationUiItem -> {
+                             ConversationItem(
+                                item = item,
+                                onClick = { onOpenChat(item.contact) },
+                                onLongClick = { onHideConversation(item.contact.id) }
                             )
                         }
                         is SearchResultItem.ContactItem -> {
-                            SearchResultContact(contact = item.contact)
+                             SearchResultContact(contact = item.contact)
                         }
                         is SearchResultItem.MessageItem -> {
-                            SearchResultMessage(message = item.message, contact = item.contact)
+                             SearchResultMessage(message = item.message, contact = item.contact)
                         }
                     }
                 }
@@ -109,13 +109,9 @@ fun MainScreen(
     }
 }
 
-// ==========================================================
-// COMPONENTES DE UI (Estos ya están bien)
-// ==========================================================
-
 @Composable
 private fun AppBottomNavigation(onNavigateToContacts: () -> Unit) {
-    var selectedItem by remember { mutableStateOf(0) }
+     var selectedItem by remember { mutableStateOf(0) }
     val items = listOf("Messages", "Social", "Contacts")
     val icons = listOf(Icons.Filled.Message, Icons.Filled.Group, Icons.Filled.People)
 
@@ -124,12 +120,12 @@ private fun AppBottomNavigation(onNavigateToContacts: () -> Unit) {
             NavigationBarItem(
                 icon = { Icon(icons[index], contentDescription = item) },
                 label = { Text(item) },
-                selected = selectedItem == index,
+                 selected = selectedItem == index,
                 onClick = {
                     selectedItem = index
                     if (item == "Contacts") onNavigateToContacts()
                 }
-            )
+             )
         }
     }
 }
@@ -137,7 +133,7 @@ private fun AppBottomNavigation(onNavigateToContacts: () -> Unit) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationItem(
-    contact: Contact,
+    item: ConversationUiItem,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -148,27 +144,32 @@ private fun ConversationItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val placeholder = if (contact.isGroup) painterResource(id = R.drawable.ic_group_placeholder)
+        val placeholder = if (item.contact.isGroup) painterResource(id = R.drawable.ic_group_placeholder)
                           else painterResource(id = R.drawable.ic_profile_placeholder)
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(contact.avatarUrl).crossfade(true).build(),
+            model = ImageRequest.Builder(LocalContext.current).data(item.contact.avatarUrl).crossfade(true).build(),
             placeholder = placeholder,
-            error = placeholder,
-            contentDescription = "${contact.name} avatar",
+             error = placeholder,
+            contentDescription = "${item.contact.name} avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(56.dp).clip(CircleShape)
         )
         Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
-            Text(text = contact.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(text = contact.lastMessage ?: "Tap to start chatting", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = item.contact.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = item.lastMessage?.text ?: "Tap to start chatting",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         Column(horizontalAlignment = Alignment.End) {
-            contact.lastMessageTimestamp?.let {
+            item.contact.lastMessageTimestamp?.let {
                 val formattedTime = remember(it) { formatTimestamp(it) }
                 Text(text = formattedTime, style = MaterialTheme.typography.bodySmall)
             }
-            if (contact.unreadCount > 0) {
-                Badge { Text(contact.unreadCount.toString()) }
+            if (item.contact.unreadCount > 0) {
+                Badge { Text(item.contact.unreadCount.toString()) }
             }
         }
     }
@@ -193,7 +194,7 @@ private fun SearchResultMessage(message: Message, contact: Contact) {
 private fun formatTimestamp(ts: Long): String {
     val msgCal = Calendar.getInstance().apply { timeInMillis = ts }
     val now = Calendar.getInstance()
-    return when {
+     return when {
         now.get(Calendar.DATE) == msgCal.get(Calendar.DATE) ->
             SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(ts))
         now.get(Calendar.DATE) - msgCal.get(Calendar.DATE) == 1 -> "Ayer"

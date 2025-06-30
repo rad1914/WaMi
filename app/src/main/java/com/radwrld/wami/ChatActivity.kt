@@ -185,7 +185,7 @@ private fun ChatScreen(
         topBar = {
             ChatTopBar(
                 contactName = contactName,
-                lastSeen = null, // Add logic if available
+                lastSeen = null,
                 onContactClick = onContactClick,
                 onBackClick = onBackClick
             )
@@ -373,7 +373,6 @@ private fun MessageList(
     }
 }
 
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
@@ -455,7 +454,6 @@ private fun MessageBubble(
         }
     }
 }
-
 
 @Composable
 private fun MessageContent(message: Message, onMediaClick: (Message) -> Unit) {
@@ -699,7 +697,6 @@ private fun FormattedText(text: String, modifier: Modifier = Modifier) {
     }
     Text(text = styledText, modifier = modifier)
 }
-
 
 @Preview(showBackground = true)
 @Composable
