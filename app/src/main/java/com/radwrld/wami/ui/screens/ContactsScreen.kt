@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screens/ContactsScreen.kt
 package com.radwrld.wami.ui.screens
 
 import androidx.compose.foundation.clickable

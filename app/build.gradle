@@ -1,3 +1,4 @@
+// @path: <project-root>/app/build.gradle
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -29,16 +30,20 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
+        // FIX: Changed listOf(...) to [...] for Groovy syntax
+        freeCompilerArgs += ['-Xcontext-receivers', '-Xjvm-default=all']
     }
 
     buildFeatures {
         compose true
+        viewBinding false
+        dataBinding false
     }
 
     composeOptions {
@@ -58,8 +63,8 @@ dependencies {
 
     // Lifecycle & Compose integration
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.3'
-    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.0'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3'
 
     // Activity & ViewModel delegates
     implementation 'androidx.activity:activity-compose:1.9.0'
@@ -73,6 +78,9 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material'
     implementation 'androidx.compose.material:material-icons-extended'
+    
+    // Accompanist for Swipe-to-Refresh
+    implementation "com.google.accompanist:accompanist-swiperefresh:0.34.0"
 
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
@@ -96,7 +104,7 @@ dependencies {
     kapt 'com.github.bumptech.glide:compiler:4.16.0'
     implementation 'com.github.bumptech.glide:okhttp3-integration:4.16.0'
 
-    // ✅ Reemplazo corregido de PhotoView
+    // PhotoView
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
 
     // Firebase
@@ -106,13 +114,14 @@ dependencies {
 
     // WebSockets
     implementation('io.socket:socket.io-client:2.1.0') {
-        exclude group: 'org.json', module: 'json'
+        exclude module: 'json'
     }
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    androidTestImplementation platform('androidx.compose:compose-bom:2024.06.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
 }
 

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screens/MainScreen.kt
 package com.radwrld.wami.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
