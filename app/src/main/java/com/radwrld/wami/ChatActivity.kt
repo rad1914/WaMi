@@ -21,21 +21,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -63,7 +61,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class ChatActivity : AppCompatActivity() {
 
@@ -87,14 +84,11 @@ class ChatActivity : AppCompatActivity() {
 
         setContent {
             WamiTheme {
-                // CAMBIO: Usamos viewModel.uiState en lugar de viewModel.state
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                // CAMBIO: Los mensajes ahora vienen dentro del uiState
 
                 ChatScreen(
                     contactName = name,
                     isGroup = isGroup,
-                    // CAMBIO: Pasamos la lista de items del uiState
                     listItems = uiState.messages,
                     uiState = uiState,
                     onSendMessage = viewModel::sendText,
@@ -170,7 +164,6 @@ class ChatActivity : AppCompatActivity() {
 private fun ChatScreen(
     contactName: String,
     isGroup: Boolean,
-    // CAMBIO: El parámetro ahora es una lista de ChatListItem
     listItems: List<ChatListItem>,
     uiState: ChatViewModel.UiState,
     onSendMessage: (String) -> Unit,
@@ -218,7 +211,6 @@ private fun ChatScreen(
                     onRefresh = onLoadOlderMessages,
                 ) {
                     MessageList(
-                        // CAMBIO: Pasamos la nueva lista
                         listItems = listItems,
                         isGroup = isGroup,
                         onMediaClick = onMediaClick,
@@ -335,8 +327,6 @@ private fun MessageInput(
     }
 }
 
-
-// CAMBIO GRANDE: MessageList ahora procesa ChatListItem en lugar de Message
 @Composable
 private fun MessageList(
     listItems: List<ChatListItem>,
@@ -347,7 +337,6 @@ private fun MessageList(
 ) {
     val listState = rememberLazyListState()
 
-    // Efecto para hacer scroll al último mensaje
     LaunchedEffect(listItems.size) {
         if (listItems.isNotEmpty()) {
             listState.animateScrollToItem(listItems.lastIndex)
@@ -358,13 +347,11 @@ private fun MessageList(
         state = listState,
         modifier = modifier.padding(horizontal = 8.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
-        reverseLayout = false // El ViewModel ya da la lista en orden
+        reverseLayout = false
     ) {
-        // La lógica de divisores y advertencia ahora está en el ViewModel.
-        // Solo necesitamos dibujar lo que nos llegue en la lista.
         items(
             items = listItems,
-            key = { item -> // Key única para cada tipo de item
+            key = { item ->
                 when (item) {
                     is ChatListItem.MessageItem -> item.message.id
                     is ChatListItem.DividerItem -> "divider_${item.timestamp}"
@@ -372,7 +359,6 @@ private fun MessageList(
                 }
             }
         ) { item ->
-            // Dibujamos el Composable correcto según el tipo de item
             when (item) {
                 is ChatListItem.MessageItem -> MessageBubble(
                     message = item.message,
@@ -470,7 +456,6 @@ private fun MessageBubble(
     }
 }
 
-// ... (El resto de tus Composables como MessageContent, ReplyToContent, etc. no necesitan cambios)
 
 @Composable
 private fun MessageContent(message: Message, onMediaClick: (Message) -> Unit) {
@@ -489,15 +474,18 @@ private fun MessageContent(message: Message, onMediaClick: (Message) -> Unit) {
                     contentDescription = "Media message preview",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.ic_media_placeholder),
-                    error = painterResource(id = R.drawable.ic_image_error)
+                    placeholder = rememberVectorPainter(image = Icons.Default.Image),
+                    error = rememberVectorPainter(image = Icons.Default.BrokenImage)
                 )
                 if (message.isVideo()) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_play_arrow),
+                        imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Play video button",
                         tint = Color.White,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                            .padding(4.dp)
                     )
                 }
             }
@@ -560,7 +548,7 @@ private fun MessageInfo(timestamp: Long, status: String?, modifier: Modifier = M
                 else -> R.drawable.ic_sending to MaterialTheme.colorScheme.onSurfaceVariant
             }
             Icon(
-                painter = painterResource(id = icon),
+                painter = androidx.compose.ui.res.painterResource(id = icon),
                 contentDescription = "Message status",
                 tint = tint,
                 modifier = Modifier.size(16.dp)
@@ -712,24 +700,11 @@ private fun FormattedText(text: String, modifier: Modifier = Modifier) {
     Text(text = styledText, modifier = modifier)
 }
 
-// CAMBIO: Esta función ya no es necesaria aquí, porque el ViewModel hace la lógica
-/*
-private fun shouldShowDivider(prev: Long, cur: Long): Boolean {
-    if (prev == 0L) return true
-    val prevCal = Calendar.getInstance().apply { timeInMillis = prev }
-    val curCal = Calendar.getInstance().apply { timeInMillis = cur }
-    val isDifferentDay = prevCal.get(Calendar.DAY_OF_YEAR) != curCal.get(Calendar.DAY_OF_YEAR) ||
-            prevCal.get(Calendar.YEAR) != curCal.get(Calendar.YEAR)
-
-    return isDifferentDay || (cur - prev > TimeUnit.MINUTES.toMillis(30))
-}
-*/
 
 @Preview(showBackground = true)
 @Composable
 private fun ChatScreenPreview() {
     WamiTheme {
-        // CAMBIO: El preview ahora se construye con ChatListItem
         val previewListItems = listOf(
             ChatListItem.WarningItem,
             ChatListItem.DividerItem(System.currentTimeMillis() - 300000),
