@@ -14,7 +14,7 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.radwrld.wami.MainActivity
 import com.radwrld.wami.R
-// CORRECCIÓN: Se importan las clases Storage
+
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.MessageStorage
 import com.radwrld.wami.storage.ServerConfigStorage
@@ -35,7 +35,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
-// --- Data Classes (sin cambios) ---
 data class Contact(
     val id: String,
     val name: String,
@@ -45,7 +44,7 @@ data class Contact(
     val avatarUrl: String? = null,
     val isGroup: Boolean = false
 )
-// ... (El resto de tus data classes, sin cambios)
+
 data class Message(
     val id: String = UUID.randomUUID().toString(),
     val jid: String,
@@ -87,8 +86,6 @@ data class Conversation(@SerializedName("jid") val jid: String, @SerializedName(
 }
 data class StatusItem(@SerializedName("id") val id: String, @SerializedName("jid") val jid: String, @SerializedName("text") val text: String?, @SerializedName("type") val type: String?, @SerializedName("timestamp") val timestamp: Long, @SerializedName("mediaUrl") val mediaUrl: String?, @SerializedName("mimetype") val mimetype: String?, @SerializedName("fileName") val fileName: String?, val senderName: String? = null, val avatarUrl: String? = null, val hasBeenSeen: Boolean = false)
 
-
-// --- WhatsAppApi interface (sin cambios) ---
 interface WhatsAppApi {
     @GET("history/{jid}")
     suspend fun getHistory(@Path("jid") jid: String, @Query("limit") limit: Int = 100): List<MessageHistoryItem>
@@ -127,7 +124,6 @@ interface WhatsAppApi {
     suspend fun sendStatus(@Part("caption") caption: RequestBody?, @Part("tempId") tempId: RequestBody, @Part file: MultipartBody.Part): SendResponse
 }
 
-// --- ApiClient object (sin cambios) ---
 object ApiClient {
     @Volatile private var api: WhatsAppApi? = null
     @Volatile private var downloadApi: WhatsAppApi? = null
@@ -180,14 +176,13 @@ object ApiClient {
     }
 }
 
-// --- SyncManager object (CON CAMBIOS) ---
 object SyncManager {
     private const val TAG = "SyncManager"
     @Volatile private var socket: Socket? = null
     private val isInitialized = AtomicBoolean(false)
 
     private lateinit var appContext: Context
-    // CORRECCIÓN: Se usan las clases Storage en lugar de Repository
+
     private lateinit var msgStorage: MessageStorage
     private lateinit var contactStorage: ContactStorage
 
@@ -210,7 +205,7 @@ object SyncManager {
         if (isInitialized.getAndSet(true)) return
 
         appContext = context.applicationContext
-        // CORRECCIÓN: Se instancian las clases Storage
+
         msgStorage = MessageStorage(appContext)
         contactStorage = ContactStorage(appContext)
 
@@ -336,7 +331,6 @@ object SyncManager {
                     })
                 }
 
-                // CORRECCIÓN: Se usa msgStorage
                 msgStorage.addMessage(msg.jid, msg)
                 if (!msg.isOutgoing) {
                     NotificationUtils.showNotification(
@@ -351,7 +345,7 @@ object SyncManager {
     private suspend fun handleStatusUpdate(json: String) {
         runCatching {
                   val update: StatusUpdateDto = gson.fromJson(json, StatusUpdateDto::class.java)
-            // CORRECCIÓN: Se usa msgStorage
+
             msgStorage.updateMessageStatus(update.jid, update.id, update.status)
         }.onFailure { Log.e(TAG, "Failed processing status update: $json", it) }
     }
@@ -359,7 +353,7 @@ object SyncManager {
     private suspend fun handleReactionUpdate(json: String) {
         runCatching {
             val update: ReactionUpdateDto = gson.fromJson(json, ReactionUpdateDto::class.java)
-            // CORRECCIÓN: Se usa msgStorage
+
             msgStorage.updateMessageReactions(update.jid, update.id, update.reactions)
          }.onFailure { Log.e(TAG, "Failed processing reaction update: $json", it) }
     }
@@ -380,7 +374,6 @@ object SyncManager {
     }
 }
 
-// --- SyncService (sin cambios) ---
 class SyncService : Service() {
     companion object {
         const val ACTION_START = "com.radwrld.wami.sync.ACTION_START"

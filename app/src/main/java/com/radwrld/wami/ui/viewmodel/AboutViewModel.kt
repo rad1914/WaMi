@@ -25,7 +25,7 @@ data class AboutUiState(
     val isGroup: Boolean = false,
     val isBlocked: Boolean = false,
     val isReported: Boolean = false,
-    val localTime: String? = null, // CORRECCIÓN: Se añade el campo
+    val localTime: String? = null,
     val isLoading: Boolean = true,
     val error: String? = null
 )
@@ -57,8 +57,7 @@ class AboutViewModel(
         } else {
             0
         }
-        
-        // CORRECCIÓN: Se añade lógica para el campo localTime
+
         val currentTime = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
 
         AboutUiState(
@@ -75,6 +74,6 @@ class AboutViewModel(
         initialValue = AboutUiState(isLoading = true)
     )
 
-    fun toggleBlockContact() { /* Lógica futura aquí */ }
-    fun reportContact() { /* Lógica futura aquí */ }
+    fun toggleBlockContact() {  }
+    fun reportContact() {  }
 }

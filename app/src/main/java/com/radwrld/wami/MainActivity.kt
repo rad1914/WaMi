@@ -31,12 +31,11 @@ class MainActivity : ComponentActivity() {
                     searchState = searchState,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
                     onRefresh = { triggerSync() },
-                    // CORRECCIÓN FINAL Y DEFINITIVA:
-                    onHideConversation = { jid -> // Se asume que la UI pasa el jid (String).
-                        // Se busca el objeto Contacto completo en la lista actual del estado.
+
+                    onHideConversation = { jid ->
+
                         val contactToHide = conversationState.conversations.find { it.contact.id == jid }?.contact
-                        
-                        // Si se encuentra, se pasa a la función `hide` del ViewModel.
+
                         if (contactToHide != null) {
                             viewModel.hide(contactToHide)
                             Toast.makeText(this, "Hidden", Toast.LENGTH_SHORT).show()

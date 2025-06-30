@@ -86,7 +86,7 @@ fun SocialScreen(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(uiState.statuses, key = { it.id }) { status ->
-                        // CORRECCIÓN: Se usa el Composable de ejemplo de abajo.
+
                         StatusRow(status = status, onClick = { onStatusClick(status) })
                     }
                 }
@@ -95,7 +95,6 @@ fun SocialScreen(
     }
 }
 
-// CORRECCIÓN: Se añade un Composable de ejemplo para que el código compile.
 @Composable
 fun StatusRow(status: StatusItem, onClick: () -> Unit) {
     ListItem(

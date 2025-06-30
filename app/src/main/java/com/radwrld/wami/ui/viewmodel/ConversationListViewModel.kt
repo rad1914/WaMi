@@ -13,8 +13,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-// --- Data Classes ---
-
 data class ConversationUiItem(
     val contact: Contact,
     val lastMessage: Message?
@@ -26,22 +24,19 @@ data class ConversationListState(
     val error: String? = null
 )
 
-// Se define la clase SearchState que faltaba
 data class SearchState(
     val query: String = "",
     val results: List<Contact> = emptyList(),
     val isLoading: Boolean = false
 )
 
-
 class ConversationListViewModel(application: Application) : AndroidViewModel(application) {
-    // CORRECCIÓN: Se usan las dependencias de Storage en lugar de los Repositories
+
     private val contactStorage = ContactStorage(application)
     private val messageStorage = MessageStorage(application)
 
     private var searchJob: Job? = null
-    
-    // CORRECCIÓN: Se construye el estado combinando los flows de Storage
+
     val conversationState: StateFlow<ConversationListState> = combine(
         contactStorage.contactsFlow,
         messageStorage.lastMessagesMapFlow
@@ -60,11 +55,8 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     private val _searchState = MutableStateFlow(SearchState())
     val searchState = _searchState.asStateFlow()
 
-    // CORRECCIÓN: Se elimina el bloque `init` y la función `syncData()`.
-    // El SyncWorker se encarga de la sincronización en segundo plano de forma automática.
-
     fun hide(contact: Contact) = viewModelScope.launch {
-        // CORRECCIÓN: La lógica ahora usa ContactStorage directamente
+
         contactStorage.deleteContact(contact)
     }
 
@@ -79,9 +71,8 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
         _searchState.update { it.copy(isLoading = true) }
         searchJob = viewModelScope.launch {
-            delay(300) // Debounce
+            delay(300)
 
-            // CORRECCIÓN: La búsqueda se hace sobre los datos locales del Storage
             val allContacts = contactStorage.contactsFlow.first()
             val results = allContacts.filter { 
                 it.name.contains(query, ignoreCase = true) ||

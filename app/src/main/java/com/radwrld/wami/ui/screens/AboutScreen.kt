@@ -164,7 +164,7 @@ fun UserSpecificInfo(uiState: AboutUiState) {
                 icon = painterResource(R.drawable.ic_phone)
             )
         }
-        // CORRECCIÓN: Se usa .let para manejar el valor nulo de forma segura
+
         uiState.localTime?.let { time ->
             DetailRow(
                 title = "Hora local",

@@ -14,7 +14,6 @@ data class ContactsUiState(
     val error: String? = null
 )
 
-// CORRECCIÓN: Se refactoriza para usar ContactStorage y eliminar la lógica de sincronización.
 class ContactsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val contactStorage = ContactStorage(application)
@@ -30,5 +29,4 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
             initialValue = ContactsUiState(isLoading = true)
         )
 
-    // La función syncContacts() se ha eliminado. El SyncWorker centraliza esta lógica.
 }

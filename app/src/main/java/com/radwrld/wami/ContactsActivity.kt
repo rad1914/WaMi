@@ -18,20 +18,19 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.radwrld.wami.ui.screens.ContactItem
 import com.radwrld.wami.ui.theme.WamiTheme
-// CORRECCIÓN: Se importan el ViewModel y el State correctos
+
 import com.radwrld.wami.ui.viewmodel.ContactsViewModel
 import com.radwrld.wami.ui.viewmodel.ContactsUiState
 
 class ContactsActivity : ComponentActivity() {
 
-    // CORRECCIÓN: Se usa el ViewModel correcto
     private val viewModel: ContactsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             WamiTheme {
-                // CORRECCIÓN: Se consume el state del ViewModel correcto
+
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 ContactsScreen(
                     state = state,
@@ -45,7 +44,7 @@ class ContactsActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    // CORRECCIÓN: El estado ahora es del tipo correcto
+
     state: ContactsUiState,
     onNavigateUp: () -> Unit
 ) {
@@ -71,7 +70,7 @@ fun ContactsScreen(
                 CircularProgressIndicator()
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // CORRECCIÓN: Se itera sobre `state.contacts` y se usa `contact.id`
+
                     items(
                         items = state.contacts,
                         key = { contact -> contact.id }

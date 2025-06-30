@@ -12,7 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.radwrld.wami.ui.screens.AboutScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.AboutViewModel
-import com.radwrld.wami.ui.viewmodel.AboutViewModelFactory // Importa la Factory
+import com.radwrld.wami.ui.viewmodel.AboutViewModelFactory
 import kotlinx.coroutines.flow.collectLatest
 import android.content.Intent
 

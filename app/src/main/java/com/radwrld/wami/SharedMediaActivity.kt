@@ -18,7 +18,7 @@ class SharedMediaActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val jid = intent.getStringExtra("EXTRA_JID")
-        if (jid.isNullOrBlank()) { // Se mejora la comprobación
+        if (jid.isNullOrBlank()) {
             finish()
             return
         }
@@ -26,8 +26,6 @@ class SharedMediaActivity : ComponentActivity() {
         val viewModel: SharedMediaViewModel by viewModels {
             SharedMediaViewModelFactory(application, jid)
         }
-        
-        // La llamada a `loadMedia` ya no es necesaria aquí, el `init` del ViewModel lo hace.
 
         setContent {
             WamiTheme {

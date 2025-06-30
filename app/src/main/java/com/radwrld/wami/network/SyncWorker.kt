@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/network/SyncWorker.kt
 // @path: app/src/main/java/com/radwrld/wami/sync/SyncWorker.kt
 package com.radwrld.wami.sync
 

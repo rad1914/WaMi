@@ -13,8 +13,6 @@ class GroupStorage(context: Context) {
     private val prefs = context.getSharedPreferences("wami_groups_storage", Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    // Usamos un mapa para guardar la información de cada grupo por su JID (id).
-    // El Flow emitirá el mapa completo cada vez que cambie.
     private val _groupInfoFlow = MutableStateFlow<Map<String, GroupInfo>>(emptyMap())
     val groupInfoFlow: StateFlow<Map<String, GroupInfo>> = _groupInfoFlow.asStateFlow()
 
@@ -22,9 +20,7 @@ class GroupStorage(context: Context) {
         _groupInfoFlow.value = loadAllGroupsFromPrefs()
     }
 
-    /**
-     * Guarda o actualiza la información de un grupo.
-     */
+    
     fun saveGroupInfo(groupInfo: GroupInfo) {
         val currentGroups = _groupInfoFlow.value.toMutableMap()
         currentGroups[groupInfo.id] = groupInfo

@@ -21,15 +21,12 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
-// CORRECCIÓN: Esta clase ahora solo se enfoca en la API, sin dependencias a Storage.
 class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
     private val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
 
     fun getBaseUrl() = serverUrl
 
-    // CORRECCIÓN: Este método ahora solo busca y mapea los datos, no los guarda.
-    // Quien lo llame (SyncWorker) será responsable de guardar el resultado.
     suspend fun fetchConversations(): Result<List<Contact>> = runCatching {
         api.getConversations().map {
             val isGroup = it.jid.endsWith("@g.us")
@@ -45,7 +42,6 @@ class WhatsAppRepository(private val context: Context) {
         }
     }
 
-    // CORRECCIÓN: Este método solo busca y mapea. No guarda.
     suspend fun getMessageHistory(jid: String): Result<List<Message>> = runCatching {
         api.getHistory(jid).map { historyItem ->
             historyItem.toDomain().run {
@@ -95,8 +91,6 @@ class WhatsAppRepository(private val context: Context) {
          api.getGroupInfo(jid)
     }
 
-    // CORRECCIÓN: Esta lógica debería estar en un ViewModel, pero por ahora la arreglamos
-    // para que no dependa de `contactStorage`.
     suspend fun getCommonGroups(contactJid: String, allLocalContacts: List<Contact>): Result<List<Contact>> = runCatching {
         val userGroups = allLocalContacts.filter { it.isGroup }
         val commonGroups = mutableListOf<Contact>()

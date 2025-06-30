@@ -34,7 +34,7 @@ class MessageStorage(context: Context) {
                     val messages: List<Message> = gson.fromJson(value, messageType)
                     messageMap[jid] = messages
                 } catch (e: Exception) {
-                    // Ignorar entradas corruptas
+
                 }
             }
         }
@@ -54,7 +54,6 @@ class MessageStorage(context: Context) {
 
     fun getMessages(jid: String): List<Message> = getList(jid)
 
-    // FUNCIÓN AÑADIDA: Expone los mensajes como un Flow reactivo para el ChatViewModel.
     fun getMessagesFlow(jid: String): Flow<List<Message>> {
         return _messageCache.map { cache -> cache[jid] ?: emptyList() }
     }
