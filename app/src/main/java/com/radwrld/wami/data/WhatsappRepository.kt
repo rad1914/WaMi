@@ -1,8 +1,7 @@
-// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
-package com.radwrld.wami.repository
+// @path: app/src/main/java/com/radwrld/wami/data/WhatsAppRepository.kt
+package com.radwrld.wami.data
 
 import android.content.Context
-import android.util.Log
 import androidx.core.net.toUri
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.BlockRequest
@@ -11,10 +10,14 @@ import com.radwrld.wami.network.GroupInfo
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.network.SendMessageRequest
 import com.radwrld.wami.network.SendReactionRequest
+import com.radwrld.wami.network.SendResponse
 import com.radwrld.wami.network.StatusItem
 import com.radwrld.wami.network.toDomain
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -48,31 +51,32 @@ class WhatsAppRepository(private val context: Context) {
                 copy(mediaUrl = mediaUrl?.let { path ->
                     if (path.startsWith("http")) path else "$serverUrl$path"
                 })
-             }
+            }
         }
     }
 
-    suspend fun sendTextMessage(jid: String, text: String, tempId: String) = runCatching {
-        api.sendMessage(SendMessageRequest(jid, text, tempId))
-            .takeIf { it.success } ?: error("Send failed")
+    suspend fun sendTextMessage(jid: String, text: String, tempId: String): Result<SendResponse> = runCatching {
+        val response = api.sendMessage(SendMessageRequest(jid, text, tempId))
+        if (response.success) response else error(response.error ?: "Send failed")
     }
 
-    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?) = runCatching {
-         val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
+    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?): Result<SendResponse> = runCatching {
+        val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
         val part = MultipartBody.Part.createFormData(
             "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
-         )
-        api.sendMedia(
+        )
+        val response = api.sendMedia(
             jid.toRequestBody("text/plain".toMediaTypeOrNull()),
             caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
             tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
-             part
-        ).takeIf { it.success } ?: error("Send failed")
+            part
+        )
+        if (response.success) response else error(response.error ?: "Send failed")
     }
 
     suspend fun sendReaction(jid: String, messageId: String, emoji: String) =
         runCatching {
-             api.sendReaction(SendReactionRequest(jid, messageId, emoji))
+            api.sendReaction(SendReactionRequest(jid, messageId, emoji))
         }
 
     suspend fun blockContact(jid: String) = runCatching {
@@ -80,7 +84,7 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun unblockContact(jid: String) = runCatching {
-         api.unblockContact(BlockRequest(jid))
+        api.unblockContact(BlockRequest(jid))
     }
 
     suspend fun reportContact(jid: String) = runCatching {
@@ -88,39 +92,37 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun getGroupInfo(jid: String): Result<GroupInfo> = runCatching {
-         api.getGroupInfo(jid)
+        api.getGroupInfo(jid)
     }
 
     suspend fun getCommonGroups(contactJid: String, allLocalContacts: List<Contact>): Result<List<Contact>> = runCatching {
         val userGroups = allLocalContacts.filter { it.isGroup }
-        val commonGroups = mutableListOf<Contact>()
 
-         for (groupContact in userGroups) {
-            try {
-                val groupInfo = getGroupInfo(groupContact.id).getOrThrow()
-                if (groupInfo.participants.any { it.id == contactJid }) {
-                    commonGroups.add(groupContact)
-                 }
-            } catch (e: Exception) {
-                Log.w("WhatsAppRepository", "Falló al obtener información para el grupo ${groupContact.id}", e)
-            }
-            delay(300L)
+        coroutineScope {
+            userGroups.map { groupContact ->
+                async {
+                    delay(300L)
+                    getGroupInfo(groupContact.id)
+                        .getOrNull()
+                        ?.takeIf { groupInfo -> groupInfo.participants.any { it.id == contactJid } }
+                        ?.let { groupContact }
+                }
+            }.awaitAll().filterNotNull()
         }
-        commonGroups
     }
 
     suspend fun getStatuses(allLocalContacts: List<Contact>): Result<List<StatusItem>> = runCatching {
-         val contactsMap = allLocalContacts.associateBy { it.id }
+        val contactsMap = allLocalContacts.associateBy { it.id }
         api.getStatuses().map { status ->
             status.copy(
                 avatarUrl = "$serverUrl/avatar/${status.jid}",
                 senderName = contactsMap[status.jid]?.name ?: status.jid.substringBefore('@'),
                 mediaUrl = status.mediaUrl?.let { if (it.startsWith("http")) it else "$serverUrl$it" }
-             )
+            )
         }
     }
 
-    suspend fun sendStatus(file: File, caption: String?): Result<Boolean> = runCatching {
+    suspend fun sendStatus(file: File, caption: String?): Result<SendResponse> = runCatching {
         val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
         val filePart = MultipartBody.Part.createFormData(
             "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
@@ -131,6 +133,6 @@ class WhatsAppRepository(private val context: Context) {
             tempId = tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
             file = filePart
         )
-        response.success
+        if(response.success) response else error(response.error ?: "Send status failed")
     }
 }

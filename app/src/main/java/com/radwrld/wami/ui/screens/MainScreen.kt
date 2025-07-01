@@ -42,23 +42,49 @@ import java.util.*
 fun MainScreen(
     conversationState: ConversationListState,
     searchState: SearchState,
+    currentUserProfileUrl: String?,
     onSearchQueryChanged: (String) -> Unit,
     onRefresh: () -> Unit,
     onHideConversation: (String) -> Unit,
     onOpenChat: (Contact) -> Unit,
-    onNavigateToContacts: () -> Unit
+    onNavigateToContacts: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToSocial: () -> Unit
 ) {
     Scaffold(
         topBar = {
              TopAppBar(
                 title = { Text("Messages") },
-                actions = { IconButton(onClick = {  }) {
+                navigationIcon = {
+                     IconButton(onClick = onNavigateToSettings) {
+                         AsyncImage(
+                             model = ImageRequest.Builder(LocalContext.current)
+                                 .data(currentUserProfileUrl)
+                                 .crossfade(true)
+                                 .build(),
+                             placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                             error = painterResource(id = R.drawable.ic_profile_placeholder),
+                             contentDescription = "Open Settings",
+                             contentScale = ContentScale.Crop,
+                             modifier = Modifier
+                                 .size(36.dp)
+                                 .clip(CircleShape)
+                         )
+                     }
+                },
+                actions = {
+                    IconButton(onClick = {  }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                       }
                 }
             )
         },
-        bottomBar = { AppBottomNavigation(onNavigateToContacts = onNavigateToContacts) }
+        bottomBar = {
+            AppBottomNavigation(
+                onNavigateToContacts = onNavigateToContacts,
+                onNavigateToSocial = onNavigateToSocial
+            )
+        }
     ) { paddingValues ->
         SwipeRefresh(
             state = rememberSwipeRefreshState(isRefreshing = conversationState.isLoading),
@@ -110,7 +136,10 @@ fun MainScreen(
 }
 
 @Composable
-private fun AppBottomNavigation(onNavigateToContacts: () -> Unit) {
+private fun AppBottomNavigation(
+    onNavigateToContacts: () -> Unit,
+    onNavigateToSocial: () -> Unit
+) {
      var selectedItem by remember { mutableStateOf(0) }
     val items = listOf("Messages", "Social", "Contacts")
     val icons = listOf(Icons.Filled.Message, Icons.Filled.Group, Icons.Filled.People)
@@ -122,8 +151,13 @@ private fun AppBottomNavigation(onNavigateToContacts: () -> Unit) {
                 label = { Text(item) },
                  selected = selectedItem == index,
                 onClick = {
-                    selectedItem = index
-                    if (item == "Contacts") onNavigateToContacts()
+                    if (selectedItem != index) {
+                        selectedItem = index
+                    }
+                    when (item) {
+                        "Contacts" -> onNavigateToContacts()
+                        "Social" -> onNavigateToSocial()
+                    }
                 }
              )
         }

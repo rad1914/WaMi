@@ -4,9 +4,9 @@ package com.radwrld.wami.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.radwrld.wami.data.WhatsAppRepository
 import com.radwrld.wami.network.StatusItem
 import com.radwrld.wami.network.SyncManager
-import com.radwrld.wami.repository.WhatsAppRepository
 import com.radwrld.wami.storage.ContactStorage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -23,9 +23,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     val uiState = _uiState.asStateFlow()
 
     init {
-        fetchStatuses()
+        fetchStatuses() // Carga inicial
+
         viewModelScope.launch {
-            SyncManager.newStatusEvent.collect { newStatuses ->
+            SyncManager.newStatusEvent.collect { newStatuses: List<StatusItem> ->
                 _uiState.update { currentState ->
                     val combined = (newStatuses + currentState.statuses).distinctBy { it.id }
                     currentState.copy(statuses = combined)
@@ -33,14 +34,19 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
-
+    
     fun fetchStatuses() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val contacts = contactStorage.contactsFlow.first()
-            whatsAppRepository.getStatuses(contacts)
-                .onSuccess { statuses -> _uiState.update { it.copy(statuses = statuses, isLoading = false) } }
-                .onFailure { _uiState.update { it.copy(isLoading = false) } }
+            contactStorage.contactsFlow.firstOrNull()?.let { contacts ->
+                _uiState.update { it.copy(isLoading = true) }
+                whatsAppRepository.getStatuses(contacts)
+                    .onSuccess { statuses ->
+                        _uiState.update { it.copy(statuses = statuses, isLoading = false) }
+                    }
+                    .onFailure {
+                        _uiState.update { it.copy(isLoading = false) }
+                    }
+            }
         }
     }
 }

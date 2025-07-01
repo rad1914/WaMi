@@ -29,13 +29,11 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     conversationState = conversationState,
                     searchState = searchState,
+                    currentUserProfileUrl = null,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
                     onRefresh = { triggerSync() },
-
                     onHideConversation = { jid ->
-
                         val contactToHide = conversationState.conversations.find { it.contact.id == jid }?.contact
-
                         if (contactToHide != null) {
                             viewModel.hide(contactToHide)
                             Toast.makeText(this, "Hidden", Toast.LENGTH_SHORT).show()
@@ -50,8 +48,16 @@ class MainActivity : ComponentActivity() {
                               }
                         )
                     },
-                     onNavigateToContacts = {
+                    onNavigateToContacts = {
                          startActivity(Intent(this, ContactsActivity::class.java))
+                    },
+                    onNavigateToSettings = {
+
+                        startActivity(Intent(this, SettingsActivity::class.java))
+                    },
+                    onNavigateToSocial = {
+
+                        startActivity(Intent(this, SocialActivity::class.java))
                     }
                 )
             }

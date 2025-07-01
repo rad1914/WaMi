@@ -5,8 +5,10 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.*
 import com.radwrld.wami.adapter.ChatListItem
+import com.radwrld.wami.data.WhatsAppRepository
+import com.radwrld.wami.network.GroupInfo
 import com.radwrld.wami.network.Message
-import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.storage.GroupStorage
 import com.radwrld.wami.storage.MessageStorage
 import com.radwrld.wami.util.MediaCache
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +19,13 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+data class UiState(
+    val chatName: String = "",
+    val loading: Boolean = false,
+    val loadingOlder: Boolean = false,
+    val messages: List<ChatListItem> = emptyList()
+)
+
 class ChatViewModel(
     app: Application,
     private val jid: String,
@@ -25,23 +34,41 @@ class ChatViewModel(
 
     private val messageStorage = MessageStorage(getApplication())
     private val whatsAppRepository = WhatsAppRepository(getApplication())
+    private val groupStorage = GroupStorage(getApplication())
 
     private val _internalState = MutableStateFlow(InternalState())
     private val _errors = MutableSharedFlow<String>()
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    val uiState: StateFlow<UiState> = messageStorage.getMessagesFlow(jid)
-        .combine(_internalState) { messages, internalState ->
-            UiState(
-                loading = internalState.loading,
-                loadingOlder = internalState.loadingOlder,
-                messages = processMessagesIntoListItems(messages)
-            )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = UiState()
+private val chatDetailsFlow: Flow<String> = flow {
+    if (jid.endsWith("@g.us")) {
+        val groupInfoResult = whatsAppRepository.getGroupInfo(jid)
+        
+        // <<< ¡ESTA ES LA LÍNEA CORREGIDA!
+        // Se usa .subject, como está definido en tu clase GroupInfo 
+        val groupName = groupInfoResult.getOrNull()?.subject ?: contactName
+        emit(groupName)
+    } else {
+        emit(contactName)
+    }
+}
+
+    val uiState: StateFlow<UiState> = combine(
+        messageStorage.getMessagesFlow(jid),
+        _internalState,
+        chatDetailsFlow
+    ) { messages, internalState, chatName ->
+        UiState(
+            chatName = chatName,
+            loading = internalState.loading,
+            loadingOlder = internalState.loadingOlder,
+            messages = processMessagesIntoListItems(messages)
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UiState(chatName = contactName)
+    )
 
     private fun processMessagesIntoListItems(messages: List<Message>): List<ChatListItem> {
         return buildList {
@@ -61,14 +88,14 @@ class ChatViewModel(
         if (_internalState.value.loadingOlder) return@launch
         _internalState.update { it.copy(loadingOlder = true) }
 
-        whatsAppRepository.getMessageHistory(jid).onSuccess { olderMessages ->
+        whatsAppRepository.getMessageHistory(jid).onSuccess { olderMessages: List<Message> ->
             if (olderMessages.isNotEmpty()) {
                 messageStorage.appendMessages(jid, olderMessages)
             }
-        }.onFailure {
-            _errors.emit(it.message ?: "Failed to load older messages")
+        }.onFailure { e: Throwable ->
+            _errors.emit(e.message ?: "Failed to load older messages")
         }
-        
+
         _internalState.update { it.copy(loadingOlder = false) }
     }
 
@@ -77,12 +104,12 @@ class ChatViewModel(
         val tempMessage = Message(id = "temp_${UUID.randomUUID()}", jid = jid, text = text, isOutgoing = true, status = "sending")
         viewModelScope.launch {
             messageStorage.addMessage(jid, tempMessage)
-            whatsAppRepository.sendTextMessage(jid, text, tempMessage.id).onSuccess { response ->
-                val newId = response.messageId ?: tempMessage.id
-                messageStorage.updateMessage(jid, tempMessage.id, newId, "sent")
-            }.onFailure {
+            val result = whatsAppRepository.sendTextMessage(jid, text, tempMessage.id)
+            if (result.isSuccess) {
+                messageStorage.updateMessageStatus(jid, tempMessage.id, "sent")
+            } else {
                 messageStorage.updateMessageStatus(jid, tempMessage.id, "failed")
-                _errors.emit("Send failed: ${it.message}")
+                _errors.emit("Send failed: ${result.exceptionOrNull()?.message}")
             }
         }
     }
@@ -92,7 +119,7 @@ class ChatViewModel(
             _errors.emit("Media error"); return@launch
         }
         val mime = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
-        
+
         val tempMessage = Message(
             id = "temp_${UUID.randomUUID()}", jid = jid, text = null, isOutgoing = true,
             status = "sending", localMediaPath = file.absolutePath, mediaSha256 = sha,
@@ -100,18 +127,18 @@ class ChatViewModel(
         )
 
         messageStorage.addMessage(jid, tempMessage)
-        whatsAppRepository.sendMediaMessage(jid, tempMessage.id, file, null).onSuccess { response ->
-            val newId = response.messageId ?: tempMessage.id
-            messageStorage.updateMessage(jid, tempMessage.id, newId, "sent")
-        }.onFailure {
+        val result = whatsAppRepository.sendMediaMessage(jid, tempMessage.id, file, null)
+        if (result.isSuccess) {
+            messageStorage.updateMessageStatus(jid, tempMessage.id, "sent")
+        } else {
             messageStorage.updateMessageStatus(jid, tempMessage.id, "failed")
-            _errors.emit("Upload failed: ${it.message}")
+            _errors.emit("Upload failed: ${result.exceptionOrNull()?.message}")
         }
     }
 
     fun sendReaction(messageId: String, emoji: String) = viewModelScope.launch {
-        whatsAppRepository.sendReaction(jid, messageId, emoji).onFailure {
-            _errors.emit("Reaction failed")
+        whatsAppRepository.sendReaction(jid, messageId, emoji).onFailure { e: Throwable ->
+            _errors.emit("Reaction failed: ${e.message}")
         }
     }
 
@@ -123,7 +150,7 @@ class ChatViewModel(
         if (msg.mediaUrl.isNullOrBlank() || msg.mimetype.isNullOrBlank()) {
             return null
         }
-        
+
         val ext = MediaCache.fileExt(msg.mimetype)
         val cacheKey = msg.mediaSha256 ?: msg.id
         val file = withContext(Dispatchers.IO) {
@@ -137,12 +164,6 @@ class ChatViewModel(
         }
         return file
     }
-
-    data class UiState(
-        val loading: Boolean = false,
-        val loadingOlder: Boolean = false,
-        val messages: List<ChatListItem> = emptyList()
-    )
 
     private data class InternalState(
         val loading: Boolean = false,

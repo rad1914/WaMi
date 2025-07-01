@@ -1,52 +1,58 @@
-// @path: app/src/main/java/com/radwrld/wami/network/SyncWorker.kt
-// @path: app/src/main/java/com/radwrld/wami/sync/SyncWorker.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.data.WhatsAppRepository
 import com.radwrld.wami.network.Contact
-import com.radwrld.wami.network.Conversation
-import com.radwrld.wami.repository.WhatsAppRepository
+import com.radwrld.wami.network.GroupInfo
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.GroupStorage
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 class SyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
+    private val whatsAppRepository = WhatsAppRepository(applicationContext)
     private val contactStorage = ContactStorage(applicationContext)
     private val groupStorage = GroupStorage(applicationContext)
-    private val whatsAppRepository = WhatsAppRepository(applicationContext)
 
     override suspend fun doWork(): Result {
-        Log.d("SyncWorker", "Sincronización periódica iniciada.")
+        Log.d("SyncWorker", "Periodic sync started.")
         return try {
-            whatsAppRepository.fetchConversations().onSuccess { contacts ->
-                contactStorage.upsertContacts(contacts)
-                Log.d("SyncWorker", "${contacts.size} contactos sincronizados.")
+            whatsAppRepository.fetchConversations().onSuccess { contacts: List<Contact> ->
+                contactStorage.upsertContacts(contacts) 
+                Log.d("SyncWorker", "${contacts.size} contacts synchronized.") 
 
-                val groupJidsToSync = contacts.filter { it.isGroup }.map { it.id }
-                Log.d("SyncWorker", "Sincronizando detalles de ${groupJidsToSync.size} grupos...")
-                groupJidsToSync.forEach { jid ->
-                    whatsAppRepository.getGroupInfo(jid).onSuccess { groupInfo ->
-                        groupStorage.saveGroupInfo(groupInfo)
-                    }.onFailure { e ->
-                         Log.e("SyncWorker", "Falló la sincronización del grupo $jid", e)
+                val groupsToSync = contacts.filter { it.isGroup } 
+                Log.d("SyncWorker", "Syncing details for ${groupsToSync.size} groups...") 
+
+                coroutineScope { 
+                    groupsToSync.forEach { group: Contact -> 
+                        launch { 
+                            whatsAppRepository.getGroupInfo(group.id).onSuccess { groupInfo: GroupInfo -> 
+                                groupStorage.saveGroupInfo(groupInfo) 
+                            }.onFailure { e: Throwable -> 
+                                Log.e("SyncWorker", "Failed to sync group ${group.id}", e) 
+                            }
+                        }
                     }
                 }
-            }.onFailure {
-                throw it
+            }.onFailure { e: Throwable ->
+                throw e 
             }
 
-            Log.d("SyncWorker", "Sincronización periódica finalizada con éxito.")
+            Log.d("SyncWorker", "Periodic sync finished successfully.") 
+
             Result.success()
         } catch (e: Exception) {
-            Log.e("SyncWorker", "La sincronización periódica falló", e)
+            Log.e("SyncWorker", "Periodic sync failed", e) 
+
             Result.failure()
         }
     }
-}
+} 

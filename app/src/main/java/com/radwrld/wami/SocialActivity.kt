@@ -39,7 +39,7 @@ class SocialActivity : ComponentActivity() {
 
                 SocialScreen(
                     uiState = uiState,
-                    onRefresh = viewModel::fetchStatuses,
+                    onRefresh = viewModel::fetchStatuses, // Ahora esto es válido
                     onNavigateBack = { finish() },
                     onStatusClick = { status ->
                         val intent = Intent(this, MediaViewActivity::class.java).apply {
@@ -86,7 +86,6 @@ fun SocialScreen(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(uiState.statuses, key = { it.id }) { status ->
-
                         StatusRow(status = status, onClick = { onStatusClick(status) })
                     }
                 }

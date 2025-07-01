@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -56,6 +55,7 @@ import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.ChatViewModel
 import com.radwrld.wami.ui.viewmodel.ChatViewModelFactory
+import com.radwrld.wami.ui.viewmodel.UiState
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.io.File
@@ -66,7 +66,7 @@ class ChatActivity : AppCompatActivity() {
 
     private val jid by lazy { intent.getStringExtra(EXTRA_JID).orEmpty() }
     private val name by lazy { intent.getStringExtra(EXTRA_NAME) ?: "Unknown" }
-    private val isGroup get() = jid.endsWith("@g.us")
+    private val isGroup get() = jid.endsWith("@g.us") 
 
     private val viewModel: ChatViewModel by viewModels {
         ChatViewModelFactory(application, jid, name)
@@ -80,7 +80,7 @@ class ChatActivity : AppCompatActivity() {
             return
         }
 
-        observeErrors()
+        observeErrors() 
 
         setContent {
             WamiTheme {
@@ -88,28 +88,28 @@ class ChatActivity : AppCompatActivity() {
 
                 ChatScreen(
                     contactName = name,
-                    isGroup = isGroup,
+                    isGroup = isGroup, 
                     listItems = uiState.messages,
                     uiState = uiState,
                     onSendMessage = viewModel::sendText,
                     onSendMedia = { uri: Uri ->
                         contentResolver.takePersistableUriPermission(
                             uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        viewModel.sendMedia(uri)
+                        ) 
+                        viewModel.sendMedia(uri) 
                     },
-                    onLoadOlderMessages = viewModel::loadOlderMessages,
-                    onMediaClick = ::onMediaClick,
-                    onReaction = { msg: Message, emoji: String -> viewModel.sendReaction(msg.id, emoji) },
-                    onContactClick = {
-                        if (!isGroup) {
+                    onLoadOlderMessages = viewModel::loadOlderMessages, 
+                    onMediaClick = ::onMediaClick, 
+                    onReaction = { msg: Message, emoji: String -> viewModel.sendReaction(msg.id, emoji) }, 
+                    onContactClick = { 
+                        if (!isGroup) { 
                             startActivity(
-                                Intent(this, AboutActivity::class.java)
+                                Intent(this, AboutActivity::class.java) 
                                     .putExtra(AboutActivity.EXTRA_JID, jid)
                             )
                         }
                     },
-                    onBackClick = { finish() }
+                    onBackClick = { finish() } 
                 )
             }
         }
@@ -117,40 +117,40 @@ class ChatActivity : AppCompatActivity() {
 
     private fun observeErrors() {
         lifecycleScope.launch {
-            viewModel.errors.collectLatest {
-                Toast.makeText(this@ChatActivity, it, Toast.LENGTH_LONG).show()
+            viewModel.errors.collectLatest { 
+                Toast.makeText(this@ChatActivity, it, Toast.LENGTH_LONG).show() 
             }
         }
     }
 
     private fun onMediaClick(msg: Message) {
         lifecycleScope.launch {
-            val file: File? = viewModel.getMediaFile(msg)
+            val file: File? = viewModel.getMediaFile(msg) 
             if (file != null) {
                 val uri = FileProvider.getUriForFile(
                     this@ChatActivity,
                     "${applicationContext.packageName}.provider",
                     file
-                )
+                ) 
                 val intent = if (msg.type in setOf("image", "video")) {
                     Intent(this@ChatActivity, MediaViewActivity::class.java).apply {
-                        setDataAndType(uri, msg.mimetype)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        setDataAndType(uri, msg.mimetype) 
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) 
                     }
                 } else {
                     Intent.createChooser(
                         Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, msg.mimetype)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            setDataAndType(uri, msg.mimetype) 
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) 
                         },
                         "Open file with"
-                    )
+                    ) 
                 }
                 startActivity(intent)
             } else {
                 Toast.makeText(this@ChatActivity, "File downloading…", Toast.LENGTH_SHORT).show()
             }
-        }
+        } 
     }
 
     companion object {
@@ -165,19 +165,19 @@ private fun ChatScreen(
     contactName: String,
     isGroup: Boolean,
     listItems: List<ChatListItem>,
-    uiState: ChatViewModel.UiState,
+    uiState: UiState,
     onSendMessage: (String) -> Unit,
     onSendMedia: (Uri) -> Unit,
     onLoadOlderMessages: () -> Unit,
     onMediaClick: (Message) -> Unit,
     onReaction: (Message, String) -> Unit,
-    onContactClick: () -> Unit,
+    onContactClick: () -> Unit, 
     onBackClick: () -> Unit
 ) {
     val pickFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri: Uri? ->
-            uri?.let(onSendMedia)
+        onResult = { uri: Uri? -> 
+            uri?.let(onSendMedia) 
         }
     )
 
@@ -186,14 +186,14 @@ private fun ChatScreen(
             ChatTopBar(
                 contactName = contactName,
                 lastSeen = null,
-                onContactClick = onContactClick,
+                onContactClick = onContactClick, 
                 onBackClick = onBackClick
             )
         },
         bottomBar = {
             MessageInput(
                 onSendMessage = onSendMessage,
-                onAttachFile = { pickFileLauncher.launch(arrayOf("*/*")) }
+                onAttachFile = { pickFileLauncher.launch(arrayOf("*/*")) } 
             )
         }
     ) { padding ->
@@ -202,21 +202,21 @@ private fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            Box( 
+                modifier = Modifier.fillMaxSize(), 
+                contentAlignment = Alignment.Center 
             ) {
                 SwipeRefresh(
                     state = rememberSwipeRefreshState(isRefreshing = uiState.loadingOlder),
-                    onRefresh = onLoadOlderMessages,
+                    onRefresh = onLoadOlderMessages, 
                 ) {
                     MessageList(
                         listItems = listItems,
-                        isGroup = isGroup,
+                        isGroup = isGroup, 
                         onMediaClick = onMediaClick,
                         onReaction = onReaction,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        modifier = Modifier.fillMaxSize() 
+                    ) 
                 }
                 if (uiState.loading) {
                     CircularProgressIndicator()
@@ -229,7 +229,7 @@ private fun ChatScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatTopBar(
-    contactName: String,
+    contactName: String, 
     lastSeen: String?,
     onContactClick: () -> Unit,
     onBackClick: () -> Unit
@@ -239,18 +239,18 @@ private fun ChatTopBar(
             Column(modifier = Modifier.clickable(onClick = onContactClick)) {
                 Text(text = contactName, style = MaterialTheme.typography.titleLarge)
                 if (lastSeen != null) {
-                    Text(
-                        text = lastSeen,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text( 
+                        text = lastSeen, 
+                        style = MaterialTheme.typography.bodySmall, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant 
+                    ) 
                 }
             }
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-            }
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) 
+            } 
         }
     )
 }
@@ -268,39 +268,39 @@ private fun MessageInput(
         shadowElevation = 8.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            modifier = Modifier 
+                .fillMaxWidth() 
+                .padding(8.dp), 
             verticalAlignment = Alignment.Bottom
         ) {
             Card(
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(24.dp), 
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
                     modifier = Modifier.padding(start = 16.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically 
                 ) {
                     TextField(
                         value = text,
                         onValueChange = { text = it },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f), 
                         placeholder = { Text(stringResource(R.string.message_hint)) },
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
+                            focusedContainerColor = Color.Transparent, 
+                            unfocusedContainerColor = Color.Transparent, 
+                            focusedIndicatorColor = Color.Transparent, 
+                            unfocusedIndicatorColor = Color.Transparent 
+                        ), 
                         maxLines = 5,
                     )
                     if (!hasText) {
-                        IconButton(onClick = onAttachFile) {
+                        IconButton(onClick = onAttachFile) { 
                             Icon(Icons.Default.AttachFile, contentDescription = "Attach file")
                         }
                     }
-                }
+                } 
             }
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -308,18 +308,18 @@ private fun MessageInput(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-            IconButton(
+            IconButton( 
                 onClick = {
                     if (hasText) {
                         onSendMessage(text)
                         text = ""
-                    }
+                    } 
                 },
                 modifier = Modifier.size(48.dp),
                 colors = buttonColors
             ) {
                 Icon(
-                    imageVector = if (hasText) Icons.Default.Send else Icons.Default.Mic,
+                    imageVector = if (hasText) Icons.Default.Send else Icons.Default.Mic, 
                     contentDescription = if (hasText) stringResource(R.string.send) else stringResource(R.string.voice_message)
                 )
             }
@@ -330,7 +330,7 @@ private fun MessageInput(
 @Composable
 private fun MessageList(
     listItems: List<ChatListItem>,
-    isGroup: Boolean,
+    isGroup: Boolean, 
     onMediaClick: (Message) -> Unit,
     onReaction: (Message, String) -> Unit,
     modifier: Modifier = Modifier
@@ -346,25 +346,25 @@ private fun MessageList(
     LazyColumn(
         state = listState,
         modifier = modifier.padding(horizontal = 8.dp),
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(vertical = 8.dp), 
         reverseLayout = false
     ) {
         items(
             items = listItems,
             key = { item ->
                 when (item) {
-                    is ChatListItem.MessageItem -> item.message.id
+                    is ChatListItem.MessageItem -> item.message.id 
                     is ChatListItem.DividerItem -> "divider_${item.timestamp}"
                     is ChatListItem.WarningItem -> "warning_item"
                 }
             }
         ) { item ->
-            when (item) {
+            when (item) { 
                 is ChatListItem.MessageItem -> MessageBubble(
                     message = item.message,
                     isGroup = isGroup,
                     onMediaClick = onMediaClick,
-                    onReaction = onReaction,
+                    onReaction = onReaction, 
                 )
                 is ChatListItem.DividerItem -> DateDivider(timestamp = item.timestamp)
                 is ChatListItem.WarningItem -> E2EWarning()
@@ -377,7 +377,7 @@ private fun MessageList(
 @Composable
 private fun MessageBubble(
     message: Message,
-    isGroup: Boolean,
+    isGroup: Boolean, 
     onMediaClick: (Message) -> Unit,
     onReaction: (Message, String) -> Unit
 ) {
@@ -390,14 +390,14 @@ private fun MessageBubble(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 2.dp), 
         horizontalAlignment = bubbleAlignment
     ) {
         if (showReactionPanel) {
             ReactionPanel(
                 onReactionSelected = { emoji ->
                     onReaction(message, emoji)
-                    showReactionPanel = false
+                    showReactionPanel = false 
                 },
                 modifier = Modifier.padding(bottom = 2.dp)
             )
@@ -406,49 +406,49 @@ private fun MessageBubble(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = bubbleColor,
-            modifier = Modifier
-                .widthIn(max = 300.dp)
+            modifier = Modifier 
+                .widthIn(max = 300.dp) 
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = { onReaction(message, REACTIONS.first()) },
-                        onLongPress = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showReactionPanel = !showReactionPanel
-                        },
+                        onLongPress = { 
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress) 
+                            showReactionPanel = !showReactionPanel 
+                        }, 
                         onTap = { showReactionPanel = false }
                     )
                 }
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                if (isGroup && !isOutgoing) {
+                if (isGroup && !isOutgoing) { 
                     Text(
                         text = message.senderName ?: "Unknown",
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.primary, 
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
-                }
+                } 
 
                 message.quotedMessageText?.let {
                     ReplyToContent(
                         sender = message.name ?: "",
                         text = it
-                    )
+                    ) 
                 }
 
                 MessageContent(message = message, onMediaClick = onMediaClick)
 
                 MessageInfo(
                     timestamp = message.timestamp,
-                    status = if (isOutgoing) message.status else null,
+                    status = if (isOutgoing) message.status else null, 
                     modifier = Modifier.align(Alignment.End)
                 )
             }
         }
         if (message.reactions.isNotEmpty()) {
             ReactionGroup(
-                reactions = message.reactions,
+                reactions = message.reactions, 
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -460,35 +460,35 @@ private fun MessageContent(message: Message, onMediaClick: (Message) -> Unit) {
     Column {
         if (message.hasMedia()) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 140.dp, max = 280.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onMediaClick(message) },
+                modifier = Modifier 
+                    .fillMaxWidth() 
+                    .heightIn(min = 140.dp, max = 280.dp) 
+                    .clip(RoundedCornerShape(12.dp)) 
+                    .clickable { onMediaClick(message) }, 
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = message.localMediaPath?.let { File(it) } ?: message.mediaUrl,
                     contentDescription = "Media message preview",
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(), 
                     contentScale = ContentScale.Crop,
                     placeholder = rememberVectorPainter(image = Icons.Default.Image),
                     error = rememberVectorPainter(image = Icons.Default.BrokenImage)
-                )
+                ) 
                 if (message.isVideo()) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Play video button",
-                        tint = Color.White,
+                        tint = Color.White, 
                         modifier = Modifier
                             .size(48.dp)
-                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape) 
                             .padding(4.dp)
                     )
                 }
             }
         }
-        if (message.hasText()) {
+        if (message.hasText()) { 
             FormattedText(
                 text = message.text!!,
                 modifier = Modifier.padding(top = if (message.hasMedia()) 4.dp else 2.dp)
@@ -500,7 +500,7 @@ private fun MessageContent(message: Message, onMediaClick: (Message) -> Unit) {
 @Composable
 private fun ReplyToContent(sender: String, text: String) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(8.dp), 
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
         modifier = Modifier
             .fillMaxWidth()
@@ -509,13 +509,13 @@ private fun ReplyToContent(sender: String, text: String) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
             Text(
                 text = sender,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Bold, 
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium
             )
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium, 
                 maxLines = 2,
             )
         }
@@ -529,7 +529,7 @@ private fun MessageInfo(timestamp: Long, status: String?, modifier: Modifier = M
         DateFormat.getTimeFormat(context).format(Date(timestamp))
     }
     Row(
-        modifier = modifier.padding(top = 2.dp),
+        modifier = modifier.padding(top = 2.dp), 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End
     ) {
@@ -538,19 +538,19 @@ private fun MessageInfo(timestamp: Long, status: String?, modifier: Modifier = M
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (status != null) {
+        if (status != null) { 
             Spacer(Modifier.width(4.dp))
             val (icon, tint) = when (status) {
                 "read" -> R.drawable.ic_read_receipt to MaterialTheme.colorScheme.primary
                 "delivered" -> R.drawable.ic_delivered_receipt to MaterialTheme.colorScheme.onSurfaceVariant
                 else -> R.drawable.ic_sending to MaterialTheme.colorScheme.onSurfaceVariant
-            }
+            } 
             Icon(
                 painter = androidx.compose.ui.res.painterResource(id = icon),
                 contentDescription = "Message status",
                 tint = tint,
                 modifier = Modifier.size(16.dp)
-            )
+            ) 
         }
     }
 }
@@ -565,7 +565,7 @@ private fun DateDivider(timestamp: Long) {
 
         when {
             messageCal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
-                    messageCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR) -> context.getString(R.string.today)
+                    messageCal.get(Calendar.DAY_OF_YEAR) == todayCal.get(Calendar.DAY_OF_YEAR) -> context.getString(R.string.today) 
             messageCal.get(Calendar.YEAR) == yesterdayCal.get(Calendar.YEAR) &&
                     messageCal.get(Calendar.DAY_OF_YEAR) == yesterdayCal.get(Calendar.DAY_OF_YEAR) -> context.getString(R.string.yesterday)
             else -> SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date(timestamp))
@@ -573,7 +573,7 @@ private fun DateDivider(timestamp: Long) {
     }
 
     Box(
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center, 
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
@@ -582,7 +582,7 @@ private fun DateDivider(timestamp: Long) {
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
-            Text(
+            Text( 
                 text = dateText,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -594,7 +594,7 @@ private fun DateDivider(timestamp: Long) {
 @Composable
 private fun E2EWarning() {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(8.dp), 
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
         modifier = Modifier
             .fillMaxWidth()
@@ -603,7 +603,7 @@ private fun E2EWarning() {
         Text(
             text = stringResource(R.string.e2e_warning),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = MaterialTheme.colorScheme.onSecondaryContainer, 
             modifier = Modifier.padding(16.dp)
         )
     }
@@ -620,19 +620,19 @@ private fun ReactionPanel(
         shape = CircleShape,
         modifier = modifier,
         shadowElevation = 4.dp
-    ) {
+    ) { 
         Row(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
             REACTIONS.forEach { emoji ->
-                Text(
+                Text( 
                     text = emoji,
                     modifier = Modifier
                         .clickable { onReactionSelected(emoji) }
                         .padding(8.dp),
-                    fontSize = 24.sp
+                    fontSize = 24.sp 
                 )
             }
         }
@@ -645,17 +645,17 @@ private fun ReactionGroup(reactions: Map<String, Int>, modifier: Modifier = Modi
     FlowRow(modifier = modifier) {
         reactions.forEach { (emoji, count) ->
             Surface(
-                shape = CircleShape,
+                shape = CircleShape, 
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
             ) {
                 Row(
-                    Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    Modifier.padding(horizontal = 6.dp, vertical = 2.dp), 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(text = emoji, fontSize = 12.sp)
                     Spacer(Modifier.width(2.dp))
-                    Text(text = count.toString(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = count.toString(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold) 
                 }
             }
         }
@@ -666,13 +666,13 @@ private fun ReactionGroup(reactions: Map<String, Int>, modifier: Modifier = Modi
 private fun FormattedText(text: String, modifier: Modifier = Modifier) {
     val monoBgColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     val styledText = remember(text, monoBgColor) {
-        buildAnnotatedString {
+        buildAnnotatedString { 
             val styleMap = mapOf(
                 '*' to SpanStyle(fontWeight = FontWeight.Bold),
                 '_' to SpanStyle(fontStyle = FontStyle.Italic),
                 '~' to SpanStyle(textDecoration = TextDecoration.LineThrough),
                 '`' to SpanStyle(fontFamily = FontFamily.Monospace, background = monoBgColor)
-            )
+            ) 
 
             val regex = "([*_~`])(.*?)\\1".toRegex()
             var lastIndex = 0
@@ -680,18 +680,18 @@ private fun FormattedText(text: String, modifier: Modifier = Modifier) {
             regex.findAll(text).forEach { matchResult ->
                 val (delimiter, content) = matchResult.destructured
                 if (matchResult.range.first > lastIndex) {
-                    append(text.substring(lastIndex, matchResult.range.first))
+                    append(text.substring(lastIndex, matchResult.range.first)) 
                 }
                 styleMap[delimiter.first()]?.let { style ->
                     withStyle(style) {
                         append(content)
-                    }
+                    } 
                 }
                 lastIndex = matchResult.range.last + 1
             }
 
             if (lastIndex < text.length) {
-                append(text.substring(lastIndex))
+                append(text.substring(lastIndex)) 
             }
         }
     }
@@ -705,20 +705,20 @@ private fun ChatScreenPreview() {
         val previewListItems = listOf(
             ChatListItem.WarningItem,
             ChatListItem.DividerItem(System.currentTimeMillis() - 300000),
-            ChatListItem.MessageItem(Message(id="1", jid="jane@example.com", isOutgoing = false, text = "Hola! *qué tal?*", timestamp = System.currentTimeMillis() - 200000, name = "Jane")),
+            ChatListItem.MessageItem(Message(id="1", jid="jane@example.com", isOutgoing = false, text = "Hola! *qué tal?*", timestamp = System.currentTimeMillis() - 200000, name = "Jane")), 
             ChatListItem.MessageItem(Message(id="2", jid="me@example.com", isOutgoing = true, text = "Todo bien por acá en _Sayula_. `code`", timestamp = System.currentTimeMillis()- 100000, name = "Me")),
             ChatListItem.DividerItem(System.currentTimeMillis()),
             ChatListItem.MessageItem(Message(id="3", jid="jane@example.com", isOutgoing = false, text = "~rayado~", timestamp = System.currentTimeMillis(), name = "Jane"))
         )
         ChatScreen(
-            contactName = "Jane Doe",
+            contactName = "Jane Doe", 
             isGroup = false,
             listItems = previewListItems,
-            uiState = ChatViewModel.UiState(),
+            uiState = UiState(),
             onSendMessage = {},
             onSendMedia = {},
             onLoadOlderMessages = {},
-            onMediaClick = {},
+            onMediaClick = {}, 
             onReaction = { _, _ -> },
             onContactClick = {},
             onBackClick = {}

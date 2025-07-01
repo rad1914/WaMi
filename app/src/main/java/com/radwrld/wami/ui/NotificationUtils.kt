@@ -1,5 +1,4 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/NotificationUtils.kt
-// @path: app/src/main/java/com/radwrld/wami/util/NotificationUtils.kt
 package com.radwrld.wami.util
 
 import android.app.NotificationChannel
