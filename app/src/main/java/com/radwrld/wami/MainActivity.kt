@@ -19,8 +19,8 @@ import com.radwrld.wami.ui.viewmodel.ConversationListViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private val viewModel: ConversationListViewModel by viewModels {
-    ConversationListViewModelFactory(application)
-}
+        ConversationListViewModelFactory(application)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,41 +32,40 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     conversationState = conversationState,
                     searchState = searchState,
+                    // TODO: Replace 'null' with actual data from a user repository
                     currentUserProfileUrl = null,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
                     onRefresh = { triggerSync() },
-                    onHideConversation = { jid ->
-                        val contactToHide = conversationState.conversations.find { it.contact.id == jid }?.contact
-                        if (contactToHide != null) {
-                            viewModel.hide(contactToHide)
-                            Toast.makeText(this, "Hidden", Toast.LENGTH_SHORT).show()
+                    onDeleteConversation = { jid ->
+                        val contactToDelete = conversationState.conversations.find { it.contact.id == jid }?.contact
+                        if (contactToDelete != null) {
+                            viewModel.deleteConversation(contactToDelete)
+                            Toast.makeText(this, "Conversation deleted", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onOpenChat = { contact ->
-                         startActivity(
+                        startActivity(
                             Intent(this, ChatActivity::class.java).apply {
-                                  putExtra("EXTRA_JID", contact.id)
+                                putExtra("EXTRA_JID", contact.id)
                                 putExtra("EXTRA_NAME", contact.name)
                                 putExtra("EXTRA_AVATAR_URL", contact.avatarUrl)
-                              }
+                            }
                         )
                     },
                     onNavigateToContacts = {
-                         startActivity(Intent(this, ContactsActivity::class.java))
+                        startActivity(Intent(this, ContactsActivity::class.java))
                     },
                     onNavigateToSettings = {
-
                         startActivity(Intent(this, SettingsActivity::class.java))
                     },
                     onNavigateToSocial = {
-
                         startActivity(Intent(this, SocialActivity::class.java))
                     }
                 )
             }
         }
     }
-    
+
     private fun triggerSync() {
         Toast.makeText(this, "Sincronizando...", Toast.LENGTH_SHORT).show()
         val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()

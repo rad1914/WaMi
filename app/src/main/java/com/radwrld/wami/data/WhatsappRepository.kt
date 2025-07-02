@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
 // @path: app/src/main/java/com/radwrld/wami/data/WhatsAppRepository.kt
 package com.radwrld.wami.data
 
@@ -19,17 +18,23 @@ import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
-    private val serverUrl = ApiClient.getBaseUrl(context).removeSuffix("/")
 
-    fun getBaseUrl() = serverUrl
+    private fun String.toTextRequestBody(): RequestBody = this.toRequestBody("text/plain".toMediaTypeOrNull())
+
+    private fun File.asFormDataPart(partName: String): MultipartBody.Part {
+        val mimeType = context.contentResolver.getType(this.toUri()) ?: "application/octet-stream"
+        return MultipartBody.Part.createFormData(partName, this.name, this.asRequestBody(mimeType.toMediaTypeOrNull()))
+    }
+
+    fun getBaseUrl() = ApiClient.getBaseUrl(context).removeSuffix("/")
 
     suspend fun fetchConversations(): Result<List<Contact>> = runCatching {
         api.getConversations().map {
@@ -40,7 +45,7 @@ class WhatsAppRepository(private val context: Context) {
                 phoneNumber = if (isGroup) null else it.jid.substringBefore('@'),
                 lastMessageTimestamp = it.lastMessageTimestamp,
                 unreadCount = it.unreadCount ?: 0,
-                avatarUrl = "$serverUrl/avatar/${it.jid}",
+                avatarUrl = ApiClient.resolveAvatarUrl(context, it.jid),
                 isGroup = isGroup
             )
         }
@@ -49,9 +54,7 @@ class WhatsAppRepository(private val context: Context) {
     suspend fun getMessageHistory(jid: String): Result<List<Message>> = runCatching {
         api.getHistory(jid).map { historyItem ->
             historyItem.toDomain().run {
-                copy(mediaUrl = mediaUrl?.let { path ->
-                    if (path.startsWith("http")) path else "$serverUrl$path"
-                })
+                copy(mediaUrl = ApiClient.resolveUrl(context, mediaUrl))
             }
         }
     }
@@ -62,15 +65,11 @@ class WhatsAppRepository(private val context: Context) {
     }
 
     suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?): Result<SendResponse> = runCatching {
-        val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
-        val part = MultipartBody.Part.createFormData(
-            "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
-        )
         val response = api.sendMedia(
-            jid.toRequestBody("text/plain".toMediaTypeOrNull()),
-            caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
-            tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
-            part
+            jid.toTextRequestBody(),
+            caption?.toTextRequestBody(),
+            tempId.toTextRequestBody(),
+            file.asFormDataPart("file")
         )
         if (response.success) response else error(response.error ?: "Send failed")
     }
@@ -102,7 +101,6 @@ class WhatsAppRepository(private val context: Context) {
         coroutineScope {
             userGroups.map { groupContact ->
                 async {
-                    delay(300L)
                     getGroupInfo(groupContact.id)
                         .getOrNull()
                         ?.takeIf { groupInfo -> groupInfo.participants.any { it.id == contactJid } }
@@ -116,23 +114,19 @@ class WhatsAppRepository(private val context: Context) {
         val contactsMap = allLocalContacts.associateBy { it.id }
         api.getStatuses().map { status ->
             status.copy(
-                avatarUrl = "$serverUrl/avatar/${status.jid}",
+                avatarUrl = ApiClient.resolveAvatarUrl(context, status.jid),
                 senderName = contactsMap[status.jid]?.name ?: status.jid.substringBefore('@'),
-                mediaUrl = status.mediaUrl?.let { if (it.startsWith("http")) it else "$serverUrl$it" }
+                mediaUrl = ApiClient.resolveUrl(context, status.mediaUrl)
             )
         }
     }
 
     suspend fun sendStatus(file: File, caption: String?): Result<SendResponse> = runCatching {
-        val mimeType = context.contentResolver.getType(file.toUri()) ?: "application/octet-stream"
-        val filePart = MultipartBody.Part.createFormData(
-            "file", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull())
-        )
         val tempId = UUID.randomUUID().toString()
         val response = api.sendStatus(
-            caption = caption?.toRequestBody("text/plain".toMediaTypeOrNull()),
-            tempId = tempId.toRequestBody("text/plain".toMediaTypeOrNull()),
-            file = filePart
+            caption = caption?.toTextRequestBody(),
+            tempId = tempId.toTextRequestBody(),
+            file = file.asFormDataPart("file")
         )
         if(response.success) response else error(response.error ?: "Send status failed")
     }

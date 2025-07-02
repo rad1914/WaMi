@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/ConversationListViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
@@ -11,6 +12,8 @@ import com.radwrld.wami.storage.MessageStorage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+// --- Data & State Classes ---
+
 data class ConversationUiItem(
     val contact: Contact,
     val lastMessage: Message?
@@ -22,11 +25,18 @@ data class ConversationListState(
     val error: String? = null
 )
 
+sealed class SearchResultItem {
+    data class ContactItem(val contact: Contact) : SearchResultItem()
+    data class MessageItem(val message: Message, val contact: Contact) : SearchResultItem()
+}
+
 data class SearchState(
     val query: String = "",
-    val results: List<Contact> = emptyList(),
+    val results: List<SearchResultItem> = emptyList(),
     val isLoading: Boolean = false
 )
+
+// --- ViewModel ---
 
 class ConversationListViewModel(
     private val contactStorage: ContactStorage,
@@ -50,18 +60,21 @@ class ConversationListViewModel(
         initialValue = ConversationListState(isLoading = true)
     )
 
-    // LÓGICA DE BÚSQUEDA REACTIVA
     val searchState: StateFlow<SearchState> = _searchQuery
-        .debounce(300) // Evita ejecutar la búsqueda en cada letra tecleada
-        .combine(contactStorage.contactsFlow) { query, contacts ->
+        .debounce(300)
+        .combine(contactStorage.contactsFlow) { query, contacts -> // TODO: Also combine with a flow for all messages
             if (query.isBlank()) {
                 SearchState(query = query, results = emptyList())
             } else {
-                val results = contacts.filter {
-                    it.name.contains(query, ignoreCase = true) ||
-                    it.phoneNumber?.contains(query) == true
-                }
-                SearchState(query = query, results = results)
+                val contactResults = contacts.filter {
+                    it.name.contains(query, ignoreCase = true) || it.phoneNumber?.contains(query) == true
+                }.map { SearchResultItem.ContactItem(it) }
+                
+                // TODO: Implement message search logic here and combine results
+                // val messageResults = allMessages.filter { ... }.map { SearchResultItem.MessageItem(it) }
+                // val combinedResults = contactResults + messageResults
+
+                SearchState(query = query, results = contactResults)
             }
         }
         .stateIn(
@@ -73,15 +86,13 @@ class ConversationListViewModel(
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
-    
+
     fun deleteConversation(contact: Contact) = viewModelScope.launch {
         contactStorage.deleteContact(contact)
     }
-
-    fun hide(contact: Contact) = viewModelScope.launch {
-        contactStorage.deleteContact(contact)
-    }
 }
+
+// --- ViewModel Factory ---
 
 class ConversationListViewModelFactory(
     private val application: Application

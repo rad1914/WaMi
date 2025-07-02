@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +30,8 @@ import com.radwrld.wami.network.Contact
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.viewmodel.ConversationListState
 import com.radwrld.wami.ui.viewmodel.ConversationUiItem
-import com.radwrld.wami.ui.viewmodel.SearchState
 import com.radwrld.wami.ui.viewmodel.SearchResultItem
+import com.radwrld.wami.ui.viewmodel.SearchState
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -45,37 +43,67 @@ fun MainScreen(
     currentUserProfileUrl: String?,
     onSearchQueryChanged: (String) -> Unit,
     onRefresh: () -> Unit,
-    onHideConversation: (String) -> Unit,
+    onDeleteConversation: (String) -> Unit,
     onOpenChat: (Contact) -> Unit,
     onNavigateToContacts: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSocial: () -> Unit
 ) {
+    var isSearchActive by remember { mutableStateOf(false) }
+    
     Scaffold(
         topBar = {
-             TopAppBar(
-                title = { Text("Messages") },
+            TopAppBar(
+                title = {
+                    if (isSearchActive) {
+                        TextField(
+                            value = searchState.query,
+                            onValueChange = onSearchQueryChanged,
+                            placeholder = { Text("Search conversations...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = TextFieldDefaults.textFieldColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surface,
+                                focusedIndicatorColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    } else {
+                        Text("Messages")
+                    }
+                },
                 navigationIcon = {
-                     IconButton(onClick = onNavigateToSettings) {
-                         AsyncImage(
-                             model = ImageRequest.Builder(LocalContext.current)
-                                 .data(currentUserProfileUrl)
-                                 .crossfade(true)
-                                 .build(),
-                             placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
-                             error = painterResource(id = R.drawable.ic_profile_placeholder),
-                             contentDescription = "Open Settings",
-                             contentScale = ContentScale.Crop,
-                             modifier = Modifier
-                                 .size(36.dp)
-                                 .clip(CircleShape)
-                         )
-                     }
+                    if (isSearchActive) {
+                        IconButton(onClick = {
+                            isSearchActive = false
+                            onSearchQueryChanged("") // Clear search on close
+                        }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Close Search")
+                        }
+                    } else {
+                        IconButton(onClick = onNavigateToSettings) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(currentUserProfileUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                                error = painterResource(id = R.drawable.ic_profile_placeholder),
+                                contentDescription = "Open Settings",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                            )
+                        }
+                    }
                 },
                 actions = {
-                    IconButton(onClick = {  }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                      }
+                    if (!isSearchActive) {
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                    }
                 }
             )
         },
@@ -89,44 +117,42 @@ fun MainScreen(
         SwipeRefresh(
             state = rememberSwipeRefreshState(isRefreshing = conversationState.isLoading),
             onRefresh = onRefresh,
-             modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues)
         ) {
-
             val itemsToShow: List<Any> = if (searchState.query.isBlank()) {
                 conversationState.conversations
             } else {
                 searchState.results
             }
 
-             LazyColumn(
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(
                     items = itemsToShow,
-                     key = { item ->
+                    key = { item ->
                         when (item) {
                             is ConversationUiItem -> "conversation-${item.contact.id}"
                             is SearchResultItem.ContactItem -> "search-contact-${item.contact.id}"
                             is SearchResultItem.MessageItem -> "search-message-${item.message.id}"
                             else -> UUID.randomUUID().toString()
                         }
-                     }
+                    }
                 ) { item ->
-
                     when (item) {
                         is ConversationUiItem -> {
-                             ConversationItem(
+                            ConversationItem(
                                 item = item,
                                 onClick = { onOpenChat(item.contact) },
-                                onLongClick = { onHideConversation(item.contact.id) }
+                                onLongClick = { onDeleteConversation(item.contact.id) }
                             )
                         }
                         is SearchResultItem.ContactItem -> {
-                             SearchResultContact(contact = item.contact)
+                            SearchResultContact(contact = item.contact)
                         }
                         is SearchResultItem.MessageItem -> {
-                             SearchResultMessage(message = item.message, contact = item.contact)
+                            SearchResultMessage(message = item.message, contact = item.contact)
                         }
                     }
                 }
@@ -140,7 +166,7 @@ private fun AppBottomNavigation(
     onNavigateToContacts: () -> Unit,
     onNavigateToSocial: () -> Unit
 ) {
-     var selectedItem by remember { mutableStateOf(0) }
+    var selectedItem by remember { mutableStateOf(0) }
     val items = listOf("Messages", "Social", "Contacts")
     val icons = listOf(Icons.Filled.Message, Icons.Filled.Group, Icons.Filled.People)
 
@@ -149,7 +175,7 @@ private fun AppBottomNavigation(
             NavigationBarItem(
                 icon = { Icon(icons[index], contentDescription = item) },
                 label = { Text(item) },
-                 selected = selectedItem == index,
+                selected = selectedItem == index,
                 onClick = {
                     if (selectedItem != index) {
                         selectedItem = index
@@ -159,7 +185,7 @@ private fun AppBottomNavigation(
                         "Social" -> onNavigateToSocial()
                     }
                 }
-             )
+            )
         }
     }
 }
@@ -179,11 +205,11 @@ private fun ConversationItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         val placeholder = if (item.contact.isGroup) painterResource(id = R.drawable.ic_group_placeholder)
-                          else painterResource(id = R.drawable.ic_profile_placeholder)
+        else painterResource(id = R.drawable.ic_profile_placeholder)
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current).data(item.contact.avatarUrl).crossfade(true).build(),
             placeholder = placeholder,
-             error = placeholder,
+            error = placeholder,
             contentDescription = "${item.contact.name} avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(56.dp).clip(CircleShape)
@@ -213,25 +239,25 @@ private fun ConversationItem(
 private fun SearchResultContact(contact: Contact) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(text = contact.name, fontWeight = FontWeight.Bold)
-        Text(text = "Contacto", style = MaterialTheme.typography.bodySmall)
+        Text(text = "Contact", style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
 private fun SearchResultMessage(message: Message, contact: Contact) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(text = message.text ?: "Mensaje vacío", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "En chat con ${contact.name}", style = MaterialTheme.typography.bodySmall)
+        Text(text = message.text ?: "Empty message", style = MaterialTheme.typography.bodyLarge)
+        Text(text = "In chat with ${contact.name}", style = MaterialTheme.typography.bodySmall)
     }
 }
 
 private fun formatTimestamp(ts: Long): String {
     val msgCal = Calendar.getInstance().apply { timeInMillis = ts }
     val now = Calendar.getInstance()
-     return when {
+    return when {
         now.get(Calendar.DATE) == msgCal.get(Calendar.DATE) ->
             SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(ts))
-        now.get(Calendar.DATE) - msgCal.get(Calendar.DATE) == 1 -> "Ayer"
+        now.get(Calendar.DATE) - msgCal.get(Calendar.DATE) == 1 -> "Yesterday"
         else -> SimpleDateFormat("MM/dd/yy", Locale.getDefault()).format(Date(ts))
     }
 }

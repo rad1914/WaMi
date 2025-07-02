@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.lifecycle.*
 import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.network.AuthError
 import com.radwrld.wami.network.SyncManager
 import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.*
@@ -43,16 +44,19 @@ class LoginViewModel(
             }
             launch {
                 SyncManager.qrCodeUrl.collect { url ->
-                    if (url != null) decodeQr(url)?.let {
-                        uiState.value = LoginUiState.ShowQr(it, "Escanea el código QR")
+                    if (url != null) {
+                        decodeQr(url)?.let {
+                            uiState.value = LoginUiState.ShowQr(it, "Escanea el código QR")
+                        }
                     } else if (!SyncManager.isAuthenticated.value) {
                         uiState.value = LoginUiState.Loading("Esperando código QR...")
                     }
                 }
             }
             launch {
-                SyncManager.authError.collect {
-                    if (it) {
+                SyncManager.authError.collect { error ->
+                    // Comprobamos el tipo de error en lugar de solo 'if (it)'
+                    if (error == AuthError.INVALID_SESSION) {
                         toastEvents.emit("Sesión inválida. Creando una nueva.")
                         config.saveSessionId(null)
                         start()
@@ -127,4 +131,3 @@ class LoginViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-
