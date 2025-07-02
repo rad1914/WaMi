@@ -39,7 +39,7 @@ class SocialActivity : ComponentActivity() {
 
                 SocialScreen(
                     uiState = uiState,
-                    onRefresh = viewModel::fetchStatuses, // Ahora esto es válido
+                    onRefresh = viewModel::fetchStatuses,
                     onNavigateBack = { finish() },
                     onStatusClick = { status ->
                         val intent = Intent(this, MediaViewActivity::class.java).apply {

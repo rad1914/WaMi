@@ -8,6 +8,7 @@ import com.radwrld.wami.adapter.ChatListItem
 import com.radwrld.wami.data.WhatsAppRepository
 import com.radwrld.wami.network.GroupInfo
 import com.radwrld.wami.network.Message
+import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.GroupStorage
 import com.radwrld.wami.storage.MessageStorage
 import com.radwrld.wami.util.MediaCache
@@ -29,29 +30,25 @@ data class UiState(
 class ChatViewModel(
     app: Application,
     private val jid: String,
-    private val contactName: String
-) : AndroidViewModel(app) {
 
-    private val messageStorage = MessageStorage(getApplication())
-    private val whatsAppRepository = WhatsAppRepository(getApplication())
-    private val groupStorage = GroupStorage(getApplication())
+    private val contactStorage: ContactStorage,
+    private val messageStorage: MessageStorage,
+    private val whatsAppRepository: WhatsAppRepository
+) : AndroidViewModel(app) {
 
     private val _internalState = MutableStateFlow(InternalState())
     private val _errors = MutableSharedFlow<String>()
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-private val chatDetailsFlow: Flow<String> = flow {
-    if (jid.endsWith("@g.us")) {
-        val groupInfoResult = whatsAppRepository.getGroupInfo(jid)
-        
-        // <<< ¡ESTA ES LA LÍNEA CORREGIDA!
-        // Se usa .subject, como está definido en tu clase GroupInfo 
-        val groupName = groupInfoResult.getOrNull()?.subject ?: contactName
-        emit(groupName)
+    private val chatDetailsFlow: Flow<String> = if (jid.endsWith("@g.us")) {
+        flow {
+            val groupInfoResult = whatsAppRepository.getGroupInfo(jid)
+            val groupName = groupInfoResult.getOrNull()?.subject ?: ""
+            emit(groupName)
+        }
     } else {
-        emit(contactName)
+        contactStorage.getContact(jid).map { it?.name ?: "Desconocido" }
     }
-}
 
     val uiState: StateFlow<UiState> = combine(
         messageStorage.getMessagesFlow(jid),
@@ -67,7 +64,8 @@ private val chatDetailsFlow: Flow<String> = flow {
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = UiState(chatName = contactName)
+
+        initialValue = UiState()
     )
 
     private fun processMessagesIntoListItems(messages: List<Message>): List<ChatListItem> {
@@ -116,7 +114,8 @@ private val chatDetailsFlow: Flow<String> = flow {
 
     fun sendMedia(uri: Uri) = viewModelScope.launch {
         val (file, sha) = MediaCache.saveToCache(getApplication(), uri) ?: run {
-            _errors.emit("Media error"); return@launch
+            _errors.emit("Media error")
+            return@launch
         }
         val mime = getApplication<Application>().contentResolver.getType(uri) ?: "application/octet-stream"
 
@@ -173,25 +172,33 @@ private val chatDetailsFlow: Flow<String> = flow {
     private fun shouldShowDivider(prev: Long, cur: Long): Boolean {
         if (prev == 0L) return true
         val gap = cur - prev
-        return gap > TimeUnit.MINUTES.toMillis(30) || isDiffDay(prev, cur)
+        return gap > TimeUnit.MINUTES.toMillis(30) ||
+        isDiffDay(prev, cur)
     }
 
     private fun isDiffDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
-        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) || c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
+        return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
+        c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }
 
 class ChatViewModelFactory(
     private val app: Application,
-    private val jid: String,
-    private val name: String
+    private val jid: String
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ChatViewModel(app, jid, name) as T
+
+            return ChatViewModel(
+                app = app,
+                jid = jid,
+                contactStorage = ContactStorage(app),
+                messageStorage = MessageStorage(app),
+                whatsAppRepository = WhatsAppRepository(app)
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

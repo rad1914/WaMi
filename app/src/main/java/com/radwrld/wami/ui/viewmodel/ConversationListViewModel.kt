@@ -1,15 +1,13 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/ConversationListViewModel.kt
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.network.Contact
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.MessageStorage
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -30,12 +28,12 @@ data class SearchState(
     val isLoading: Boolean = false
 )
 
-class ConversationListViewModel(application: Application) : AndroidViewModel(application) {
+class ConversationListViewModel(
+    private val contactStorage: ContactStorage,
+    messageStorage: MessageStorage
+) : ViewModel() {
 
-    private val contactStorage = ContactStorage(application)
-    private val messageStorage = MessageStorage(application)
-
-    private var searchJob: Job? = null
+    private val _searchQuery = MutableStateFlow("")
 
     val conversationState: StateFlow<ConversationListState> = combine(
         contactStorage.contactsFlow,
@@ -44,7 +42,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         val uiItems = contacts
             .map { contact -> ConversationUiItem(contact, lastMessagesMap[contact.id]) }
             .sortedByDescending { it.lastMessage?.timestamp ?: it.contact.lastMessageTimestamp ?: 0 }
-        
+
         ConversationListState(uiItems, isLoading = false)
     }.stateIn(
         scope = viewModelScope,
@@ -52,33 +50,50 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         initialValue = ConversationListState(isLoading = true)
     )
 
-    private val _searchState = MutableStateFlow(SearchState())
-    val searchState = _searchState.asStateFlow()
+    // LÓGICA DE BÚSQUEDA REACTIVA
+    val searchState: StateFlow<SearchState> = _searchQuery
+        .debounce(300) // Evita ejecutar la búsqueda en cada letra tecleada
+        .combine(contactStorage.contactsFlow) { query, contacts ->
+            if (query.isBlank()) {
+                SearchState(query = query, results = emptyList())
+            } else {
+                val results = contacts.filter {
+                    it.name.contains(query, ignoreCase = true) ||
+                    it.phoneNumber?.contains(query) == true
+                }
+                SearchState(query = query, results = results)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SearchState()
+        )
 
-    fun hide(contact: Contact) = viewModelScope.launch {
-
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+    }
+    
+    fun deleteConversation(contact: Contact) = viewModelScope.launch {
         contactStorage.deleteContact(contact)
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _searchState.update { it.copy(query = query) }
-        searchJob?.cancel()
+    fun hide(contact: Contact) = viewModelScope.launch {
+        contactStorage.deleteContact(contact)
+    }
+}
 
-        if (query.isBlank()) {
-            _searchState.update { it.copy(results = emptyList(), isLoading = false) }
-            return
+class ConversationListViewModelFactory(
+    private val application: Application
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ConversationListViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ConversationListViewModel(
+                contactStorage = ContactStorage(application),
+                messageStorage = MessageStorage(application)
+            ) as T
         }
-
-        _searchState.update { it.copy(isLoading = true) }
-        searchJob = viewModelScope.launch {
-            delay(300)
-
-            val allContacts = contactStorage.contactsFlow.first()
-            val results = allContacts.filter { 
-                it.name.contains(query, ignoreCase = true) ||
-                it.phoneNumber?.contains(query) == true
-            }
-            _searchState.update { it.copy(isLoading = false, results = results) }
-        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

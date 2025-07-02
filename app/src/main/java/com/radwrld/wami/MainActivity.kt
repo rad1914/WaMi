@@ -15,9 +15,12 @@ import com.radwrld.wami.sync.SyncWorker
 import com.radwrld.wami.ui.screens.MainScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.ConversationListViewModel
+import com.radwrld.wami.ui.viewmodel.ConversationListViewModelFactory
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: ConversationListViewModel by viewModels()
+    private val viewModel: ConversationListViewModel by viewModels {
+    ConversationListViewModelFactory(application)
+}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

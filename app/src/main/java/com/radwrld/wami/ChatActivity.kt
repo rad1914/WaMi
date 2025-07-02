@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ChatActivity.kt
 package com.radwrld.wami
 
 import android.content.Intent
@@ -69,7 +70,7 @@ class ChatActivity : AppCompatActivity() {
     private val isGroup get() = jid.endsWith("@g.us") 
 
     private val viewModel: ChatViewModel by viewModels {
-        ChatViewModelFactory(application, jid, name)
+        ChatViewModelFactory(application, jid)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

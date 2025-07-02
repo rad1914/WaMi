@@ -23,7 +23,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     val uiState = _uiState.asStateFlow()
 
     init {
-        fetchStatuses() // Carga inicial
+        fetchStatuses()
 
         viewModelScope.launch {
             SyncManager.newStatusEvent.collect { newStatuses: List<StatusItem> ->
