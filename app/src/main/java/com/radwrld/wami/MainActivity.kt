@@ -9,9 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import com.radwrld.wami.sync.SyncWorker
+import com.radwrld.wami.network.Contact
 import com.radwrld.wami.ui.screens.MainScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.ConversationListViewModel
@@ -32,16 +30,10 @@ class MainActivity : ComponentActivity() {
                 MainScreen(
                     conversationState = conversationState,
                     searchState = searchState,
-                    // TODO: Replace 'null' with actual data from a user repository
-                    currentUserProfileUrl = null,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
-                    onRefresh = { triggerSync() },
-                    onDeleteConversation = { jid ->
-                        val contactToDelete = conversationState.conversations.find { it.contact.id == jid }?.contact
-                        if (contactToDelete != null) {
-                            viewModel.deleteConversation(contactToDelete)
-                            Toast.makeText(this, "Conversation deleted", Toast.LENGTH_SHORT).show()
-                        }
+                    onDeleteConversation = { contact ->
+                        viewModel.deleteConversation(contact)
+                        Toast.makeText(this, "Conversation deleted", Toast.LENGTH_SHORT).show()
                     },
                     onOpenChat = { contact ->
                         startActivity(
@@ -55,20 +47,22 @@ class MainActivity : ComponentActivity() {
                     onNavigateToContacts = {
                         startActivity(Intent(this, ContactsActivity::class.java))
                     },
-                    onNavigateToSettings = {
+                    onNavigateToProfile = {
                         startActivity(Intent(this, SettingsActivity::class.java))
                     },
                     onNavigateToSocial = {
                         startActivity(Intent(this, SocialActivity::class.java))
-                    }
+                    },
+                    onFastContact = {
+                        Toast.makeText(this, "Fast Contact clicked", Toast.LENGTH_SHORT).show()
+                    },
+                    onNavigateToTweaks = {
+                        startActivity(Intent(this, TweaksActivity::class.java))
+                    },
+
+                    onRefresh = viewModel::refreshConversations
                 )
             }
         }
-    }
-
-    private fun triggerSync() {
-        Toast.makeText(this, "Sincronizando...", Toast.LENGTH_SHORT).show()
-        val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
-        WorkManager.getInstance(this).enqueue(workRequest)
     }
 }

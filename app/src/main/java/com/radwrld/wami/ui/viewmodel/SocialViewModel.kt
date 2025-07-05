@@ -18,7 +18,7 @@ data class SocialUiState(
 
 class SocialViewModel(application: Application) : AndroidViewModel(application) {
     private val whatsAppRepository = WhatsAppRepository(application)
-    private val contactStorage = ContactStorage(application)
+    private val contactStorage = ContactStorage.getInstance(application)
     private val _uiState = MutableStateFlow(SocialUiState(isLoading = true))
     val uiState = _uiState.asStateFlow()
 
@@ -26,24 +26,30 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         fetchStatuses()
 
         viewModelScope.launch {
+            
             SyncManager.newStatusEvent.collect { newStatuses: List<StatusItem> ->
                 _uiState.update { currentState ->
+                    
                     val combined = (newStatuses + currentState.statuses).distinctBy { it.id }
                     currentState.copy(statuses = combined)
                 }
             }
         }
     }
-    
+
     fun fetchStatuses() {
         viewModelScope.launch {
+            
             contactStorage.contactsFlow.firstOrNull()?.let { contacts ->
                 _uiState.update { it.copy(isLoading = true) }
+                
                 whatsAppRepository.getStatuses(contacts)
                     .onSuccess { statuses ->
+                        
                         _uiState.update { it.copy(statuses = statuses, isLoading = false) }
                     }
                     .onFailure {
+                        
                         _uiState.update { it.copy(isLoading = false) }
                     }
             }

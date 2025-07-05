@@ -64,7 +64,6 @@ class ChatViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-
         initialValue = UiState()
     )
 
@@ -153,7 +152,7 @@ class ChatViewModel(
         val ext = MediaCache.fileExt(msg.mimetype)
         val cacheKey = msg.mediaSha256 ?: msg.id
         val file = withContext(Dispatchers.IO) {
-             MediaCache.downloadAndCache(
+            MediaCache.downloadAndCache(
                 context = getApplication(), url = msg.mediaUrl!!,
                 cacheKey = cacheKey, ext = ext
             )
@@ -173,14 +172,14 @@ class ChatViewModel(
         if (prev == 0L) return true
         val gap = cur - prev
         return gap > TimeUnit.MINUTES.toMillis(30) ||
-        isDiffDay(prev, cur)
+                isDiffDay(prev, cur)
     }
 
     private fun isDiffDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
         return c1.get(Calendar.YEAR) != c2.get(Calendar.YEAR) ||
-        c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
+                c1.get(Calendar.DAY_OF_YEAR) != c2.get(Calendar.DAY_OF_YEAR)
     }
 }
 
@@ -191,11 +190,11 @@ class ChatViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-
             return ChatViewModel(
                 app = app,
                 jid = jid,
-                contactStorage = ContactStorage(app),
+                // Correctly get the singleton instance here.
+                contactStorage = ContactStorage.getInstance(app),
                 messageStorage = MessageStorage(app),
                 whatsAppRepository = WhatsAppRepository(app)
             ) as T

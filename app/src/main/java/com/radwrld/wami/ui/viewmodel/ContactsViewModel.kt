@@ -20,7 +20,8 @@ data class ContactsUiState(
 
 class ContactsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val contactStorage = ContactStorage(application)
+    // Correctly get the singleton instance instead of creating a new one.
+    private val contactStorage = ContactStorage.getInstance(application)
     private val workManager = WorkManager.getInstance(application)
 
     private val _uiState = MutableStateFlow(ContactsUiState(isLoading = true))
@@ -43,9 +44,7 @@ class ContactsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshContacts() {
-        // Set loading state to true to show the refresh indicator in the UI
         _uiState.update { it.copy(isLoading = true) }
-        // Enqueue the background sync worker
         val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
         workManager.enqueue(workRequest)
     }

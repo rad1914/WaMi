@@ -1,16 +1,24 @@
-// @path: cleanAndPrepComments.js
-
 import { promises as fs } from "fs";
-import { resolve, relative, extname } from "path";
+import { resolve, relative, extname, posix } from "path";
 import fg from "fast-glob";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
-const scriptRelPath = relative(process.cwd(), __filename).replace(/\\/g, '/');
+const cwd = process.cwd();
+const scriptRelPath = relative(cwd, __filename).replace(/\\/g, '/');
 
-/**
- * Build a regex that matches exactly the given comment line (for .js/.kt/.xml).
- */
+// Utilities
+function toPosixPath(path) {
+  return path.replace(/\\/g, '/');
+}
+
+function getFileType(ext) {
+  ext = ext.toLowerCase();
+  if (ext === '.js' || ext === '.kt') return 'code';
+  if (ext === '.xml') return 'xml';
+  return null;
+}
+
 function buildExactPathCommentRegex(commentLine) {
   const escaped = commentLine
     .trim()
@@ -19,77 +27,70 @@ function buildExactPathCommentRegex(commentLine) {
   return new RegExp(`^\\s*${escaped}`, 'm');
 }
 
-/**
- * Prepend a `// @path: <relPath>` or `<!-- @path: <relPath> -->` if missing.
- */
-async function prependCommentToFile(filePath) {
-  const ext = extname(filePath).toLowerCase();
+async function processFile(filePath) {
   const absPath = resolve(filePath);
-  const relPath = relative(process.cwd(), absPath).replace(/\\/g, '/');
+  const relPath = toPosixPath(relative(cwd, absPath));
+  const ext = extname(filePath);
+  const fileType = getFileType(ext);
+  if (!fileType) return;
 
-  let commentLine;
-  if (ext === '.js' || ext === '.kt') {
-    commentLine = `// @path: ${relPath}\n`;
-  } else if (ext === '.xml') {
-    commentLine = `<!-- @path: ${relPath} -->\n`;
-  } else {
+  let content;
+  try {
+    content = await fs.readFile(absPath, 'utf8');
+  } catch (err) {
+    console.error(`Failed to read: ${relPath}`, err);
     return;
   }
 
-  const raw = await fs.readFile(absPath, 'utf8');
-  const header = raw.split(/\r?\n/, 10).join('\n');
-  if (buildExactPathCommentRegex(commentLine).test(header)) {
-    console.log(`Skipping (already has @path): ${relPath}`);
-    return;
-  }
+  let commentLine = fileType === 'xml'
+    ? `<!-- @path: ${relPath} -->\n`
+    : `// @path: ${relPath}\n`;
 
-  let newContent;
-  if (ext === '.xml' && raw.startsWith('<?xml')) {
-    const endDecl = raw.indexOf('?>');
-    if (endDecl !== -1) {
-      const before = raw.slice(0, endDecl + 2);
-      const after  = raw.slice(endDecl + 2).replace(/^\r?\n/, '');
-      newContent = `${before}\n${commentLine}${after}`;
+  const pathCommentRegex = buildExactPathCommentRegex(commentLine);
+  const header = content.slice(0, 500);
+
+  // Prepend path comment if not already present
+  if (!pathCommentRegex.test(header)) {
+    if (fileType === 'xml' && content.startsWith('<?xml')) {
+      const endDecl = content.indexOf('?>');
+      if (endDecl !== -1) {
+        const before = content.slice(0, endDecl + 2);
+        const after = content.slice(endDecl + 2).replace(/^\r?\n/, '');
+        content = `${before}\n${commentLine}${after}`;
+      } else {
+        content = `${commentLine}${content}`;
+      }
     } else {
-      newContent = `${commentLine}${raw}`;
+      content = `${commentLine}${content}`;
     }
+    console.log(`Prepended @path to: ${relPath}`);
   } else {
-    newContent = `${commentLine}${raw}`;
+    console.log(`Skipping (already has @path): ${relPath}`);
   }
 
-  await fs.writeFile(absPath, newContent, 'utf8');
-  console.log(`Prepended @path to: ${relPath}`);
-}
-
-/**
- * Remove all comments except those containing `@path:`.
- */
-async function removeCommentsExceptPath(filePath) {
-  const absPath = resolve(filePath);
-  const relPath = relative(process.cwd(), absPath).replace(/\\/g, '/');
-  const ext = extname(filePath).toLowerCase();
-  let content = await fs.readFile(absPath, 'utf8');
-
-  if (ext === '.js' || ext === '.kt') {
-    content = content.replace(/\/\*[\s\S]*?\*\//g, m => /@path:/.test(m) ? m : '');
-    content = content.replace(/^\s*\/\/.*$/gm, line => /@path:/.test(line) ? line : '');
-    content = content.replace(/([^:"'\n])\/\/(?!.*@path:).*$/gm, (m, p) => p.trimEnd());
-  } else if (ext === '.xml') {
-    content = content.replace(/<!--[\s\S]*?-->/g, m => /@path:/.test(m) ? m : '');
-  } else {
-    return;
+  // Remove unwanted comments
+  if (fileType === 'code') {
+    content = content
+      .replace(/\/\*[\s\S]*?\*\//g, m => m.includes('@path:') ? m : '')
+      .replace(/^\s*\/\/.*$/gm, line => line.includes('@path:') ? line : '')
+      .replace(/([^:"'\n])\/\/(?!.*@path:).*$/gm, (_, p) => p.trimEnd())
+      .replace(/\[cite(?:_start|_end)?(?:\s*:\s*\d+)?\]/g, '');
+  } else if (fileType === 'xml') {
+    content = content.replace(/<!--[\s\S]*?-->/g, m => m.includes('@path:') ? m : '');
   }
 
+  // Normalize spacing
   content = content.replace(/\n{3,}/g, '\n\n');
   if (!content.endsWith('\n')) content += '\n';
 
-  await fs.writeFile(absPath, content, 'utf8');
-  console.log(`Cleaned comments in: ${relPath}`);
+  try {
+    await fs.writeFile(absPath, content, 'utf8');
+    console.log(`Cleaned: ${relPath}`);
+  } catch (err) {
+    console.error(`Failed to write: ${relPath}`, err);
+  }
 }
 
-/**
- * Main: glob for js/kt/xml, skip this script file, then prepend & clean.
- */
 async function main() {
   const pattern = process.argv[2] || '**/*.{js,kt,xml}';
   let entries = await fg(pattern, {
@@ -97,22 +98,15 @@ async function main() {
     ignore: ['node_modules/**'],
   });
 
-  // filter out this script itself
-  entries = entries.filter(f => f.replace(/\\/g, '/') !== scriptRelPath);
+  entries = entries.map(toPosixPath).filter(f => f !== scriptRelPath);
 
   if (!entries.length) {
     console.warn('No files found for pattern:', pattern);
     return;
   }
 
-  for (const file of entries) {
-    try {
-      await prependCommentToFile(file);
-      await removeCommentsExceptPath(file);
-    } catch (err) {
-      console.error(`Error processing ${file}:`, err);
-    }
-  }
+  // Process files in parallel (limited concurrency could be added here)
+  await Promise.allSettled(entries.map(processFile));
 
   console.log('All done!');
 }

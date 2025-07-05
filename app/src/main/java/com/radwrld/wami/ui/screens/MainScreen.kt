@@ -2,19 +2,26 @@
 package com.radwrld.wami.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -23,170 +30,175 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.radwrld.wami.R
 import com.radwrld.wami.network.Contact
-import com.radwrld.wami.network.Message
 import com.radwrld.wami.ui.viewmodel.ConversationListState
 import com.radwrld.wami.ui.viewmodel.ConversationUiItem
-import com.radwrld.wami.ui.viewmodel.SearchResultItem
-import com.radwrld.wami.ui.viewmodel.SearchState
+import com.radwrld.wami.ui.viewmodel.SearchState // <-- IMPORT ADDED
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun MainScreen(
     conversationState: ConversationListState,
     searchState: SearchState,
-    currentUserProfileUrl: String?,
     onSearchQueryChanged: (String) -> Unit,
-    onRefresh: () -> Unit,
-    onDeleteConversation: (String) -> Unit,
+    onDeleteConversation: (Contact) -> Unit,
     onOpenChat: (Contact) -> Unit,
     onNavigateToContacts: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToSocial: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSocial: () -> Unit,
+    onFastContact: () -> Unit,
+    onNavigateToTweaks: () -> Unit,
+    onRefresh: () -> Unit
 ) {
-    var isSearchActive by remember { mutableStateOf(false) }
-    
+
+    var contactToDelete by remember { mutableStateOf<Contact?>(null) }
+
+    contactToDelete?.let { contact ->
+        AlertDialog(
+            onDismissRequest = { contactToDelete = null },
+            title = { Text("Delete Conversation") },
+            text = { Text("Are you sure you want to delete the conversation with ${contact.name}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteConversation(contact)
+                        contactToDelete = null
+                    }
+                ) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { contactToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    val isRefreshing = conversationState.isLoading
+    val pullRefreshState = rememberPullRefreshState(refreshing = isRefreshing, onRefresh = onRefresh)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    if (isSearchActive) {
-                        TextField(
-                            value = searchState.query,
-                            onValueChange = onSearchQueryChanged,
-                            placeholder = { Text("Search conversations...") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = TextFieldDefaults.textFieldColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surface,
-                                focusedIndicatorColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    } else {
-                        Text("Messages")
-                    }
-                },
+                title = { Text("Messages") },
                 navigationIcon = {
-                    if (isSearchActive) {
-                        IconButton(onClick = {
-                            isSearchActive = false
-                            onSearchQueryChanged("") // Clear search on close
-                        }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Close Search")
-                        }
-                    } else {
-                        IconButton(onClick = onNavigateToSettings) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(currentUserProfileUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
-                                error = painterResource(id = R.drawable.ic_profile_placeholder),
-                                contentDescription = "Open Settings",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                            )
-                        }
+                    IconButton(onClick = onFastContact) {
+                        Icon(Icons.Default.Add, "Fast Contact")
                     }
                 },
                 actions = {
-                    if (!isSearchActive) {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
-                        }
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(painterResource(id = R.drawable.ic_profile_placeholder), "User Profile")
+                    }
+                    IconButton(onClick = { /* TODO: Implement more options menu */ }) {
+                        Icon(Icons.Default.MoreVert, "More options")
                     }
                 }
-            )
-        },
-        bottomBar = {
-            AppBottomNavigation(
-                onNavigateToContacts = onNavigateToContacts,
-                onNavigateToSocial = onNavigateToSocial
             )
         }
     ) { paddingValues ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(isRefreshing = conversationState.isLoading),
-            onRefresh = onRefresh,
-            modifier = Modifier.padding(paddingValues)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
         ) {
-            val itemsToShow: List<Any> = if (searchState.query.isBlank()) {
-                conversationState.conversations
-            } else {
-                searchState.results
-            }
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(bottom = 96.dp)
             ) {
                 items(
-                    items = itemsToShow,
-                    key = { item ->
-                        when (item) {
-                            is ConversationUiItem -> "conversation-${item.contact.id}"
-                            is SearchResultItem.ContactItem -> "search-contact-${item.contact.id}"
-                            is SearchResultItem.MessageItem -> "search-message-${item.message.id}"
-                            else -> UUID.randomUUID().toString()
-                        }
-                    }
+                    items = conversationState.conversations,
+                    key = { item -> "conversation-${item.contact.id}" }
                 ) { item ->
-                    when (item) {
-                        is ConversationUiItem -> {
-                            ConversationItem(
-                                item = item,
-                                onClick = { onOpenChat(item.contact) },
-                                onLongClick = { onDeleteConversation(item.contact.id) }
-                            )
-                        }
-                        is SearchResultItem.ContactItem -> {
-                            SearchResultContact(contact = item.contact)
-                        }
-                        is SearchResultItem.MessageItem -> {
-                            SearchResultMessage(message = item.message, contact = item.contact)
-                        }
-                    }
+                    ConversationItem(
+                        item = item,
+                        onClick = { onOpenChat(item.contact) },
+                        onLongClick = { contactToDelete = item.contact }
+                    )
                 }
+            }
+
+            PillBottomNavigation(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                onNavigateToMessages = { },
+                onNavigateToSocial = onNavigateToSocial,
+                onNavigateToContacts = onNavigateToContacts,
+                onNavigateToTweaks = onNavigateToTweaks
+            )
+
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PillBottomNavigation(
+    modifier: Modifier = Modifier,
+    onNavigateToMessages: () -> Unit,
+    onNavigateToSocial: () -> Unit,
+    onNavigateToContacts: () -> Unit,
+    onNavigateToTweaks: () -> Unit
+) {
+    var selectedItem by remember { mutableStateOf(0) }
+
+    Card(
+        modifier = modifier.padding(bottom = 24.dp),
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PillNavigationButton(Icons.Default.Chat, "Messages", selectedItem == 0) {
+                selectedItem = 0; onNavigateToMessages()
+            }
+            PillNavigationButton(Icons.Default.Group, "Groups & Social", selectedItem == 1) {
+                selectedItem = 1; onNavigateToSocial()
+            }
+            PillNavigationButton(Icons.Default.People, "Contacts", selectedItem == 2) {
+                selectedItem = 2; onNavigateToContacts()
+            }
+            PillNavigationButton(Icons.Default.Build, "Tweaks", selectedItem == 3) {
+                selectedItem = 3; onNavigateToTweaks()
             }
         }
     }
 }
 
 @Composable
-private fun AppBottomNavigation(
-    onNavigateToContacts: () -> Unit,
-    onNavigateToSocial: () -> Unit
+private fun RowScope.PillNavigationButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
 ) {
-    var selectedItem by remember { mutableStateOf(0) }
-    val items = listOf("Messages", "Social", "Contacts")
-    val icons = listOf(Icons.Filled.Message, Icons.Filled.Group, Icons.Filled.People)
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
-    NavigationBar {
-        items.forEachIndexed { index, item ->
-            NavigationBarItem(
-                icon = { Icon(icons[index], contentDescription = item) },
-                label = { Text(item) },
-                selected = selectedItem == index,
-                onClick = {
-                    if (selectedItem != index) {
-                        selectedItem = index
-                    }
-                    when (item) {
-                        "Contacts" -> onNavigateToContacts()
-                        "Social" -> onNavigateToSocial()
-                    }
-                }
-            )
-        }
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .size(40.dp, 40.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(24.dp),
+            tint = contentColor
+        )
     }
 }
 
@@ -232,22 +244,6 @@ private fun ConversationItem(
                 Badge { Text(item.contact.unreadCount.toString()) }
             }
         }
-    }
-}
-
-@Composable
-private fun SearchResultContact(contact: Contact) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(text = contact.name, fontWeight = FontWeight.Bold)
-        Text(text = "Contact", style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun SearchResultMessage(message: Message, contact: Contact) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(text = message.text ?: "Empty message", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "In chat with ${contact.name}", style = MaterialTheme.typography.bodySmall)
     }
 }
 

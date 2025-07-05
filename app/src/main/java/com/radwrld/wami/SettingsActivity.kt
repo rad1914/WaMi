@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
 import com.radwrld.wami.network.ApiClient
+import com.radwrld.wami.network.SyncService
 import com.radwrld.wami.storage.ServerConfigStorage
 import com.radwrld.wami.ui.screens.CustomIpDialog
 import com.radwrld.wami.ui.screens.SettingsScreen
@@ -47,17 +48,15 @@ class SettingsActivity : ComponentActivity() {
         serverConfig = ServerConfigStorage(this)
 
         setContent {
-
-            val theme by remember { mutableStateOf(prefs.getString(THEME_KEY, "system")!!) }
+            val themeState by remember { mutableStateOf(prefs.getString(THEME_KEY, "system")!!) }
             var isCustomIpEnabled by remember { mutableStateOf(prefs.getBoolean(ENABLE_CUSTOM_IP_KEY, false)) }
-
             var showThemeDialog by remember { mutableStateOf(false) }
             var showIpDialog by remember { mutableStateOf(false) }
 
             WamiTheme {
                 SettingsScreen(
                     sessionId = serverConfig.getSessionId(),
-                    theme = when (theme) {
+                    theme = when (themeState) {
                         "light" -> "Light"
                         "dark" -> "Dark"
                         else -> "System Default"
@@ -69,17 +68,17 @@ class SettingsActivity : ComponentActivity() {
                     },
                     onNavigateBack = { finish() },
                     onSessionClick = { triggerAuth() },
-                    onLogoutClick = { confirm("Logout?", ::logout) },
+                    onLogoutClick = { confirm("Logout?", "This will delete the session and all local data.", ::logout) },
                     onThemeClick = { showThemeDialog = true },
                     onSetCustomIpClick = { showIpDialog = true },
-                    onResetHiddenConversationsClick = { confirm("Reset hidden chats?", ::resetHiddenConversations) },
-                    onKillAppClick = { confirm("Force close app?", ::killApp) },
-                    onResetPrefsClick = { confirm("Reset all settings?", ::resetAppPreferences) }
+                    onResetHiddenConversationsClick = { confirm("Reset hidden chats?", "All currently hidden chats will become visible again.", ::resetHiddenConversations) },
+                    onKillAppClick = { confirm("Force close app?", "The application will be terminated immediately.", ::killApp) },
+                    onResetPrefsClick = { confirm("Reset all settings?", "This will clear all app preferences and log you out.", ::resetAppPreferences) }
                 )
 
                 if (showThemeDialog) {
                     ThemeDialog(
-                        currentTheme = theme,
+                        currentTheme = themeState,
                         onDismiss = { showThemeDialog = false },
                         onThemeSelected = { newTheme ->
                             prefs.edit().putString(THEME_KEY, newTheme).apply()
@@ -100,7 +99,11 @@ class SettingsActivity : ComponentActivity() {
                         currentIp = prefs.getString(CUSTOM_IP_KEY, "") ?: "",
                         onDismiss = { showIpDialog = false },
                         onConfirm = { newIp ->
-                            prefs.edit().putString(CUSTOM_IP_KEY, newIp.trim()).apply()
+                            val trimmedIp = newIp.trim()
+                            prefs.edit().putString(CUSTOM_IP_KEY, trimmedIp).apply()
+
+                            ApiClient.close()
+                            toast("Custom IP updated. Restart the app if you experience issues.")
                             showIpDialog = false
                         }
                     )
@@ -111,19 +114,91 @@ class SettingsActivity : ComponentActivity() {
 
     private fun triggerAuth() {
         val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-        val intent = km.createConfirmDeviceCredentialIntent("Authentication Required", "Unlock to continue")
+        val intent = km.createConfirmDeviceCredentialIntent("Authentication Required", "Unlock to view and copy Session ID")
         if (km.isKeyguardSecure && intent != null) {
             authLauncher.launch(intent)
         } else {
+
             showAndCopySessionId()
         }
     }
 
-    private fun showAndCopySessionId() {  }
-    private fun resetHiddenConversations() {  }
-    private fun resetAppPreferences() {  }
-    private fun killApp() {  }
-    private fun logout() {  }
-    private fun confirm(msg: String, action: () -> Unit) {  }
-    private fun toast(msg: String) {  }
+    private fun showAndCopySessionId() {
+        val sessionId = serverConfig.getSessionId()
+        if (sessionId.isNullOrEmpty()) {
+            toast("Session ID not found.")
+            return
+        }
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Session ID", sessionId)
+        clipboard.setPrimaryClip(clip)
+        toast("Session ID copied to clipboard.")
+    }
+
+    private fun resetHiddenConversations() {
+        prefs.edit().remove(HIDDEN_CONVERSATIONS_KEY).apply()
+        toast("Hidden conversations have been reset.")
+    }
+
+    private fun resetAppPreferences() {
+
+        getSharedPreferences(SERVER_CONFIG_PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
+        prefs.edit().clear().apply()
+
+        ApiClient.close()
+        stopService(Intent(this, SyncService::class.java))
+
+        toast("All preferences have been reset. Restarting...")
+
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+
+                Thread.sleep(1000)
+                val intent = packageManager.getLaunchIntentForPackage(packageName)
+                val componentName = intent!!.component
+                val mainIntent = Intent.makeRestartActivityTask(componentName)
+                startActivity(mainIntent)
+                exitProcess(0)
+            }
+        }
+    }
+
+    private fun killApp() {
+        exitProcess(0)
+    }
+
+    private fun logout() {
+        lifecycleScope.launch {
+
+            val stopIntent = Intent(this@SettingsActivity, SyncService::class.java)
+            stopIntent.action = SyncService.ACTION_STOP
+            startService(stopIntent)
+
+            withContext(Dispatchers.IO) {
+                runCatching { ApiClient.getInstance(this@SettingsActivity).logout() }
+            }
+
+            getSharedPreferences(SERVER_CONFIG_PREFS_NAME, MODE_PRIVATE).edit().clear().apply()
+            prefs.edit().clear().apply()
+            ApiClient.close()
+
+            val intent = Intent(this@SettingsActivity, MainActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+        }
+    }
+
+    private fun confirm(title: String, message: String, action: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Yes") { _, _ -> action() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun toast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
 }

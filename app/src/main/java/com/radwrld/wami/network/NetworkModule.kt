@@ -17,6 +17,7 @@ import com.radwrld.wami.R
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.MessageStorage
 import com.radwrld.wami.storage.ServerConfigStorage
+import com.radwrld.wami.util.ActiveChatManager
 import com.radwrld.wami.util.NotificationUtils
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -35,6 +36,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import retrofit2.http.Url
 
+// ... (El código de data classes y ApiClient no cambia)
 enum class AuthError {
     INVALID_SESSION,
 }
@@ -43,7 +45,7 @@ data class Contact(
     val id: String,
     val name: String,
     val phoneNumber: String?,
-    val lastMessageTimestamp: Long? = null,
+    val lastMessageTimestamp: Long?,
     val unreadCount: Int = 0,
     val avatarUrl: String? = null,
     val isGroup: Boolean = false
@@ -147,6 +149,7 @@ data class SyncResponse(val success: Boolean, val message: String)
 data class BlockRequest(val jid: String)
 data class GroupParticipant(@SerializedName("id") val id: String, @SerializedName("admin") val admin: String?)
 data class GroupInfo(@SerializedName("id") val id: String, @SerializedName("subject") val subject: String, @SerializedName("owner") val owner: String?, @SerializedName("desc") val desc: String?, @SerializedName("participants") val participants: List<GroupParticipant>)
+data class ActionResponse(val success: Boolean, val error: String?)
 
 interface WhatsAppApi {
     @GET("history/{jid}")
@@ -167,7 +170,7 @@ interface WhatsAppApi {
     suspend fun sendMedia(@Part("jid") jid: RequestBody, @Part("caption") caption: RequestBody?, @Part("tempId") tempId: RequestBody, @Part file: MultipartBody.Part): SendResponse
 
     @POST("send/reaction")
-    suspend fun sendReaction(@Body request: SendReactionRequest): Response<Void>
+    suspend fun sendReaction(@Body request: SendReactionRequest): ActionResponse
 
     @Multipart
     @POST("send/status")
@@ -186,13 +189,13 @@ interface WhatsAppApi {
     suspend fun getConversations(): List<Conversation>
 
     @POST("contacts/block")
-    suspend fun blockContact(@Body request: BlockRequest): Response<Void>
+    suspend fun blockContact(@Body request: BlockRequest): ActionResponse
 
     @POST("contacts/unblock")
-    suspend fun unblockContact(@Body request: BlockRequest): Response<Void>
+    suspend fun unblockContact(@Body request: BlockRequest): ActionResponse
 
     @POST("contacts/report")
-    suspend fun reportContact(@Body request: BlockRequest): Response<Void>
+    suspend fun reportContact(@Body request: BlockRequest): ActionResponse
 
     @GET("group/{jid}")
     suspend fun getGroupInfo(@Path("jid") jid: String): GroupInfo
@@ -279,6 +282,7 @@ object ApiClient {
     }
 }
 
+
 object SyncManager {
     private const val TAG = "SyncManager"
     @Volatile private var socket: Socket? = null
@@ -308,7 +312,7 @@ object SyncManager {
 
         appContext = context.applicationContext
         msgStorage = MessageStorage(appContext)
-        contactStorage = ContactStorage(appContext)
+        contactStorage = ContactStorage.getInstance(appContext)
 
         val config = ServerConfigStorage(appContext)
         val token = config.getSessionId()
@@ -433,6 +437,8 @@ object SyncManager {
     suspend fun handleIncomingMessages(json: String, isSocketMessage: Boolean = false) {
         runCatching {
             val items: List<MessageHistoryItem> = gson.fromJson(json, object : TypeToken<List<MessageHistoryItem>>() {}.type)
+            val newContacts = mutableListOf<Contact>()
+
             items.forEach { dto ->
                 val msg = dto.toDomain().run {
                     copy(mediaUrl = ApiClient.resolveUrl(appContext, mediaUrl))
@@ -440,14 +446,33 @@ object SyncManager {
 
                 msgStorage.addMessage(msg.jid, msg)
 
+                val isGroup = msg.jid.endsWith("@g.us")
+                val contact = Contact(
+                    id = msg.jid,
+                    name = msg.name ?: msg.jid.substringBefore('@'),
+                    phoneNumber = if (isGroup) null else msg.jid.substringBefore('@'),
+                    lastMessageTimestamp = msg.timestamp,
+                    avatarUrl = ApiClient.resolveAvatarUrl(appContext, msg.jid),
+                    isGroup = isGroup,
+                    unreadCount = if (!msg.isOutgoing && isSocketMessage) 1 else 0
+                )
+                newContacts.add(contact)
+
                 if (!msg.isOutgoing && isSocketMessage) {
+                    // Don't show notification if user is already in the chat
+                    if (ActiveChatManager.activeJid.value == msg.jid) return@forEach
+
                     NotificationUtils.showNotification(
-                        context = appContext, jid = msg.jid,
-                        contactName = msg.senderName ?: msg.jid,
-                        message = msg.text ?: "Media",
+                        context = appContext,
+                        jid = msg.jid,
+                        contactName = msg.name ?: msg.jid.substringBefore('@'),
+                        message = msg.text ?: "Sent a file",
                         messageId = msg.id
                     )
                 }
+            }
+            if (newContacts.isNotEmpty()) {
+                contactStorage.upsertContacts(newContacts)
             }
         }.onFailure { Log.e(TAG, "Failed processing incoming messages: $json", it) }
     }

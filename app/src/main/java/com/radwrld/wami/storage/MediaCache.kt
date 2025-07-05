@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/storage/MediaCache.kt
 package com.radwrld.wami.util
 
 import android.content.Context
@@ -49,8 +50,8 @@ object MediaCache {
         getCachedFile(context, cacheKey, ext)?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
-                // CAMBIO APLICADO: Se usa la instancia estándar de ApiClient.
-                val res = ApiClient.getInstance(context).downloadFile(url) // Se asume que este método existe en la API.
+
+                val res = ApiClient.getInstance(context).downloadFile(url)
                 if (res.isSuccessful) {
                     res.body()?.let {
                         val file = File(cacheDir(context), "$cacheKey.$ext")

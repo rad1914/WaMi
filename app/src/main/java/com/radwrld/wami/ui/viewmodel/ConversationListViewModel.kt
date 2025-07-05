@@ -2,17 +2,18 @@
 package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.Contact
 import com.radwrld.wami.network.Message
 import com.radwrld.wami.storage.ContactStorage
 import com.radwrld.wami.storage.MessageStorage
+import com.radwrld.wami.storage.ServerConfigStorage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-
-// --- Data & State Classes ---
 
 data class ConversationUiItem(
     val contact: Contact,
@@ -32,47 +33,73 @@ sealed class SearchResultItem {
 
 data class SearchState(
     val query: String = "",
-    val results: List<SearchResultItem> = emptyList(),
+    val results: List<SearchResultItem> = emptyList(), 
     val isLoading: Boolean = false
 )
 
-// --- ViewModel ---
-
 class ConversationListViewModel(
+    private val application: Application,
     private val contactStorage: ContactStorage,
-    messageStorage: MessageStorage
+    private val messageStorage: MessageStorage
+
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
+    private val _isLoading = MutableStateFlow(false)
 
-    val conversationState: StateFlow<ConversationListState> = combine(
-        contactStorage.contactsFlow,
-        messageStorage.lastMessagesMapFlow
-    ) { contacts, lastMessagesMap ->
-        val uiItems = contacts
-            .map { contact -> ConversationUiItem(contact, lastMessagesMap[contact.id]) }
-            .sortedByDescending { it.lastMessage?.timestamp ?: it.contact.lastMessageTimestamp ?: 0 }
-
-        ConversationListState(uiItems, isLoading = false)
+    val currentUserAvatarUrl: StateFlow<String?> = flow {
+        val serverConfigStorage = ServerConfigStorage(application)
+        val ownJid = serverConfigStorage.getOwnJid()
+        val url = ownJid?.let { ApiClient.resolveAvatarUrl(application, it) }
+        emit(url) 
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ConversationListState(isLoading = true)
+        initialValue = null
+    )
+
+    val conversationState: StateFlow<ConversationListState> = combine(
+        contactStorage.contactsFlow,
+        messageStorage.lastMessagesMapFlow,
+        _isLoading
+    ) { contacts, lastMessagesMap, isLoading ->
+        val contactsMap = contacts.associateBy { it.id }
+        val allJids = (contacts.map { it.id } + lastMessagesMap.keys).toSet() 
+
+        val uiItems = allJids.mapNotNull { jid ->
+            val contact = contactsMap[jid] ?: Contact(
+                id = jid,
+                name = jid.substringBefore('@'),
+                phoneNumber = null,
+                lastMessageTimestamp = lastMessagesMap[jid]?.timestamp, 
+                isGroup = jid.endsWith("@g.us")
+            )
+            val lastMessage = lastMessagesMap[jid]
+
+            if (contactsMap[jid] == null && lastMessage == null) {
+                null
+            } else { 
+                ConversationUiItem(contact, lastMessage)
+            }
+        }.sortedByDescending { it.lastMessage?.timestamp ?: it.contact.lastMessageTimestamp ?: 0 }
+
+        ConversationListState(uiItems, isLoading = isLoading)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ConversationListState(isLoading = true) 
     )
 
     val searchState: StateFlow<SearchState> = _searchQuery
         .debounce(300)
-        .combine(contactStorage.contactsFlow) { query, contacts -> // TODO: Also combine with a flow for all messages
+        .combine(contactStorage.contactsFlow) { query, contacts ->
             if (query.isBlank()) {
                 SearchState(query = query, results = emptyList())
             } else {
                 val contactResults = contacts.filter {
-                    it.name.contains(query, ignoreCase = true) || it.phoneNumber?.contains(query) == true
+                    it.name.contains(query, ignoreCase = true) || 
+                            it.phoneNumber?.contains(query) == true 
                 }.map { SearchResultItem.ContactItem(it) }
-                
-                // TODO: Implement message search logic here and combine results
-                // val messageResults = allMessages.filter { ... }.map { SearchResultItem.MessageItem(it) }
-                // val combinedResults = contactResults + messageResults
 
                 SearchState(query = query, results = contactResults)
             }
@@ -80,19 +107,47 @@ class ConversationListViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = SearchState()
+            initialValue = SearchState() 
         )
+
+    init {
+        refreshConversations()
+    }
+
+    fun refreshConversations() = viewModelScope.launch {
+        if (_isLoading.value) return@launch
+        _isLoading.value = true
+        Log.d("Sync", "Refreshing conversations...")
+        try {
+            val conversations = ApiClient.getInstance(application).getConversations()
+            val contacts = conversations.map { convo ->
+                Contact(
+                    id = convo.jid,
+                    name = convo.name ?: convo.jid.substringBefore('@'),
+                    phoneNumber = if (convo.isGroup) null else convo.jid.substringBefore('@'),
+                    lastMessageTimestamp = convo.lastMessageTimestamp,
+                    unreadCount = convo.unreadCount ?: 0,
+                    avatarUrl = ApiClient.resolveAvatarUrl(application, convo.jid),
+                    isGroup = convo.isGroup
+                )
+            }
+            contactStorage.upsertContacts(contacts)
+            Log.d("Sync", "Successfully refreshed ${contacts.size} conversations.")
+        } catch (e: Exception) {
+            Log.e("Sync", "Refresh failed", e)
+        } finally {
+            _isLoading.value = false
+        }
+    }
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
-    fun deleteConversation(contact: Contact) = viewModelScope.launch {
+    fun deleteConversation(contact: Contact) = viewModelScope.launch { 
         contactStorage.deleteContact(contact)
     }
 }
-
-// --- ViewModel Factory ---
 
 class ConversationListViewModelFactory(
     private val application: Application
@@ -101,7 +156,8 @@ class ConversationListViewModelFactory(
         if (modelClass.isAssignableFrom(ConversationListViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return ConversationListViewModel(
-                contactStorage = ContactStorage(application),
+                application = application,
+                contactStorage = ContactStorage.getInstance(application), 
                 messageStorage = MessageStorage(application)
             ) as T
         }

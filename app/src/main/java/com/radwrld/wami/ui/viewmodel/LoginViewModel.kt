@@ -1,9 +1,12 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/LoginViewModel.kt
-package com.radwrld.wami
+package com.radwrld.wami.ui.viewmodel // <-- PAQUETE CORREGIDO
 
 import android.app.Application
-import android.content.ContentResolver
+import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Base64
 import androidx.lifecycle.*
 import com.radwrld.wami.network.ApiClient
@@ -19,7 +22,7 @@ sealed class LoginUiState {
     object Idle : LoginUiState()
     data class LoggedIn(val sessionId: String) : LoginUiState()
     data class Loading(val msg: String) : LoginUiState()
-    data class ShowQr(val bitmap: android.graphics.Bitmap, val msg: String) : LoginUiState()
+    data class ShowQr(val bitmap: Bitmap, val msg: String) : LoginUiState()
     data class Error(val msg: String) : LoginUiState()
 }
 
@@ -33,35 +36,39 @@ class LoginViewModel(
     private var sessionJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            launch {
-                SyncManager.isAuthenticated.collect {
-                    if (it) {
-                        config.saveLoginState(true)
-                        uiState.value = LoginUiState.LoggedIn(config.getSessionId().orEmpty())
-                    }
+        observeSyncState()
+    }
+
+    private fun observeSyncState() = viewModelScope.launch {
+        launch {
+            SyncManager.isAuthenticated.collect {
+                if (it) {
+                    config.saveLoginState(true)
+                    uiState.value = LoginUiState.LoggedIn(config.getSessionId().orEmpty())
                 }
             }
-            launch {
-                SyncManager.qrCodeUrl.collect { url ->
-                    if (url != null) {
-                        decodeQr(url)?.let {
-                            uiState.value = LoginUiState.ShowQr(it, "Escanea el código QR")
-                        }
-                    } else if (!SyncManager.isAuthenticated.value) {
-                        uiState.value = LoginUiState.Loading("Esperando código QR...")
-                    }
+        }
+        launch {
+            SyncManager.authError.collect {
+                if (it == AuthError.INVALID_SESSION) {
+                    toastEvents.emit("Sesión inválida. Creando una nueva.")
+                    config.saveSessionId(null)
+                    start()
                 }
             }
-            launch {
-                SyncManager.authError.collect { error ->
-                    // Comprobamos el tipo de error en lugar de solo 'if (it)'
-                    if (error == AuthError.INVALID_SESSION) {
-                        toastEvents.emit("Sesión inválida. Creando una nueva.")
-                        config.saveSessionId(null)
-                        start()
-                    }
+        }
+        launch {
+            SyncManager.socketState.collect { connected ->
+                if (SyncManager.isAuthenticated.value) return@collect
+                val msg = if (connected) "Conectado. Esperando código QR..." else "Desconectado. Reconectando..."
+                if (SyncManager.qrCodeUrl.value == null || !connected) {
+                    uiState.value = LoginUiState.Loading(msg)
                 }
+            }
+        }
+        launch {
+            SyncManager.qrCodeUrl.collect { url ->
+                url?.let { decodeQr(it)?.let { bmp -> uiState.value = LoginUiState.ShowQr(bmp, "Escanea el código QR") } }
             }
         }
     }
@@ -69,7 +76,12 @@ class LoginViewModel(
     fun start() {
         sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
+            if (!isOnline()) {
+                uiState.value = LoginUiState.Error("Sin conexión: Por favor, conéctate a internet.")
+                return@launch
+            }
             try {
+                uiState.value = LoginUiState.Loading("Estableciendo conexión...")
                 if (config.getSessionId().isNullOrEmpty()) {
                     uiState.value = LoginUiState.Loading("Creando nueva sesión...")
                     val session = ApiClient.getInstance(getApplication()).createSession()
@@ -93,22 +105,17 @@ class LoginViewModel(
         }
     }
 
-    fun notifyNoNet() {
-        uiState.value = LoginUiState.Error("Por favor, conéctate a internet.")
-    }
-
     private suspend fun handleError(e: Exception) {
         val msg = when (e) {
             is HttpException -> "Error del servidor: ${e.code()}"
-            is UnknownHostException, is ConnectException, is SocketTimeoutException ->
-                "Sin conexión: El servidor no está disponible."
+            is UnknownHostException, is ConnectException, is SocketTimeoutException -> "Sin conexión: El servidor no está disponible."
             else -> "Error desconocido: ${e.message}"
         }
         uiState.value = LoginUiState.Error(msg)
         toastEvents.emit(msg)
     }
 
-    private fun decodeQr(dataUrl: String) = try {
+    private fun decodeQr(dataUrl: String): Bitmap? = try {
         val base64 = dataUrl.substringAfter(",", "")
         val bytes = Base64.decode(base64, Base64.DEFAULT)
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
@@ -116,12 +123,18 @@ class LoginViewModel(
         viewModelScope.launch { toastEvents.emit("Fallo al decodificar QR.") }
         null
     }
+
+    private fun isOnline(): Boolean {
+        val cm = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        return cm.getNetworkCapabilities(net)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
 }
 
 class LoginViewModelFactory(
     private val app: Application,
-    private val config: ServerConfigStorage,
-    private val resolver: ContentResolver
+    private val config: ServerConfigStorage
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {

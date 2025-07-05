@@ -23,24 +23,14 @@ class ContactsActivity : ComponentActivity() {
             WamiTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-                // Use the primary, feature-rich ContactsScreen
                 ContactsScreen(
                     uiState = uiState,
                     onContactClick = { contact ->
-                        // TODO: Implement navigation to the correct chat screen
-                        // Example from MainActivity:
-                        /*
-                        startActivity(
-                            Intent(this, ChatActivity::class.java).apply {
-                                putExtra("EXTRA_JID", contact.id)
-                                putExtra("EXTRA_NAME", contact.name)
-                                putExtra("EXTRA_AVATAR_URL", contact.avatarUrl)
-                            }
-                        )
-                        */
+
+                        
                         Toast.makeText(this, "${contact.name} clicked", Toast.LENGTH_SHORT).show()
                     },
-                    // Assuming the ViewModel has a function to trigger a refresh
+
                     onRefresh = viewModel::refreshContacts,
                     onNavigateBack = { finish() }
                 )

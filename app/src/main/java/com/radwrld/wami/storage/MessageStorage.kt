@@ -15,7 +15,7 @@ class MessageStorage(context: Context) {
     private val gson = Gson()
 
     private val _messageCache = MutableStateFlow<Map<String, List<Message>>>(loadEntireCache())
-    
+
     val lastMessagesMapFlow: Flow<Map<String, Message?>> = _messageCache.map { cache ->
         cache.mapValues { (_, messages) -> messages.maxByOrNull { it.timestamp } }
     }
@@ -34,7 +34,7 @@ class MessageStorage(context: Context) {
                     val messages: List<Message> = gson.fromJson(value, messageType)
                     messageMap[jid] = messages
                 } catch (e: Exception) {
-
+                    // Handle or log error
                 }
             }
         }
@@ -62,38 +62,38 @@ class MessageStorage(context: Context) {
         val distinctSorted = messages.distinctBy { it.id }.sortedBy { it.timestamp }
         saveList(jid, distinctSorted)
     }
-    
+
     fun appendMessages(jid: String, newMessages: List<Message>) {
         val existing = getList(jid)
         val combined = (existing + newMessages).distinctBy { it.id }.sortedBy { it.timestamp }
         saveList(jid, combined)
     }
-    
+
     fun addMessage(jid: String, message: Message) {
         val list = getList(jid).toMutableList()
         val existingIndex = list.indexOfFirst { it.id == message.id }
         if (existingIndex != -1) {
-             list[existingIndex] = message
+            list[existingIndex] = message
         } else {
-             list.add(message)
+            list.add(message)
         }
         saveList(jid, list.sortedBy { it.timestamp })
     }
-    
+
     fun updateMessage(jid: String, tempId: String, newId: String, newStatus: String) {
         update(jid, tempId) { it.copy(id = newId, status = newStatus) }
     }
-    
+
     fun updateMessageStatus(jid: String, id: String, status: String) {
         update(jid, id) { it.copy(status = status) }
     }
-    
+
     fun updateMessageLocalPath(jid: String, id: String, path: String) {
         update(jid, id) {
             if (it.localMediaPath != path) it.copy(localMediaPath = path) else it
         }
     }
-    
+
     fun updateMessageReactions(jid: String, id: String, reactions: Map<String, Int>) {
         update(jid, id) { it.copy(reactions = reactions) }
     }
@@ -101,7 +101,7 @@ class MessageStorage(context: Context) {
     private fun update(jid: String, id: String, transform: (Message) -> Message) {
         val list = getList(jid).toMutableList()
         val index = list.indexOfFirst { it.id == id }
-         if (index != -1) {
+        if (index != -1) {
             list[index] = transform(list[index])
             saveList(jid, list)
         }

@@ -1,8 +1,10 @@
+// @path: app/src/main/java/com/radwrld/wami/data/WhatsappRepository.kt
 // @path: app/src/main/java/com/radwrld/wami/data/WhatsAppRepository.kt
 package com.radwrld.wami.data
 
 import android.content.Context
 import androidx.core.net.toUri
+import com.google.gson.Gson
 import com.radwrld.wami.network.ApiClient
 import com.radwrld.wami.network.BlockRequest
 import com.radwrld.wami.network.Contact
@@ -23,6 +25,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 
 class WhatsAppRepository(private val context: Context) {
     private val api = ApiClient.getInstance(context)
@@ -59,36 +62,80 @@ class WhatsAppRepository(private val context: Context) {
         }
     }
 
-    suspend fun sendTextMessage(jid: String, text: String, tempId: String): Result<SendResponse> = runCatching {
-        val response = api.sendMessage(SendMessageRequest(jid, text, tempId))
-        if (response.success) response else error(response.error ?: "Send failed")
+    suspend fun sendTextMessage(jid: String, text: String, tempId: String): Result<SendResponse> {
+        return try {
+            val response = api.sendMessage(SendMessageRequest(jid, text, tempId))
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.error ?: "Send failed"))
+            }
+        } catch (e: Exception) {
+            if (e is HttpException) {
+                val errorBody = e.response()?.errorBody()?.string()
+                if (errorBody != null) {
+                    try {
+
+                        val errorResponse = Gson().fromJson(errorBody, SendResponse::class.java)
+                        return Result.failure(Exception(errorResponse.error ?: "Send failed. TempID: ${errorResponse.tempId}"))
+                    } catch (parseException: Exception) {
+
+                        return Result.failure(e)
+                    }
+                }
+            }
+            Result.failure(e)
+        }
     }
 
-    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?): Result<SendResponse> = runCatching {
-        val response = api.sendMedia(
-            jid.toTextRequestBody(),
-            caption?.toTextRequestBody(),
-            tempId.toTextRequestBody(),
-            file.asFormDataPart("file")
-        )
-        if (response.success) response else error(response.error ?: "Send failed")
+    suspend fun sendMediaMessage(jid: String, tempId: String, file: File, caption: String?): Result<SendResponse> {
+         return try {
+            val response = api.sendMedia(
+                jid.toTextRequestBody(),
+                caption?.toTextRequestBody(),
+                tempId.toTextRequestBody(),
+                file.asFormDataPart("file")
+            )
+            if (response.success) {
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.error ?: "Send media failed"))
+            }
+        } catch (e: Exception) {
+            if (e is HttpException) {
+                val errorBody = e.response()?.errorBody()?.string()
+                if (errorBody != null) {
+                    try {
+                        val errorResponse = Gson().fromJson(errorBody, SendResponse::class.java)
+                        return Result.failure(Exception(errorResponse.error ?: "Send media failed. TempID: ${errorResponse.tempId}"))
+                    } catch (parseException: Exception) {
+                        return Result.failure(e)
+                    }
+                }
+            }
+            Result.failure(e)
+        }
     }
 
     suspend fun sendReaction(jid: String, messageId: String, emoji: String) =
         runCatching {
-            api.sendReaction(SendReactionRequest(jid, messageId, emoji))
+            val response = api.sendReaction(SendReactionRequest(jid, messageId, emoji))
+            if (!response.success) error(response.error ?: "Failed to send reaction")
         }
 
     suspend fun blockContact(jid: String) = runCatching {
-        api.blockContact(BlockRequest(jid))
+        val response = api.blockContact(BlockRequest(jid))
+        if (!response.success) error(response.error ?: "Failed to block contact")
     }
 
     suspend fun unblockContact(jid: String) = runCatching {
-        api.unblockContact(BlockRequest(jid))
+        val response = api.unblockContact(BlockRequest(jid))
+        if (!response.success) error(response.error ?: "Failed to unblock contact")
     }
 
     suspend fun reportContact(jid: String) = runCatching {
-        api.reportContact(BlockRequest(jid))
+        val response = api.reportContact(BlockRequest(jid))
+        if (!response.success) error(response.error ?: "Failed to report contact")
     }
 
     suspend fun getGroupInfo(jid: String): Result<GroupInfo> = runCatching {

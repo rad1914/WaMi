@@ -1,4 +1,5 @@
 // @path: app/src/main/java/com/radwrld/wami/network/SyncWorker.kt
+// @path: app/src/main/java/com/radwrld/wami/sync/SyncWorker.kt
 package com.radwrld.wami.sync
 
 import android.content.Context
@@ -21,7 +22,7 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     private val whatsAppRepository = WhatsAppRepository(applicationContext)
-    private val contactStorage = ContactStorage(applicationContext)
+    private val contactStorage = ContactStorage.getInstance(applicationContext)
     private val groupStorage = GroupStorage(applicationContext)
 
     override suspend fun doWork(): Result {
@@ -44,21 +45,21 @@ class SyncWorker(
                                 var successful = false
                                 val maxRetries = 3
                                 for (attempt in 1..maxRetries) {
-                                    // Usamos try-catch en lugar de runCatching para evitar el 'break' experimental
+
                                     try {
                                         val groupInfo = whatsAppRepository.getGroupInfo(group.id).getOrThrow()
                                         groupStorage.saveGroupInfo(groupInfo)
                                         successful = true
-                                        break // Ahora esto es válido y seguro
+                                        break
                                     } catch (e: Exception) {
-                                        Log.e("SyncWorker", "Falló la sincronización del grupo ${group.id} (intento $attempt)", e)
+                                        Log.e("SyncWorker", "Failed to sync group ${group.id} (attempt $attempt)", e)
                                         if (attempt < maxRetries) {
                                             kotlinx.coroutines.delay(1000L * attempt)
                                         }
                                     }
                                 }
                                 if (!successful) {
-                                    Log.e("SyncWorker", "No se pudo sincronizar el grupo ${group.id} después de $maxRetries intentos.")
+                                    Log.e("SyncWorker", "Could not sync group ${group.id} after $maxRetries attempts.")
                                 }
                             }
                         }

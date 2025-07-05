@@ -35,7 +35,8 @@ class AboutViewModel(
     private val jid: String
 ) : AndroidViewModel(application) {
 
-    private val contactStorage = ContactStorage(application)
+    // Correctly get the singleton instance for each storage class.
+    private val contactStorage = ContactStorage.getInstance(application)
     private val groupStorage = GroupStorage(application)
     private val messageStorage = MessageStorage(application)
 
@@ -74,6 +75,22 @@ class AboutViewModel(
         initialValue = AboutUiState(isLoading = true)
     )
 
-    fun toggleBlockContact() {  }
-    fun reportContact() {  }
+    fun toggleBlockContact() { /* TODO: Implement block/unblock logic */ }
+    fun reportContact() { /* TODO: Implement report logic */ }
+}
+
+/**
+ * Factory needed to create AboutViewModel, since it requires a 'jid' parameter.
+ */
+class AboutViewModelFactory(
+    private val application: Application,
+    private val jid: String
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AboutViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AboutViewModel(application, jid) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }

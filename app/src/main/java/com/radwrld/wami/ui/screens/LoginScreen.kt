@@ -14,8 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.radwrld.wami.LoginUiState
 import com.radwrld.wami.R
+import com.radwrld.wami.ui.viewmodel.LoginUiState
 import kotlinx.coroutines.flow.SharedFlow
 
 @Composable
@@ -24,8 +24,7 @@ fun LoginScreen(
     toastEvents: SharedFlow<String>,
     onStart: () -> Unit,
     onSetSession: (String) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onLoggedIn: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     val context = LocalContext.current
     var showSessionInputDialog by remember { mutableStateOf(false) }
@@ -33,12 +32,6 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         toastEvents.collect { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    LaunchedEffect(uiState) {
-        if (uiState is LoginUiState.LoggedIn) {
-            onLoggedIn()
         }
     }
 
@@ -79,18 +72,11 @@ fun LoginScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 32.dp)
                         )
-                        if (uiState.msg.contains("Sin conexión")) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = onLoggedIn) {
-                                Text("Offline Login")
-                            }
-                        }
                     }
                     is LoginUiState.Idle -> {
                         Text("WaMi", style = MaterialTheme.typography.headlineLarge)
                     }
                     is LoginUiState.LoggedIn -> {
-
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("¡Vamos!", style = MaterialTheme.typography.titleMedium)
@@ -135,7 +121,7 @@ fun QrCodeContent(bitmap: Bitmap, message: String) {
     Text(message, style = MaterialTheme.typography.titleMedium)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) // <-- ERROR CORREGIDO AQUÍ
 @Composable
 fun SessionInputDialog(
     onDismiss: () -> Unit,
