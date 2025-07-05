@@ -8,7 +8,7 @@ import com.radwrld.wami.ui.screens.tweaks.components.SettingsSwitchItem
 
 @Composable
 fun SecurityTweaks() {
-    var alwaysOnChecked by remember { mutableStateOf(false) }
+    var alwaysOnChecked by remember { mutableStateOf(true) }
     var biometricChecked by remember { mutableStateOf(false) }
 
     Column {
