@@ -4,6 +4,9 @@ WaMi is a feature-rich, open-source Android client designed to interact with a c
 
 The application is architected with an offline-first approach, ensuring a seamless user experience by caching conversations, messages, and session data locally. It leverages Kotlin, Coroutines, and a ViewModel-driven UI layer for a reactive and robust performance.
 
+👉 Get latest APK from actions tab:
+https://github.com/rad1914/WaMi/actions
+
 ---
 
 ## ✨ Key Features
