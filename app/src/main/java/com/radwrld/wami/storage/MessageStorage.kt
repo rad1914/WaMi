@@ -20,21 +20,26 @@ class MessageStorage(context: Context) {
         cache.mapValues { (_, messages) -> messages.maxByOrNull { it.timestamp } }
     }
 
+    
+    val allMessagesFlow: Flow<List<Message>> = _messageCache.map { cache ->
+        cache.values.flatten()
+    }
+
     private fun getKey(jid: String) = "messages_$jid"
 
     private fun loadEntireCache(): Map<String, List<Message>> {
-        val allPrefs = prefs.all ?: return emptyMap()
+        val allPrefs = prefs.all ?: return emptyMap() 
         val messageMap = mutableMapOf<String, List<Message>>()
         val messageType = object : TypeToken<List<Message>>() {}.type
 
         for ((key, value) in allPrefs) {
             if (key.startsWith("messages_") && value is String) {
                 try {
-                    val jid = key.removePrefix("messages_")
+                    val jid = key.removePrefix("messages_") 
                     val messages: List<Message> = gson.fromJson(value, messageType)
                     messageMap[jid] = messages
                 } catch (e: Exception) {
-                    // Handle or log error
+                    
                 }
             }
         }
@@ -48,7 +53,7 @@ class MessageStorage(context: Context) {
     private fun saveList(jid: String, list: List<Message>) {
         prefs.edit().putString(getKey(jid), gson.toJson(list)).apply()
         val currentCache = _messageCache.value.toMutableMap()
-        currentCache[jid] = list
+        currentCache[jid] = list 
         _messageCache.value = currentCache
     }
 
@@ -63,7 +68,7 @@ class MessageStorage(context: Context) {
         saveList(jid, distinctSorted)
     }
 
-    fun appendMessages(jid: String, newMessages: List<Message>) {
+    fun appendMessages(jid: String, newMessages: List<Message>) { 
         val existing = getList(jid)
         val combined = (existing + newMessages).distinctBy { it.id }.sortedBy { it.timestamp }
         saveList(jid, combined)
@@ -73,7 +78,7 @@ class MessageStorage(context: Context) {
         val list = getList(jid).toMutableList()
         val existingIndex = list.indexOfFirst { it.id == message.id }
         if (existingIndex != -1) {
-            list[existingIndex] = message
+            list[existingIndex] = message 
         } else {
             list.add(message)
         }
@@ -84,7 +89,7 @@ class MessageStorage(context: Context) {
         update(jid, tempId) { it.copy(id = newId, status = newStatus) }
     }
 
-    fun updateMessageStatus(jid: String, id: String, status: String) {
+    fun updateMessageStatus(jid: String, id: String, status: String) { 
         update(jid, id) { it.copy(status = status) }
     }
 
@@ -95,7 +100,7 @@ class MessageStorage(context: Context) {
     }
 
     fun updateMessageReactions(jid: String, id: String, reactions: Map<String, Int>) {
-        update(jid, id) { it.copy(reactions = reactions) }
+        update(jid, id) { it.copy(reactions = reactions) } 
     }
 
     private fun update(jid: String, id: String, transform: (Message) -> Message) {

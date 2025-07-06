@@ -36,7 +36,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import retrofit2.http.Url
 
-// ... (El código de data classes y ApiClient no cambia)
 enum class AuthError {
     INVALID_SESSION,
 }
@@ -282,7 +281,6 @@ object ApiClient {
     }
 }
 
-
 object SyncManager {
     private const val TAG = "SyncManager"
     @Volatile private var socket: Socket? = null
@@ -459,7 +457,7 @@ object SyncManager {
                 newContacts.add(contact)
 
                 if (!msg.isOutgoing && isSocketMessage) {
-                    // Don't show notification if user is already in the chat
+
                     if (ActiveChatManager.activeJid.value == msg.jid) return@forEach
 
                     NotificationUtils.showNotification(

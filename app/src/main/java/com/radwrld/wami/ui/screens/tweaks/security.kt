@@ -15,7 +15,7 @@ fun SecurityTweaks() {
         SectionHeader("Security & Privacy")
         SettingsSwitchItem(
             title = "Always On",
-            subtitle = "Makes you mark your contact always connected.",
+            subtitle = "Keeps your contact always shown as online.",
             checked = alwaysOnChecked,
             onCheckedChange = { alwaysOnChecked = it }
         )

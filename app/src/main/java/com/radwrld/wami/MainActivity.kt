@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.radwrld.wami.network.Contact
 import com.radwrld.wami.ui.screens.MainScreen
 import com.radwrld.wami.ui.theme.WamiTheme
 import com.radwrld.wami.ui.viewmodel.ConversationListViewModel
@@ -24,17 +23,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WamiTheme {
-                val conversationState by viewModel.conversationState.collectAsStateWithLifecycle()
-                val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
                 MainScreen(
-                    conversationState = conversationState,
-                    searchState = searchState,
+                    uiState = uiState,
                     onSearchQueryChanged = viewModel::onSearchQueryChanged,
+                    onSearchActiveChanged = viewModel::onSearchActiveChanged,
+                    onShowDeleteDialog = viewModel::onShowDeleteDialog,
                     onDeleteConversation = { contact ->
-                        viewModel.deleteConversation(contact)
+                        viewModel.onDeleteConversation(contact)
                         Toast.makeText(this, "Conversation deleted", Toast.LENGTH_SHORT).show()
                     },
+                    onShowMenuChanged = viewModel::onShowMenuChanged,
                     onOpenChat = { contact ->
                         startActivity(
                             Intent(this, ChatActivity::class.java).apply {
@@ -59,7 +59,12 @@ class MainActivity : ComponentActivity() {
                     onNavigateToTweaks = {
                         startActivity(Intent(this, TweaksActivity::class.java))
                     },
-
+                    onNavigateToSettings = {
+                        Toast.makeText(this, "Navigate to Settings", Toast.LENGTH_SHORT).show()
+                    },
+                    onNavigateToNewGroup = {
+                        Toast.makeText(this, "Navigate to New Group", Toast.LENGTH_SHORT).show()
+                    },
                     onRefresh = viewModel::refreshConversations
                 )
             }

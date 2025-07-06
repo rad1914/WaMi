@@ -121,7 +121,7 @@ fun QrCodeContent(bitmap: Bitmap, message: String) {
     Text(message, style = MaterialTheme.typography.titleMedium)
 }
 
-@OptIn(ExperimentalMaterial3Api::class) // <-- ERROR CORREGIDO AQUÍ
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionInputDialog(
     onDismiss: () -> Unit,

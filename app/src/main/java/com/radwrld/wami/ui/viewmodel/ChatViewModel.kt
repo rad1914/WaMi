@@ -193,7 +193,7 @@ class ChatViewModelFactory(
             return ChatViewModel(
                 app = app,
                 jid = jid,
-                // Correctly get the singleton instance here.
+
                 contactStorage = ContactStorage.getInstance(app),
                 messageStorage = MessageStorage(app),
                 whatsAppRepository = WhatsAppRepository(app)

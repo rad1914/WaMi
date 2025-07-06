@@ -74,7 +74,10 @@ async function processFile(filePath) {
       .replace(/\/\*[\s\S]*?\*\//g, m => m.includes('@path:') ? m : '')
       .replace(/^\s*\/\/.*$/gm, line => line.includes('@path:') ? line : '')
       .replace(/([^:"'\n])\/\/(?!.*@path:).*$/gm, (_, p) => p.trimEnd())
-      .replace(/\[cite(?:_start|_end)?(?:\s*:\s*\d+)?\]/g, '');
+      // Remove [cite: 1], [cite: 1, 2], etc.
+      .replace(/\[cite\s*:\s*\d+(?:\s*,\s*\d+)*\]/g, '')
+      // Remove [cite], [cite_start], [cite_end]
+      .replace(/\[cite(?:_start|_end)?\]/g, '');
   } else if (fileType === 'xml') {
     content = content.replace(/<!--[\s\S]*?-->/g, m => m.includes('@path:') ? m : '');
   }

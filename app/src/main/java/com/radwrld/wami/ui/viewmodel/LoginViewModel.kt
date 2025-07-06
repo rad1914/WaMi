@@ -1,5 +1,5 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/viewmodel/LoginViewModel.kt
-package com.radwrld.wami.ui.viewmodel // <-- PAQUETE CORREGIDO
+package com.radwrld.wami.ui.viewmodel
 
 import android.app.Application
 import android.content.Context

@@ -20,7 +20,6 @@ data class ContactsUiState(
 
 class ContactsViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Correctly get the singleton instance instead of creating a new one.
     private val contactStorage = ContactStorage.getInstance(application)
     private val workManager = WorkManager.getInstance(application)
 
