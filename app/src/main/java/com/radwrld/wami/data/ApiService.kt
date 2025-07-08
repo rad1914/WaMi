@@ -12,6 +12,18 @@ import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+data class MessageConfirmation(
+    val success: Boolean,
+    val messageId: String,
+    val tempId: String,
+    val timestamp: Long? = null
+)
+
+data class SyncResult(
+    val success: Boolean,
+    val message: String
+)
+
 object ApiService {
     private val client = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
@@ -26,7 +38,7 @@ object ApiService {
 
     private fun authReq(path: String, sessionId: String, method: String = "GET", body: RequestBody? = null) =
         Request.Builder()
-            .url("${Constants.BASE_URL}/session$path")
+            .url("${Constants.BASE_URL}$path")
             .header("Authorization", "Bearer $sessionId")
             .method(method, body)
             .build()
@@ -43,7 +55,7 @@ object ApiService {
         }
 
     fun getStatus(sessionId: String): Pair<Boolean, String?> =
-        client.newCall(authReq("/status", sessionId)).execute().use { resp ->
+        client.newCall(authReq("/session/status", sessionId)).execute().use { resp ->
             if (!resp.isSuccessful) return false to null
             with(JSONObject(resp.body!!.string())) {
                 getBoolean("connected") to optString("qr", null)
@@ -51,11 +63,12 @@ object ApiService {
         }
 
     fun logout(sessionId: String): Boolean =
-        client.newCall(authReq("/logout", sessionId, "POST", emptyBody()))
+        client.newCall(authReq("/session/logout", sessionId, "POST", emptyBody()))
             .execute().use { it.isSuccessful }
 
     fun fetchChats(sessionId: String): List<Chat> =
         client.newCall(authReq("/chats", sessionId)).execute().use { resp ->
+            if (!resp.isSuccessful) return emptyList()
             JSONArray(resp.body!!.string()).let { arr ->
                 List(arr.length()) { i ->
                     arr.getJSONObject(i).let { Chat(it.getString("jid"), it.optString("name", it.getString("jid"))) }
@@ -63,32 +76,48 @@ object ApiService {
             }
         }
 
-    fun fetchHistory(sessionId: String, jid: String): List<Message> =
-        client.newCall(authReq("/history/${URLEncoder.encode(jid, "UTF-8")}", sessionId))
+    fun fetchHistory(sessionId: String, jid: String, limit: Int = 100): List<Message> =
+        client.newCall(authReq("/history/${URLEncoder.encode(jid, "UTF-8")}?limit=$limit", sessionId))
             .execute().use { resp ->
+                if (!resp.isSuccessful) return emptyList()
                 JSONArray(resp.body!!.string()).let { arr ->
                     List(arr.length()) { i -> Message.fromJson(arr.getJSONObject(i)) }
                 }
             }
 
-    fun sendText(sessionId: String, jid: String, text: String) {
+    
+    fun sendText(sessionId: String, jid: String, text: String): MessageConfirmation? {
         val json = JSONObject()
             .put("jid", jid)
             .put("text", text)
             .put("tempId", UUID.randomUUID().toString())
 
-        client.newCall(authReq("/send", sessionId, "POST", jsonBody(json))).execute().close()
+        client.newCall(authReq("/send", sessionId, "POST", jsonBody(json))).execute().use { resp ->
+            if (!resp.isSuccessful) return null
+            val body = JSONObject(resp.body!!.string())
+            return MessageConfirmation(
+                success = body.getBoolean("success"),
+                messageId = body.getString("messageId"),
+                tempId = body.getString("tempId"),
+                timestamp = body.getLong("timestamp")
+            )
+        }
     }
 
-    fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String) {
+    
+    fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean {
         val json = JSONObject()
             .put("jid", jid)
             .put("messageId", messageId)
             .put("emoji", emoji)
 
-        client.newCall(authReq("/send/reaction", sessionId, "POST", jsonBody(json))).execute().close()
+        client.newCall(authReq("/send/reaction", sessionId, "POST", jsonBody(json))).execute().use { resp ->
+            if (!resp.isSuccessful) return false
+            return JSONObject(resp.body!!.string()).optBoolean("success", false)
+        }
     }
 
+    
     fun sendMedia(
         sessionId: String,
         jid: String,
@@ -96,7 +125,7 @@ object ApiService {
         fileName: String,
         mimeType: String,
         caption: String? = null
-    ) {
+    ): MessageConfirmation? {
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("jid", jid)
@@ -105,7 +134,15 @@ object ApiService {
             .apply { caption?.let { addFormDataPart("caption", it) } }
             .build()
 
-        client.newCall(authReq("/send/media", sessionId, "POST", multipart)).execute().close()
+        client.newCall(authReq("/send/media", sessionId, "POST", multipart)).execute().use { resp ->
+            if (!resp.isSuccessful) return null
+            val body = JSONObject(resp.body!!.string())
+            return MessageConfirmation(
+                success = body.getBoolean("success"),
+                messageId = body.getString("messageId"),
+                tempId = body.getString("tempId")
+            )
+        }
     }
 
     fun downloadMedia(sessionId: String, messageId: String): Response? =
@@ -116,7 +153,15 @@ object ApiService {
         client.newCall(authReq("/avatar/${URLEncoder.encode(jid, "UTF-8")}", sessionId))
             .execute().takeIf { it.isSuccessful }
 
-    fun syncHistory(sessionId: String, jid: String): Boolean =
+    fun syncHistory(sessionId: String, jid: String): SyncResult? {
         client.newCall(authReq("/history/sync/${URLEncoder.encode(jid, "UTF-8")}", sessionId, "POST", emptyBody()))
-            .execute().use { it.isSuccessful }
+            .execute().use { resp ->
+                if (!resp.isSuccessful) return null
+                val body = JSONObject(resp.body!!.string())
+                return SyncResult(
+                    success = body.getBoolean("success"),
+                    message = body.getString("message")
+                )
+            }
+    }
 }
