@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/screen/QRScreen.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
@@ -21,88 +20,61 @@ fun QRScreen(
 ) {
     val qr by vm.qrCode.collectAsState()
     val auth by vm.isAuth.collectAsState()
-    var showIdInputDialog by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
+    var sessionId by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        vm.start()
-    }
+    LaunchedEffect(Unit) { vm.start() }
 
-    if (showIdInputDialog) {
-        var text by remember { mutableStateOf("") }
+    if (showDialog) {
         AlertDialog(
-            onDismissRequest = { showIdInputDialog = false },
+            onDismissRequest = { showDialog = false },
             title = { Text("Enter Session ID") },
             text = {
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                    value = sessionId,
+                    onValueChange = { sessionId = it },
                     label = { Text("Session ID") }
                 )
             },
             confirmButton = {
                 Button(onClick = {
-                    if (text.isNotBlank()) {
-                        vm.loginWithId(text)
-                        showIdInputDialog = false
+                    if (sessionId.isNotBlank()) {
+                        vm.loginWithId(sessionId)
+                        showDialog = false
                     }
-                }) {
-                    Text("Login")
-                }
+                }) { Text("Login") }
             },
             dismissButton = {
-                Button(onClick = { showIdInputDialog = false }) {
-                    Text("Cancel")
-                }
+                Button(onClick = { showDialog = false }) { Text("Cancel") }
             }
         )
     }
 
     val bitmap = remember(qr) {
-        qr?.takeIf { it.startsWith("data:image/") }
-            ?.substringAfter(",")
-            ?.let { base64 ->
-                try {
-                    val bytes = Base64.decode(base64, Base64.DEFAULT)
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    null
-                }
-            }
+        qr?.substringAfter(",")?.let {
+            runCatching {
+                val bytes = Base64.decode(it, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            }.getOrNull()
+        }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when {
-            auth -> Button(onClick = { nav.navigate("chats") }) {
-                Text("Enter Chats")
-            }
+            auth -> Button(onClick = { nav.navigate("chats") }) { Text("Enter Chats") }
 
-            bitmap != null -> Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            bitmap != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Scan this QR")
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = "QR Code",
-                    modifier = Modifier.size(250.dp)
-                )
-                Button(onClick = { showIdInputDialog = true }) {
-                    Text("Login with Session ID")
-                }
+                Spacer(Modifier.height(16.dp))
+                Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(250.dp))
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { showDialog = true }) { Text("Login with Session ID") }
             }
 
-            else -> Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator()
-                Button(onClick = { showIdInputDialog = true }) {
-                    Text("Login with Session ID")
-                }
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { showDialog = true }) { Text("Login with Session ID") }
             }
         }
     }
