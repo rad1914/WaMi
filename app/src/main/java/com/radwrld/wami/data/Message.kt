@@ -3,6 +3,8 @@ package com.radwrld.wami.data
 
 import org.json.JSONObject
 
+data class Chat(val jid: String, val name: String)
+
 data class Message(
     val id: String,
     val fromMe: Boolean,

@@ -3,8 +3,11 @@ package com.radwrld.wami.ui.vm
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.data.ApiService
+import com.radwrld.wami.data.Chat
+import com.radwrld.wami.data.Message
 import com.radwrld.wami.data.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -18,20 +21,18 @@ class SessionViewModel(application: Application): AndroidViewModel(application) 
     private val _sessionId = MutableStateFlow<String?>(null)
     private val _qrCode    = MutableStateFlow<String?>(null)
     private val _auth      = MutableStateFlow(false)
+
     val sessionId = _sessionId.asStateFlow()
     val qrCode    = _qrCode.asStateFlow()
     val isAuth    = _auth.asStateFlow()
 
     fun start() {
         viewModelScope.launch {
-
             val savedSessionId = userPrefsRepository.sessionIdFlow.first()
 
             if (savedSessionId != null) {
-
                 val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(savedSessionId) }
                 if (ok) {
-
                     _sessionId.value = savedSessionId
                     _auth.value = true
                     return@launch
@@ -55,7 +56,6 @@ class SessionViewModel(application: Application): AndroidViewModel(application) 
             val (ok, qr) = withContext(Dispatchers.IO) {
                 ApiService.getStatus(id)
             }
-            
             _auth.value = ok
             _qrCode.value = qr
         }
@@ -68,7 +68,6 @@ class SessionViewModel(application: Application): AndroidViewModel(application) 
                     ApiService.logout(currentSessionId)
                 }
                 if (success) {
-
                     userPrefsRepository.clearSessionId()
                     _sessionId.value = null
                     _auth.value = false
@@ -76,5 +75,28 @@ class SessionViewModel(application: Application): AndroidViewModel(application) 
                 }
             }
         }
+    }
+}
+
+class ChatViewModel : ViewModel() {
+    private val _chats = MutableStateFlow<List<Chat>>(emptyList())
+    val chats = _chats.asStateFlow()
+
+    fun load(sessionId: String) = viewModelScope.launch {
+        _chats.value = ApiService.fetchChats(sessionId)
+    }
+}
+
+class MessageViewModel : ViewModel() {
+    private val _msgs = MutableStateFlow<List<Message>>(emptyList())
+    val msgs = _msgs.asStateFlow()
+
+    fun load(sessionId: String, jid: String) = viewModelScope.launch {
+        _msgs.value = ApiService.fetchHistory(sessionId, jid)
+    }
+
+    fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
+        ApiService.sendText(sessionId, jid, text)
+        load(sessionId, jid)
     }
 }
