@@ -19,7 +19,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     val isAuth    get() = _auth.asStateFlow()
 
     fun loginWithId(id: String) = viewModelScope.launch {
-        val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) }
+        val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) } 
         if (ok) {
             prefs.saveSessionId(id)
             _sessionId.value = id
@@ -29,14 +29,14 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     fun start() = viewModelScope.launch {
         prefs.sessionIdFlow.firstOrNull()?.let { id ->
-            val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) }
+            val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) } 
             if (ok) {
                 _sessionId.value = id
                 _auth.value = true
                 return@launch
             }
         }
-        createNewSession()
+        createNewSession() 
     }
 
     private fun createNewSession() = viewModelScope.launch {
@@ -47,7 +47,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         while (!_auth.value) {
             delay(3000)
             val (ok, qr) = withContext(Dispatchers.IO) { ApiService.getStatus(id) }
-            _auth.value = ok
+            _auth.value = ok 
             _qrCode.value = qr
         }
     }
@@ -57,7 +57,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             val success = withContext(Dispatchers.IO) { ApiService.logout(id) }
             if (success) {
                 prefs.clearSessionId()
-                _sessionId.value = null
+                _sessionId.value = null 
                 _auth.value = false
                 _qrCode.value = null
             }
@@ -69,7 +69,7 @@ class ChatViewModel : ViewModel() {
     private val _chats = MutableStateFlow<List<Chat>>(emptyList())
     val chats get() = _chats.asStateFlow()
 
-    fun load(sessionId: String) = viewModelScope.launch {
+    fun load(sessionId: String) = viewModelScope.launch { 
         _chats.value = withContext(Dispatchers.IO) { ApiService.fetchChats(sessionId) }
     }
 }
@@ -84,6 +84,6 @@ class MessageViewModel : ViewModel() {
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
         withContext(Dispatchers.IO) { ApiService.sendText(sessionId, jid, text) }
-        load(sessionId, jid)
+        load(sessionId, jid) 
     }
 }
