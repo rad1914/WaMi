@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- @path: app/src/main/res/values/themes.xml -->
 <resources>
 
-    <!--
-      We inherit from AppCompat's DayNight+ActionBar theme,
-      then turn off the action bar & title. AAPT will always find this.
-    -->
+    
     <style name="Theme.WaMi" parent="Theme.AppCompat.DayNight.DarkActionBar">
-        <!-- Remove the ActionBar -->
         <item name="windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
-        <!-- Optional: status bar color, splash screen, etc -->
     </style>
 
 </resources>

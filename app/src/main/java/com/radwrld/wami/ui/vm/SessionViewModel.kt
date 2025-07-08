@@ -1,13 +1,20 @@
-// SessionViewModel.kt
+// @path: app/src/main/java/com/radwrld/wami/ui/vm/SessionViewModel.kt
 package com.radwrld.wami.ui.vm
-import androidx.lifecycle.ViewModel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.data.ApiService
+import com.radwrld.wami.data.UserPreferencesRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class SessionViewModel: ViewModel() {
+class SessionViewModel(application: Application): AndroidViewModel(application) {
+    private val userPrefsRepository = UserPreferencesRepository(application)
+
     private val _sessionId = MutableStateFlow<String?>(null)
     private val _qrCode    = MutableStateFlow<String?>(null)
     private val _auth      = MutableStateFlow(false)
@@ -17,62 +24,57 @@ class SessionViewModel: ViewModel() {
 
     fun start() {
         viewModelScope.launch {
-            val id = ApiService.createSession() ?: return@launch
-            _sessionId.value = id
-            while (!_auth.value) {
-                delay(3000)
-                val (ok, qr) = ApiService.getStatus(id)
-                _auth.value = ok
-                _qrCode.value = qr
+
+            val savedSessionId = userPrefsRepository.sessionIdFlow.first()
+
+            if (savedSessionId != null) {
+
+                val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(savedSessionId) }
+                if (ok) {
+
+                    _sessionId.value = savedSessionId
+                    _auth.value = true
+                    return@launch
+                }
             }
+
+            createNewSession()
+        }
+    }
+
+    private fun createNewSession() = viewModelScope.launch {
+        val id = withContext(Dispatchers.IO) {
+            ApiService.createSession()
+        } ?: return@launch
+
+        userPrefsRepository.saveSessionId(id)
+        _sessionId.value = id
+
+        while (!_auth.value) {
+            delay(3000)
+            val (ok, qr) = withContext(Dispatchers.IO) {
+                ApiService.getStatus(id)
+            }
+            
+            _auth.value = ok
+            _qrCode.value = qr
         }
     }
 
     fun logout() {
-        sessionId.value?.let { ApiService.logout(it) }
-        _sessionId.value = null
-        _auth.value = false
-        _qrCode.value = null
-    }
-}
+        viewModelScope.launch {
+            sessionId.value?.let { currentSessionId ->
+                val success = withContext(Dispatchers.IO) {
+                    ApiService.logout(currentSessionId)
+                }
+                if (success) {
 
-// ChatViewModel.kt
-package com.radwrld.wami.ui.vm
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.radwrld.wami.data.ApiService
-import com.radwrld.wami.data.Chat
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-
-class ChatViewModel: ViewModel() {
-    private val _chats = MutableStateFlow<List<Chat>>(emptyList())
-    val chats = _chats.asStateFlow()
-
-    fun load(sessionId: String) = viewModelScope.launch {
-        _chats.value = ApiService.fetchChats(sessionId)
-    }
-}
-
-// MessageViewModel.kt
-package com.radwrld.wami.ui.vm
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.radwrld.wami.data.ApiService
-import com.radwrld.wami.data.Message
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-
-class MessageViewModel: ViewModel() {
-    private val _msgs = MutableStateFlow<List<Message>>(emptyList())
-    val msgs = _msgs.asStateFlow()
-
-    fun load(sessionId: String, jid: String) = viewModelScope.launch {
-        _msgs.value = ApiService.fetchHistory(sessionId, jid)
-    }
-
-    fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
-        ApiService.sendText(sessionId, jid, text)
-        load(sessionId, jid)
+                    userPrefsRepository.clearSessionId()
+                    _sessionId.value = null
+                    _auth.value = false
+                    _qrCode.value = null
+                }
+            }
+        }
     }
 }

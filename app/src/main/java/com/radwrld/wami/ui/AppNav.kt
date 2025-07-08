@@ -1,4 +1,5 @@
-// NavGraph.kt
+// @path: app/src/main/java/com/radwrld/wami/ui/AppNav.kt
+
 package com.radwrld.wami.ui
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType

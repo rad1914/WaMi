@@ -1,5 +1,6 @@
-// MessageScreen.kt
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/MessageScreen.kt
 package com.radwrld.wami.ui.screen
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.radwrld.wami.data.Message
 import com.radwrld.wami.ui.vm.MessageViewModel
+import com.radwrld.wami.ui.vm.SessionViewModel
 
 @Composable
 fun MessageScreen(nav: NavController, jid: String, vm: MessageViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
@@ -24,23 +26,23 @@ fun MessageScreen(nav: NavController, jid: String, vm: MessageViewModel = androi
         LazyColumn(Modifier.weight(1f).padding(8.dp)) {
             items(msgs) { m: Message ->
                 Text(
-                    (if (m.fromMe) "You: " else "") + (m.text ?: "[Media]"),
+                    (if (m.fromMe) "You: " else "") + (m.text ?: "[Media]"), 
                     modifier = Modifier.padding(4.dp)
                 )
             }
         }
-        Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
             TextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Type…") }
-            )
+            ) 
             Button(onClick = {
                 if (input.isNotBlank()) {
                     vm.send(sid, jid, input)
                     input = ""
-                }
+                } 
             }) {
                 Text("Send")
             }

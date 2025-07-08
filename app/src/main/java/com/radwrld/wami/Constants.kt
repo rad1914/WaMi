@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/Constants.kt
 package com.radwrld.wami
 
 object Constants {

@@ -1,5 +1,6 @@
-// ChatScreen.kt
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/ChatScreen.kt
 package com.radwrld.wami.ui.screen
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.radwrld.wami.data.Chat
 import com.radwrld.wami.ui.vm.ChatViewModel
+import com.radwrld.wami.ui.vm.SessionViewModel
 
 @Composable
 fun ChatScreen(nav: NavController, vm: ChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
@@ -24,8 +26,8 @@ fun ChatScreen(nav: NavController, vm: ChatViewModel = androidx.lifecycle.viewmo
     LazyColumn(Modifier.fillMaxSize()) {
         items(chats) { chat: Chat ->
             ListItem(
-                headlineText = { Text(chat.name) },
-                supportingText = { Text(chat.jid) },
+                headlineContent = { Text(chat.name) }, 
+                supportingContent = { Text(chat.jid) },
                 leadingContent = {
                     AsyncImage(
                         model = "${com.radwrld.wami.Constants.BASE_URL}/avatar/${chat.jid}",
@@ -34,7 +36,7 @@ fun ChatScreen(nav: NavController, vm: ChatViewModel = androidx.lifecycle.viewmo
                     )
                 },
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth() 
                     .clickable { nav.navigate("chat/${chat.jid}") }
                     .padding(vertical = 4.dp)
             )
