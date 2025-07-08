@@ -5,8 +5,10 @@ import com.radwrld.wami.Constants
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 object ApiService {
@@ -14,140 +16,77 @@ object ApiService {
         .callTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    fun createSession(): String? { 
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/create") 
-            .post("".toRequestBody()) 
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) return null
-            val body = resp.body!!.string()
-            return JSONObject(body).optString("sessionId", null) 
-        }
-    }
-
-    fun getStatus(sessionId: String): Pair<Boolean, String?> {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/status") 
-            .header("Authorization", "Bearer $sessionId") 
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) return false to null 
-            val json = JSONObject(resp.body!!.string())
-            return json.getBoolean("connected") to json.optString("qr", null) 
-        }
-    }
-
-    fun logout(sessionId: String): Boolean {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/logout") 
+    private fun authReq(url: String, sessionId: String, method: String = "GET", body: RequestBody? = null) =
+        Request.Builder()
+            .url(url)
             .header("Authorization", "Bearer $sessionId")
-            .post("".toRequestBody()) 
+            .method(method, body)
             .build()
-        client.newCall(req).execute().use { return it.isSuccessful }
-    }
 
-    fun fetchChats(sessionId: String): List<Chat> {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/chats") 
-            .header("Authorization", "Bearer $sessionId") 
-            .build() 
-        client.newCall(req).execute().use { resp ->
-            val arr = resp.body!!.string().let { org.json.JSONArray(it) } 
-            return List(arr.length()) { i ->
-                val o = arr.getJSONObject(i)
-                Chat(o.getString("jid"), o.optString("name", o.getString("jid")))
+    private fun emptyBody() = "".toRequestBody()
+    private fun jsonBody(json: JSONObject) = json.toString().toRequestBody("application/json".toMediaType())
+
+    fun createSession(): String? =
+        client.newCall(Request.Builder().url("${Constants.BASE_URL}/create").post(emptyBody()).build())
+            .execute().use { it.takeIf { r -> r.isSuccessful }?.body?.string()?.let { b -> JSONObject(b).optString("sessionId", null) } }
+
+    fun getStatus(sessionId: String): Pair<Boolean, String?> =
+        client.newCall(authReq("${Constants.BASE_URL}/status", sessionId)).execute().use {
+            if (!it.isSuccessful) return false to null
+            JSONObject(it.body!!.string()).let { j -> j.getBoolean("connected") to j.optString("qr", null) }
+        }
+
+    fun logout(sessionId: String): Boolean =
+        client.newCall(authReq("${Constants.BASE_URL}/logout", sessionId, "POST", emptyBody()))
+            .execute().use { it.isSuccessful }
+
+    fun fetchChats(sessionId: String): List<Chat> =
+        client.newCall(authReq("${Constants.BASE_URL}/chats", sessionId)).execute().use {
+            JSONArray(it.body!!.string()).let { arr ->
+                List(arr.length()) { i ->
+                    arr.getJSONObject(i).let { o -> Chat(o.getString("jid"), o.optString("name", o.getString("jid"))) }
+                }
             }
         }
-    }
 
-    fun fetchHistory(sessionId: String, jid: String): List<Message> { 
-        val enc = URLEncoder.encode(jid, "UTF-8") 
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/history/$enc") 
-            .header("Authorization", "Bearer $sessionId") 
-            .build()
-        client.newCall(req).execute().use { resp ->
-            val arr = org.json.JSONArray(resp.body!!.string()) 
-            return List(arr.length()) { i -> 
-                Message.fromJson(arr.getJSONObject(i)) 
+    fun fetchHistory(sessionId: String, jid: String): List<Message> =
+        client.newCall(authReq("${Constants.BASE_URL}/history/${URLEncoder.encode(jid, "UTF-8")}", sessionId)).execute().use {
+            JSONArray(it.body!!.string()).let { arr ->
+                List(arr.length()) { i -> Message.fromJson(arr.getJSONObject(i)) }
             }
         }
-    }
 
     fun sendText(sessionId: String, jid: String, text: String) {
-        val json = JSONObject()
-            .put("jid", jid) 
-            .put("text", text) 
-            .put("tempId", java.util.UUID.randomUUID().toString()) 
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/send") 
-            .header("Authorization", "Bearer $sessionId")
-            .post(json.toString().toRequestBody("application/json".toMediaType()))
-            .build()
-        client.newCall(req).execute().close()
+        val json = JSONObject().put("jid", jid).put("text", text).put("tempId", UUID.randomUUID().toString())
+        client.newCall(authReq("${Constants.BASE_URL}/send", sessionId, "POST", jsonBody(json))).execute().close()
     }
 
     fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String) {
-        val json = JSONObject()
-            .put("jid", jid) 
-            .put("messageId", messageId) 
-            .put("emoji", emoji) 
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/send/reaction") 
-            .header("Authorization", "Bearer $sessionId")
-            .post(json.toString().toRequestBody("application/json".toMediaType()))
-            .build()
-        client.newCall(req).execute().close()
+        val json = JSONObject().put("jid", jid).put("messageId", messageId).put("emoji", emoji)
+        client.newCall(authReq("${Constants.BASE_URL}/send/reaction", sessionId, "POST", jsonBody(json))).execute().close()
     }
 
     fun sendMedia(sessionId: String, jid: String, fileBytes: ByteArray, fileName: String, mimeType: String, caption: String? = null) {
-        val requestBody = MultipartBody.Builder()
+        val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("jid", jid) 
-            .addFormDataPart("tempId", java.util.UUID.randomUUID().toString()) 
-            .addFormDataPart("file", fileName, fileBytes.toRequestBody(mimeType.toMediaType())) 
-        
-        caption?.let { requestBody.addFormDataPart("caption", it) } 
-
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/send/media") 
-            .header("Authorization", "Bearer $sessionId")
-            .post(requestBody.build())
+            .addFormDataPart("jid", jid)
+            .addFormDataPart("tempId", UUID.randomUUID().toString())
+            .addFormDataPart("file", fileName, fileBytes.toRequestBody(mimeType.toMediaType()))
+            .apply { caption?.let { addFormDataPart("caption", it) } }
             .build()
 
-        client.newCall(req).execute().close()
+        client.newCall(authReq("${Constants.BASE_URL}/send/media", sessionId, "POST", body)).execute().close()
     }
 
-    fun downloadMedia(sessionId: String, messageId: String): Response? {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/media/$messageId") 
-            .header("Authorization", "Bearer $sessionId") 
-            .build()
-        
-        val response = client.newCall(req).execute()
-        return if (response.isSuccessful) response else null
-    }
+    fun downloadMedia(sessionId: String, messageId: String): Response? =
+        client.newCall(authReq("${Constants.BASE_URL}/media/$messageId", sessionId)).execute()
+            .takeIf { it.isSuccessful }
 
-    fun getAvatar(sessionId: String, jid: String): Response? {
-        val encodedJid = URLEncoder.encode(jid, "UTF-8")
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/avatar/$encodedJid") 
-            .header("Authorization", "Bearer $sessionId") 
-            .build()
+    fun getAvatar(sessionId: String, jid: String): Response? =
+        client.newCall(authReq("${Constants.BASE_URL}/avatar/${URLEncoder.encode(jid, "UTF-8")}", sessionId)).execute()
+            .takeIf { it.isSuccessful }
 
-        val response = client.newCall(req).execute()
-        return if (response.isSuccessful) response else null
-    }
-
-    fun syncHistory(sessionId: String, jid: String): Boolean {
-        val encodedJid = URLEncoder.encode(jid, "UTF-8")
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/history/sync/$encodedJid") 
-            .header("Authorization", "Bearer $sessionId") 
-            .post("".toRequestBody())
-            .build()
-        
-        client.newCall(req).execute().use { return it.isSuccessful }
-    }
+    fun syncHistory(sessionId: String, jid: String): Boolean =
+        client.newCall(authReq("${Constants.BASE_URL}/history/sync/${URLEncoder.encode(jid, "UTF-8")}", sessionId, "POST", emptyBody()))
+            .execute().use { it.isSuccessful }
 }
