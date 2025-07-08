@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/QRScreen.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
