@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/data/Message.kt
 package com.radwrld.wami.data
 
 import org.json.JSONObject
