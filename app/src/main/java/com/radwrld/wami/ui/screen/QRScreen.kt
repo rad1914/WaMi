@@ -21,9 +21,40 @@ fun QRScreen(
 ) {
     val qr by vm.qrCode.collectAsState()
     val auth by vm.isAuth.collectAsState()
+    var showIdInputDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         vm.start()
+    }
+
+    if (showIdInputDialog) {
+        var text by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showIdInputDialog = false },
+            title = { Text("Enter Session ID") },
+            text = {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Session ID") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (text.isNotBlank()) {
+                        vm.loginWithId(text)
+                        showIdInputDialog = false
+                    }
+                }) {
+                    Text("Login")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showIdInputDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     val bitmap = remember(qr) {
@@ -50,18 +81,29 @@ fun QRScreen(
             }
 
             bitmap != null -> Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Scan this QR") 
-                Spacer(Modifier.height(16.dp))
+                Text("Scan this QR")
                 Image(
                     bitmap = bitmap,
                     contentDescription = "QR Code",
-                    modifier = Modifier.size(250.dp) 
+                    modifier = Modifier.size(250.dp)
                 )
+                Button(onClick = { showIdInputDialog = true }) {
+                    Text("Login with Session ID")
+                }
             }
 
-            else -> CircularProgressIndicator()
+            else -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Button(onClick = { showIdInputDialog = true }) {
+                    Text("Login with Session ID")
+                }
+            }
         }
     }
 }

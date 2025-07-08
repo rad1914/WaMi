@@ -18,6 +18,15 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     val qrCode    get() = _qrCode.asStateFlow()
     val isAuth    get() = _auth.asStateFlow()
 
+    fun loginWithId(id: String) = viewModelScope.launch {
+        val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) }
+        if (ok) {
+            prefs.saveSessionId(id)
+            _sessionId.value = id
+            _auth.value = true
+        }
+    }
+
     fun start() = viewModelScope.launch {
         prefs.sessionIdFlow.firstOrNull()?.let { id ->
             val (ok, _) = withContext(Dispatchers.IO) { ApiService.getStatus(id) }
