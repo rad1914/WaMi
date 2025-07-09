@@ -13,9 +13,12 @@ data class Message(
 ) {
     companion object {
         fun fromJson(o: JSONObject): Message = Message(
-            id        = o.getString("id"),
-            fromMe    = o.getBoolean("isOutgoing"),
-            text      = o.optString("text", null), 
+
+            id        = o.optString("id"),
+
+            fromMe    = o.optInt("isOutgoing") == 1,
+            
+            text      = o.optString("text", null),
             timestamp = o.optLong("timestamp")
         )
     }

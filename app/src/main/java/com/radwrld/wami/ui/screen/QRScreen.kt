@@ -17,14 +17,13 @@ import com.radwrld.wami.ui.vm.SessionViewModel
 @Composable
 fun QRScreen(
     nav: NavController,
-    vm: SessionViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+
+    vm: SessionViewModel
 ) {
     val qr by vm.qrCode.collectAsState()
     val auth by vm.isAuth.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var sessionId by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) { vm.start() }
 
     if (showDialog) {
         AlertDialog(

@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/ChatScreen.kt
 package com.radwrld.wami.ui.screen
 
 import androidx.compose.foundation.clickable
@@ -9,19 +10,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.radwrld.wami.Constants.BASE_URL
 import com.radwrld.wami.ui.vm.ChatViewModel
 import com.radwrld.wami.ui.vm.SessionViewModel
-import com.radwrld.wami.Constants.BASE_URL
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun ChatScreen(nav: NavController, vm: ChatViewModel = viewModel()) {
-    val sessionViewModel: SessionViewModel = viewModel()
+fun ChatScreen(
+    nav: NavController,
+
+    sessionViewModel: SessionViewModel,
+    vm: ChatViewModel = viewModel()
+) {
     val sid by sessionViewModel.sessionId.collectAsState()
     val chats by vm.chats.collectAsState()
 
-    LaunchedEffect(Unit) { sessionViewModel.start() }
+    
     LaunchedEffect(sid) { sid?.let(vm::load) }
 
     LazyColumn(Modifier.fillMaxSize()) {
