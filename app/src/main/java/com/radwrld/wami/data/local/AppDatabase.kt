@@ -14,6 +14,7 @@ import androidx.room.RoomDatabase
 import com.radwrld.wami.data.Chat
 import com.radwrld.wami.data.Message
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONObject
 
 @Entity(tableName = "chats")
 data class ChatEntity(
@@ -27,7 +28,8 @@ data class MessageEntity(
     val fromMe: Boolean,
     val text: String?,
     val timestamp: Long,
-    val jid: String
+    val jid: String,
+    val reactions: String
 )
 
 @Dao
@@ -87,8 +89,31 @@ fun ChatEntity.toChat() = Chat(jid = jid, name = name)
 
 fun Chat.toEntity() = ChatEntity(jid = jid, name = name)
 
-fun MessageEntity.toMessage() =
-    Message(id = id, fromMe = fromMe, text = text, timestamp = timestamp)
+fun MessageEntity.toMessage(): Message {
+    val reactionsMap = mutableMapOf<String, Int>()
+    try {
+        val json = JSONObject(reactions)
+        json.keys().forEach { key ->
+            reactionsMap[key] = json.getInt(key)
+        }
+    } catch (_: Exception) {
+
+    }
+    return Message(
+        id = id,
+        fromMe = fromMe,
+        text = text,
+        timestamp = timestamp,
+        reactions = reactionsMap
+    )
+}
 
 fun Message.toEntity(jid: String) =
-    MessageEntity(id = id, fromMe = fromMe, text = text, timestamp = timestamp, jid = jid)
+    MessageEntity(
+        id = id,
+        fromMe = fromMe,
+        text = text,
+        timestamp = timestamp,
+        jid = jid,
+        reactions = JSONObject(reactions.toMap()).toString()
+    )

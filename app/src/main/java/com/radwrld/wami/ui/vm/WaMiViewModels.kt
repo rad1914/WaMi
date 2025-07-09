@@ -1,4 +1,4 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/vm/SessionViewModel.kt
+// @path: app/src/main/java/com/radwrld/wami/ui/vm/WaMiViewModels.kt
 package com.radwrld.wami.ui.vm
 
 import android.app.Application
@@ -112,8 +112,19 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch(Dispatchers.IO) {
-        ApiService.sendText(sessionId, jid, text)
+        val confirmation = ApiService.sendText(sessionId, jid, text)
+        confirmation?.let {
+            val newMessage = Message(
+                id = it.messageId,
+                fromMe = true,
+                text = text,
+                timestamp = it.timestamp ?: System.currentTimeMillis(),
+                reactions = emptyMap()
+            )
 
-        load(sessionId, jid)
+            _msgs.value = listOf(newMessage) + _msgs.value
+
+            db.messageDao().insertAll(listOf(newMessage.toEntity(jid)))
+        }
     }
 }

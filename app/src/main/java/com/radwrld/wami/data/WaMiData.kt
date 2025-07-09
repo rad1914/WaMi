@@ -37,12 +37,10 @@ object ApiService {
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         })
-
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .callTimeout(90, TimeUnit.SECONDS)
-
         .build()
 
     private fun emptyBody() = "".toRequestBody()
@@ -79,15 +77,22 @@ object ApiService {
         client.newCall(authReq("/session/logout", sessionId, "POST", emptyBody()))
             .execute().use { it.isSuccessful }
 
-    fun fetchChats(sessionId: String): List<Chat> =
-        client.newCall(authReq("/chats", sessionId)).execute().use { resp ->
-            if (!resp.isSuccessful) return emptyList()
-            JSONArray(resp.body!!.string()).let { arr ->
-                List(arr.length()) { i ->
-                    arr.getJSONObject(i).let { Chat(it.getString("jid"), it.optString("name", it.getString("jid"))) }
+    fun fetchChats(sessionId: String): List<Chat> {
+        return try {
+            client.newCall(authReq("/chats", sessionId)).execute().use { resp ->
+                if (!resp.isSuccessful) return emptyList()
+                val body = resp.body?.string() ?: return emptyList()
+                JSONArray(body).let { arr ->
+                    List(arr.length()) { i ->
+                        arr.getJSONObject(i).let { Chat(it.getString("jid"), it.optString("name", it.getString("jid"))) }
+                    }
                 }
             }
+        } catch (e: Exception) {
+
+            emptyList()
         }
+    }
 
     fun fetchHistory(sessionId: String, jid: String, limit: Int = 100): List<Message> =
         client.newCall(authReq("/history/${URLEncoder.encode(jid, "UTF-8")}?limit=$limit", sessionId))
@@ -182,18 +187,25 @@ data class Message(
     val id: String,
     val fromMe: Boolean,
     val text: String?,
-    val timestamp: Long
+    val timestamp: Long,
+    val reactions: Map<String, Int>
 ) {
     companion object {
-        fun fromJson(o: JSONObject): Message = Message(
+        fun fromJson(o: JSONObject): Message {
+            val reactionsJson = o.optJSONObject("reactions")
+            val reactionsMap = mutableMapOf<String, Int>()
+            reactionsJson?.keys()?.forEach { key ->
+                reactionsMap[key] = reactionsJson.getInt(key)
+            }
 
-            id        = o.optString("id"),
-
-            fromMe    = o.optInt("isOutgoing") == 1,
-            
-            text      = o.optString("text", null),
-            timestamp = o.optLong("timestamp")
-        )
+            return Message(
+                id        = o.optString("id"),
+                fromMe    = o.optInt("isOutgoing") == 1,
+                text      = o.optString("text", null),
+                timestamp = o.optLong("timestamp"),
+                reactions = reactionsMap
+            )
+        }
     }
 }
 
