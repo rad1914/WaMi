@@ -29,7 +29,12 @@ object ApiService {
         .addInterceptor(HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         })
-        .callTimeout(30, TimeUnit.SECONDS)
+
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(90, TimeUnit.SECONDS)
+
         .build()
 
     private fun emptyBody() = "".toRequestBody()
@@ -85,7 +90,6 @@ object ApiService {
                 }
             }
 
-    
     fun sendText(sessionId: String, jid: String, text: String): MessageConfirmation? {
         val json = JSONObject()
             .put("jid", jid)
@@ -104,7 +108,6 @@ object ApiService {
         }
     }
 
-    
     fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean {
         val json = JSONObject()
             .put("jid", jid)
@@ -117,7 +120,6 @@ object ApiService {
         }
     }
 
-    
     fun sendMedia(
         sessionId: String,
         jid: String,
