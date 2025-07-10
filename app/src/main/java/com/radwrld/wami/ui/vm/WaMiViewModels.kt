@@ -1,130 +1,114 @@
 // @path: app/src/main/java/com/radwrld/wami/ui/vm/WaMiViewModels.kt
 package com.radwrld.wami.ui.vm
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.radwrld.wami.data.ApiService
-import com.radwrld.wami.data.Chat
-import com.radwrld.wami.data.Message
+import com.radwrld.wami.data.ChatRepository
+import com.radwrld.wami.data.MessageRepository
 import com.radwrld.wami.data.UserPreferencesRepository
-import com.radwrld.wami.data.local.AppDatabase
-import com.radwrld.wami.data.local.toChat
-import com.radwrld.wami.data.local.toEntity
-import com.radwrld.wami.data.local.toMessage
-import kotlinx.coroutines.Dispatchers
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.UUID
+import javax.inject.Inject
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive
 
-class SessionViewModel(application: Application) : AndroidViewModel(application) {
-    private val prefs = UserPreferencesRepository(application)
-    private val db = AppDatabase.getDatabase(application)
+@HiltViewModel
+class MessageViewModel @Inject constructor(
+    private val repo: MessageRepository
+) : ViewModel() {
+    private val _msgs = MutableStateFlow<List<com.radwrld.wami.data.Message>>(emptyList())
+    val msgs = _msgs.asStateFlow()
 
+    fun load(jid: String) = viewModelScope.launch {
+        repo.observeMessages(jid)
+            .firstOrNull()
+            ?.let { _msgs.value = it }
+        val remote = repo.refreshMessages(jid)
+        _msgs.value = remote
+    }
+
+    fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
+        val success = repo.sendText(sessionId, jid, text)
+        if (success) {
+            val msg = com.radwrld.wami.data.Message(
+                id = UUID.randomUUID().toString(),
+                fromMe = true,
+                text = text,
+                timestamp = System.currentTimeMillis(),
+                jid = jid,
+                reactions = ""
+            )
+            _msgs.value = listOf(msg) + _msgs.value
+        }
+    }
+}
+
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    private val prefs: UserPreferencesRepository,
+    private val api: ApiService
+) : ViewModel() {
     private val _sessionId = MutableStateFlow<String?>(null)
     private val _qrCode = MutableStateFlow<String?>(null)
     private val _auth = MutableStateFlow(false)
 
     val sessionId = _sessionId.asStateFlow()
-    val qrCode = _qrCode.asStateFlow()
-    val isAuth = _auth.asStateFlow()
+    val qrCode   = _qrCode.asStateFlow()
+    val isAuth   = _auth.asStateFlow()
 
-    fun loginWithId(id: String) = viewModelScope.launch(Dispatchers.IO) {
-        val (ok, _) = ApiService.getStatus(id)
-        if (ok) {
+    fun start() = viewModelScope.launch {
+        prefs.sessionIdFlow.firstOrNull()?.let { id ->
+            if (api.getStatus(id)?.connected == true) {
+                _sessionId.value = id
+                _auth.value = true
+                return@launch
+            }
+        }
+        createSession()
+    }
+
+    private fun createSession() = viewModelScope.launch {
+        api.createSession()?.also { id ->
+            prefs.saveSessionId(id)
+            _sessionId.value = id
+            while (!isAuth.value) {
+                delay(3000)
+                api.getStatus(id)?.let {
+                    _auth.value = it.connected
+                    _qrCode.value = it.qr
+                }
+            }
+        }
+    }
+
+    fun loginWithId(id: String) = viewModelScope.launch {
+        if (api.getStatus(id)?.connected == true) {
             prefs.saveSessionId(id)
             _sessionId.value = id
             _auth.value = true
         }
     }
 
-    fun start() = viewModelScope.launch(Dispatchers.IO) {
-        val id = prefs.sessionIdFlow.firstOrNull()
-        if (id != null && ApiService.getStatus(id).first) {
-            _sessionId.value = id
-            _auth.value = true
-        } else {
-            createNewSession()
-        }
-    }
-
-    private fun createNewSession() = viewModelScope.launch(Dispatchers.IO) {
-        val id = ApiService.createSession() ?: return@launch
-        prefs.saveSessionId(id)
-        _sessionId.value = id
-
-        while (isActive && !_auth.value) {
-            delay(3000)
-            val (ok, qr) = ApiService.getStatus(id)
-            _auth.value = ok
-            _qrCode.value = qr
-        }
-    }
-
-    fun logout() = viewModelScope.launch(Dispatchers.IO) {
+    fun logout() = viewModelScope.launch {
         sessionId.value?.let { id ->
-            if (ApiService.logout(id)) {
-                prefs.clearSessionId()
-                _sessionId.value = null
-                _auth.value = false
-                _qrCode.value = null
-
-                db.chatDao().clear()
-                db.messageDao().clearAll()
-            }
+            api.getStatus(id)
+            prefs.clearSessionId()
+            _sessionId.value = null
+            _auth.value = false
         }
     }
 }
 
-class ChatViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.getDatabase(application)
-    private val _chats = MutableStateFlow<List<Chat>>(emptyList())
-    val chats = _chats.asStateFlow()
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val repo: ChatRepository
+) : ViewModel() {
+    val chats = repo.observeChats()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun load(sessionId: String) = viewModelScope.launch(Dispatchers.IO) {
-
-        val local = db.chatDao().getAll().first().map { it.toChat() }
-        if (local.isNotEmpty()) _chats.value = local
-
-        val remote = ApiService.fetchChats(sessionId)
-        db.chatDao().insertAll(remote.map { it.toEntity() })
-        _chats.value = remote
-    }
-}
-
-class MessageViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.getDatabase(application)
-    private val _msgs = MutableStateFlow<List<Message>>(emptyList())
-    val msgs = _msgs.asStateFlow()
-
-    fun load(sessionId: String, jid: String) = viewModelScope.launch(Dispatchers.IO) {
-
-        val local = db.messageDao().getMessagesForJid(jid).first().map { it.toMessage() }
-        if (local.isNotEmpty()) _msgs.value = local
-
-        val remote = ApiService.fetchHistory(sessionId, jid)
-        db.messageDao().insertAll(remote.map { it.toEntity(jid) })
-        _msgs.value = remote
-    }
-
-    fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch(Dispatchers.IO) {
-        val confirmation = ApiService.sendText(sessionId, jid, text)
-        confirmation?.let {
-            val newMessage = Message(
-                id = it.messageId,
-                fromMe = true,
-                text = text,
-                timestamp = it.timestamp ?: System.currentTimeMillis(),
-                reactions = emptyMap()
-            )
-
-            _msgs.value = listOf(newMessage) + _msgs.value
-
-            db.messageDao().insertAll(listOf(newMessage.toEntity(jid)))
-        }
+    fun load() = viewModelScope.launch {
+        repo.refreshChats()
     }
 }

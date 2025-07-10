@@ -2,16 +2,29 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        gradlePluginPortal()
     }
     dependencies {
         classpath "com.android.tools.build:gradle:8.1.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.23"
+        classpath "com.google.dagger:hilt-android-gradle-plugin:2.47"
     }
 }
 
+// Aplica forzado de JavaPoet en todas las configuraciones de todos los proyectos
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
+
+    configurations.all {
+        resolutionStrategy {
+            force "com.squareup:javapoet:1.13.0"
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }

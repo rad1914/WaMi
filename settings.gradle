@@ -5,5 +5,6 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-rootProject.name = "WaMiCompose"
-include(":app")
+
+rootProject.name = 'WaMiCompose'
+include ':app'

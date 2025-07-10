@@ -2,19 +2,14 @@
 package com.radwrld.wami.data.local
 
 import android.content.Context
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import com.radwrld.wami.data.Chat
-import com.radwrld.wami.data.Message
+import androidx.room.*
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
-import org.json.JSONObject
 
 @Entity(tableName = "chats")
 data class ChatEntity(
@@ -37,8 +32,8 @@ interface ChatDao {
     @Query("SELECT * FROM chats")
     fun getAll(): Flow<List<ChatEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(chats: List<ChatEntity>)
+    @Upsert
+    suspend fun upsertAll(chats: List<ChatEntity>)
 
     @Query("DELETE FROM chats")
     suspend fun clear()
@@ -47,10 +42,10 @@ interface ChatDao {
 @Dao
 interface MessageDao {
     @Query("SELECT * FROM messages WHERE jid = :jid ORDER BY timestamp DESC")
-    fun getMessagesForJid(jid: String): Flow<List<MessageEntity>>
+    fun getForJid(jid: String): Flow<List<MessageEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(messages: List<MessageEntity>)
+    @Upsert
+    suspend fun upsertAll(messages: List<MessageEntity>)
 
     @Query("DELETE FROM messages WHERE jid = :jid")
     suspend fun clearForJid(jid: String)
@@ -65,55 +60,73 @@ interface MessageDao {
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-
     abstract fun chatDao(): ChatDao
     abstract fun messageDao(): MessageDao
 
     companion object {
-
+        private const val DB_NAME = "wami_db"
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        
-        fun getDatabase(context: Context): AppDatabase =
+        fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "wami_db"
+                    DB_NAME
                 ).build().also { INSTANCE = it }
             }
     }
 }
 
-fun ChatEntity.toChat() = Chat(jid = jid, name = name)
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
 
-fun Chat.toEntity() = ChatEntity(jid = jid, name = name)
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext app: Context): AppDatabase = AppDatabase.getInstance(app)
 
-fun MessageEntity.toMessage(): Message {
-    val reactionsMap = mutableMapOf<String, Int>()
-    try {
-        val json = JSONObject(reactions)
-        json.keys().forEach { key ->
-            reactionsMap[key] = json.getInt(key)
-        }
-    } catch (_: Exception) {
+    @Provides
+    @Singleton
+    fun provideChatDao(db: AppDatabase): ChatDao = db.chatDao()
 
-    }
-    return Message(
-        id = id,
-        fromMe = fromMe,
-        text = text,
-        timestamp = timestamp,
-        reactions = reactionsMap
+    @Provides
+    @Singleton
+    fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao()
+}
+
+fun ChatEntity.toChat(): com.radwrld.wami.data.Chat {
+    return com.radwrld.wami.data.Chat(
+        jid = this.jid,
+        name = this.name
     )
 }
 
-fun Message.toEntity(jid: String) =
-    MessageEntity(
-        id = id,
-        fromMe = fromMe,
-        text = text,
-        timestamp = timestamp,
-        jid = jid,
-        reactions = JSONObject(reactions.toMap()).toString()
+fun com.radwrld.wami.data.Chat.toEntity(): ChatEntity {
+    return ChatEntity(
+        jid = this.jid,
+        name = this.name
     )
+}
+
+fun MessageEntity.toMessage(): com.radwrld.wami.data.Message {
+    return com.radwrld.wami.data.Message(
+        id = this.id,
+        fromMe = this.fromMe,
+        text = this.text,
+        timestamp = this.timestamp,
+        jid = this.jid,
+        reactions = this.reactions
+    )
+}
+
+fun com.radwrld.wami.data.Message.toEntity(): MessageEntity {
+    return MessageEntity(
+        id = this.id,
+        fromMe = this.fromMe,
+        text = this.text,
+        timestamp = this.timestamp,
+        jid = this.jid,
+        reactions = this.reactions
+    )
+}
