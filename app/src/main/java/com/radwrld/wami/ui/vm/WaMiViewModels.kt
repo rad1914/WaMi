@@ -3,44 +3,29 @@ package com.radwrld.wami.ui.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.radwrld.wami.data.ApiService
-import com.radwrld.wami.data.ChatRepository
-import com.radwrld.wami.data.MessageRepository
-import com.radwrld.wami.data.UserPreferencesRepository
+import com.radwrld.wami.data.*
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.*
+import javax.inject.Inject
 
 @HiltViewModel
 class MessageViewModel @Inject constructor(
     private val repo: MessageRepository
 ) : ViewModel() {
-    private val _msgs = MutableStateFlow<List<com.radwrld.wami.data.Message>>(emptyList())
+    private val _msgs = MutableStateFlow<List<Message>>(emptyList())
     val msgs = _msgs.asStateFlow()
 
     fun load(jid: String) = viewModelScope.launch {
-        repo.observeMessages(jid)
-            .firstOrNull()
-            ?.let { _msgs.value = it }
-        val remote = repo.refreshMessages(jid)
-        _msgs.value = remote
+        _msgs.value = repo.observeMessages(jid).firstOrNull().orEmpty()
+        _msgs.value = repo.refreshMessages(jid)
     }
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
-        val success = repo.sendText(sessionId, jid, text)
-        if (success) {
-            val msg = com.radwrld.wami.data.Message(
-                id = UUID.randomUUID().toString(),
-                fromMe = true,
-                text = text,
-                timestamp = System.currentTimeMillis(),
-                jid = jid,
-                reactions = ""
-            )
-            _msgs.value = listOf(msg) + _msgs.value
+        if (repo.sendText(sessionId, jid, text)) {
+            _msgs.update { listOf(Message(UUID.randomUUID().toString(), true, text, System.currentTimeMillis(), jid, "")) + it }
         }
     }
 }
@@ -55,8 +40,8 @@ class SessionViewModel @Inject constructor(
     private val _auth = MutableStateFlow(false)
 
     val sessionId = _sessionId.asStateFlow()
-    val qrCode   = _qrCode.asStateFlow()
-    val isAuth   = _auth.asStateFlow()
+    val qrCode = _qrCode.asStateFlow()
+    val isAuth = _auth.asStateFlow()
 
     fun start() = viewModelScope.launch {
         prefs.sessionIdFlow.firstOrNull()?.let { id ->
@@ -70,10 +55,10 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun createSession() = viewModelScope.launch {
-        api.createSession()?.also { id ->
+        api.createSession()?.let { id ->
             prefs.saveSessionId(id)
             _sessionId.value = id
-            while (!isAuth.value) {
+            while (!_auth.value) {
                 delay(3000)
                 api.getStatus(id)?.let {
                     _auth.value = it.connected
@@ -84,7 +69,7 @@ class SessionViewModel @Inject constructor(
     }
 
     fun loginWithId(id: String) = viewModelScope.launch {
-        if (api.getStatus(id)?.connected == true) {
+        api.getStatus(id)?.takeIf { it.connected }?.let {
             prefs.saveSessionId(id)
             _sessionId.value = id
             _auth.value = true
@@ -92,8 +77,8 @@ class SessionViewModel @Inject constructor(
     }
 
     fun logout() = viewModelScope.launch {
-        sessionId.value?.let { id ->
-            api.getStatus(id)
+        sessionId.value?.let {
+            api.getStatus(it)
             prefs.clearSessionId()
             _sessionId.value = null
             _auth.value = false

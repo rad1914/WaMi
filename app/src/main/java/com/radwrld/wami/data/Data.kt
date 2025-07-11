@@ -18,9 +18,11 @@ import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -62,24 +64,29 @@ class ApiService @Inject constructor(
     private inline fun <T> safeCall(block: () -> T): T? =
         try { block() } catch (_: Exception) { null }
 
-    fun createSession(): String? = safeCall {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/session/create")
-            .post("".toRequestBody())
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) return null
-            json.decodeFromString<CreateSessionResponse>(resp.body!!.string()).sessionId
+    suspend fun createSession(): String? = withContext(Dispatchers.IO) {
+        safeCall {
+            val req = Request.Builder()
+                .url("${Constants.BASE_URL}/session/create")
+                .post("".toRequestBody())
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@safeCall null
+                json.decodeFromString<CreateSessionResponse>(resp.body!!.string()).sessionId
+            }
         }
     }
 
-    fun getStatus(sessionId: String): StatusResponse? = safeCall {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/session/status")
-            .header("Authorization", "Bearer $sessionId")
-            .build()
-        client.newCall(req).execute().use { resp ->
-            json.decodeFromString(resp.body!!.string())
+    suspend fun getStatus(sessionId: String): StatusResponse? = withContext(Dispatchers.IO) {
+        safeCall {
+            val req = Request.Builder()
+                .url("${Constants.BASE_URL}/session/status")
+                .header("Authorization", "Bearer $sessionId")
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@safeCall null
+                json.decodeFromString(resp.body!!.string())
+            }
         }
     }
 

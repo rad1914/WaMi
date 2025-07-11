@@ -3,6 +3,8 @@ package com.radwrld.wami.data.local
 
 import android.content.Context
 import androidx.room.*
+import com.radwrld.wami.data.Chat
+import com.radwrld.wami.data.Message
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -95,22 +97,22 @@ object DatabaseModule {
     fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao()
 }
 
-fun ChatEntity.toChat(): com.radwrld.wami.data.Chat {
-    return com.radwrld.wami.data.Chat(
+fun ChatEntity.toChat(): Chat {
+    return Chat(
         jid = this.jid,
         name = this.name
     )
 }
 
-fun com.radwrld.wami.data.Chat.toEntity(): ChatEntity {
+fun Chat.toEntity(): ChatEntity {
     return ChatEntity(
         jid = this.jid,
         name = this.name
     )
 }
 
-fun MessageEntity.toMessage(): com.radwrld.wami.data.Message {
-    return com.radwrld.wami.data.Message(
+fun MessageEntity.toMessage(): Message {
+    return Message(
         id = this.id,
         fromMe = this.fromMe,
         text = this.text,
@@ -120,7 +122,7 @@ fun MessageEntity.toMessage(): com.radwrld.wami.data.Message {
     )
 }
 
-fun com.radwrld.wami.data.Message.toEntity(): MessageEntity {
+fun Message.toEntity(): MessageEntity {
     return MessageEntity(
         id = this.id,
         fromMe = this.fromMe,
