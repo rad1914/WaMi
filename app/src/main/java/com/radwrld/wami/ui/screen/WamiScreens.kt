@@ -35,46 +35,62 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Enter Session ID") },
-            text = { OutlinedTextField(input, { input = it }, label = { Text("Session ID") }) },
+            text = {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text("Session ID") }
+                )
+            },
             confirmButton = {
                 Button(onClick = {
                     vm.loginWithId(input)
                     showDialog = false
                 }) { Text("Login") }
             },
-            dismissButton = { Button({ showDialog = false }) { Text("Cancel") } }
+            dismissButton = {
+                Button(onClick = { showDialog = false }) { Text("Cancel") }
+            }
         )
     }
 
-    Box(Modifier.fillMaxSize(), Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             when (val state = uiState) {
                 is SessionUiState.Loading -> CircularProgressIndicator()
+
                 is SessionUiState.AwaitingScan -> {
                     val bmp = remember(state.qrCode) {
                         state.qrCode?.substringAfter(",")?.let {
                             runCatching {
-                                BitmapFactory.decodeByteArray(Base64.decode(it, Base64.DEFAULT), 0, it.length)?.asImageBitmap()
+                                val bytes = Base64.decode(it, Base64.DEFAULT)
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
                             }.getOrNull()
                         }
                     }
+
+                    Text("Scan this QR")
+                    Spacer(Modifier.height(16.dp))
+
                     if (bmp != null) {
-                        Text("Scan this QR")
-                        Spacer(Modifier.height(16.dp))
                         Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(250.dp))
                     } else {
-                        Text("Generating QR Code...")
-                        Spacer(Modifier.height(16.dp))
                         CircularProgressIndicator()
                     }
+
                     Spacer(Modifier.height(16.dp))
-                    Button({ showDialog = true }) { Text("Login with ID") }
+                    Button(onClick = { showDialog = true }) { Text("Login with ID") }
                 }
+
                 is SessionUiState.Authenticated -> Text("Authenticated! Redirecting...")
+
                 is SessionUiState.Error -> {
                     Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(16.dp))
-                    Button({ vm.start() }) { Text("Retry") }
+                    Button(onClick = { vm.start() }) { Text("Retry") }
                 }
             }
         }
@@ -131,15 +147,19 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
                     horizontalAlignment = if (msg.fromMe) Alignment.End else Alignment.Start
                 ) {
                     Text("${if (msg.fromMe) "You: " else ""}${msg.text ?: "[Media]"}")
+
                     if (msg.fromMe) {
-                        val status = when (msg.status) {
+                        val statusText = when (msg.status) {
                             MessageStatus.SENDING -> "Sending..."
                             MessageStatus.FAILED -> "Failed"
                             MessageStatus.SENT -> "Sent"
                         }
-                        Text(status, style = MaterialTheme.typography.bodySmall)
+                        Text(statusText, style = MaterialTheme.typography.bodySmall)
                     }
-                    if (msg.reactions.isNotEmpty()) Text("Reactions: ${msg.reactions}")
+
+                    if (msg.reactions.isNotEmpty()) {
+                        Text("Reactions: ${msg.reactions}")
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -152,8 +172,8 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TextField(
-                input,
-                { input = it },
+                value = input,
+                onValueChange = { input = it },
                 placeholder = { Text("Type…") },
                 modifier = Modifier.weight(1f)
             )
