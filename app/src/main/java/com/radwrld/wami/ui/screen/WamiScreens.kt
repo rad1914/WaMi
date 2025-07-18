@@ -163,16 +163,17 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
                     Text("${if (msg.fromMe) "You: " else ""}${msg.text ?: "[Media]"}")
 
                     if (msg.fromMe) {
-val statusText = when (msg.status) {
-    MessageStatus.SENDING -> "Sending..."
-    MessageStatus.FAILED -> "Failed" // Correcto
-    MessageStatus.SENT -> "Sent"
-}
+                        val statusText = when (msg.status) {
+                            MessageStatus.SENDING -> "Enviando..."
+                            MessageStatus.FAILED -> "Falló"
+                            MessageStatus.SENT -> "Enviado"
+                        }
                         Text(statusText, style = MaterialTheme.typography.bodySmall)
                     }
 
                     if (msg.reactions.isNotEmpty()) {
-                        Text("Reactions: ${msg.reactions}")
+                        val reactionsText = msg.reactions.map { "${it.key} ${it.value}" }.joinToString(" ")
+                        Text("Reactions: $reactionsText", style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Spacer(Modifier.height(8.dp))

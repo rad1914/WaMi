@@ -12,6 +12,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @Entity(tableName = "chats")
 data class ChatEntity(
@@ -46,10 +49,25 @@ interface MessageDao {
     @Query("DELETE FROM messages") suspend fun clearAll()
 }
 
+class Converters {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @TypeConverter
+    fun fromReactionsMap(reactions: Map<String, Int>): String {
+        return json.encodeToString(reactions)
+    }
+
+    @TypeConverter
+    fun toReactionsMap(jsonString: String): Map<String, Int> {
+        return if (jsonString.isEmpty()) emptyMap() else json.decodeFromString(jsonString)
+    }
+}
+
 @Database(
     entities = [ChatEntity::class, MessageEntity::class],
     version = 2,
-    exportSchema = false
+    exportSchema = false,
+    typeConverters = [Converters::class]
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
@@ -89,6 +107,6 @@ fun ChatEntity.toChat() = Chat(jid, name)
 
 fun Chat.toEntity() = ChatEntity(jid, name)
 
-fun MessageEntity.toMessage() = Message(id, fromMe, text, timestamp, jid, reactions)
+fun MessageEntity.toMessage() = Message(id, fromMe, text, timestamp, jid, if (reactions.isEmpty()) emptyMap() else Json.decodeFromString(reactions))
 
-fun Message.toEntity() = MessageEntity(id, fromMe, text, timestamp, jid, reactions)
+fun Message.toEntity() = MessageEntity(id, fromMe, text, timestamp, jid, Json.encodeToString(reactions))

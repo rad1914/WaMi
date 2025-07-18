@@ -115,8 +115,8 @@ class ApiService @Inject constructor(
 
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder()
-                .url("${Constants.BASE_URL}/messages?jid=$jid")
+            val url = "${Constants.BASE_URL}/chat/history/$jid"
+            val req = Request.Builder().url(url)
                 .header("Authorization", "Bearer $sessionId")
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -141,8 +141,8 @@ class ApiService @Inject constructor(
         }
     }
 
-    suspend fun sendMessage(sessionId: String, jid: String, text: String): Boolean = safeCall {
-        val body = json.encodeToString(SendMessageRequest(jid, text)).toRequestBody()
+    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): Boolean = safeCall {
+        val body = json.encodeToString(SendMessageRequest(jid, text, tempId)).toRequestBody()
         val req = Request.Builder()
             .url("${Constants.BASE_URL}/message/send")
             .header("Authorization", "Bearer $sessionId")
@@ -155,14 +155,14 @@ class ApiService @Inject constructor(
 @Serializable data class CreateSessionResponse(val sessionId: String)
 @Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
 @Serializable data class Chat(val jid: String, val name: String?)
-@Serializable data class SendMessageRequest(val jid: String, val text: String)
+@Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
 @Serializable data class Message(
     val id: String,
     val fromMe: Boolean,
     val text: String?,
     val timestamp: Long,
     val jid: String,
-    val reactions: String = "",
+    val reactions: Map<String, Int> = emptyMap(),
     val status: MessageStatus = MessageStatus.SENT
 )
 
@@ -224,8 +224,8 @@ class MessageRepository @Inject constructor(
         return remote
     }
 
-    suspend fun sendText(sessionId: String, jid: String, text: String): Boolean =
-        api.sendMessage(sessionId, jid, text)
+    suspend fun sendText(sessionId: String, jid: String, text: String, tempId: String): Boolean =
+        api.sendMessage(sessionId, jid, text, tempId)
 
     suspend fun clearForJid(jid: String) = dao.clearForJid(jid)
 }
