@@ -40,7 +40,8 @@ object Http {
         OkHttpClient.Builder()
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
-            })
+          
+            }) 
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
@@ -61,29 +62,34 @@ class ApiService @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private inline fun <T> safeCall(block: () -> T): T? =
-        try { block() } catch (_: Exception) { null }
+ 
+    private inline fun <T> safeCall(block: () -> T): T? 
+        = try { block() } catch (_: Exception) { null } 
 
-    suspend fun createSession(): String? = withContext(Dispatchers.IO) {
+    suspend fun createSession(): String?
+        = withContext(Dispatchers.IO) { 
         safeCall {
             val req = Request.Builder()
                 .url("${Constants.BASE_URL}/session/create")
                 .post("".toRequestBody())
                 .build()
             client.newCall(req).execute().use { resp ->
+           
                 if (!resp.isSuccessful) return@safeCall null
                 json.decodeFromString<CreateSessionResponse>(resp.body!!.string()).sessionId
             }
         }
     }
 
-    suspend fun getStatus(sessionId: String): StatusResponse? = withContext(Dispatchers.IO) {
+    suspend fun getStatus(sessionId: String): StatusResponse?
+        = withContext(Dispatchers.IO) { 
         safeCall {
             val req = Request.Builder()
                 .url("${Constants.BASE_URL}/session/status")
                 .header("Authorization", "Bearer $sessionId")
                 .build()
             client.newCall(req).execute().use { resp ->
+         
                 if (!resp.isSuccessful) return@safeCall null
                 json.decodeFromString(resp.body!!.string())
             }
@@ -94,7 +100,8 @@ class ApiService @Inject constructor(
         val req = Request.Builder()
             .url("${Constants.BASE_URL}/chats")
             .header("Authorization", "Bearer $sessionId")
-            .build()
+  
+            .build() 
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) emptyList()
             else json.decodeFromString(resp.body!!.string())
@@ -104,7 +111,8 @@ class ApiService @Inject constructor(
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = safeCall {
         val req = Request.Builder()
             .url("${Constants.BASE_URL}/messages?jid=${jid}")
-            .header("Authorization", "Bearer $sessionId")
+  
+            .header("Authorization", "Bearer $sessionId") 
             .build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) emptyList()
@@ -113,7 +121,8 @@ class ApiService @Inject constructor(
     } ?: emptyList()
 
     suspend fun sendMessage(sessionId: String, jid: String, text: String): Boolean = safeCall {
-        val bodyJson = json.encodeToString(SendMessageRequest.serializer(), SendMessageRequest(jid, text))
+        val 
+        bodyJson = json.encodeToString(SendMessageRequest.serializer(), SendMessageRequest(jid, text)) 
         val req = Request.Builder()
             .url("${Constants.BASE_URL}/message/send")
             .header("Authorization", "Bearer $sessionId")
@@ -127,10 +136,16 @@ class ApiService @Inject constructor(
 data class CreateSessionResponse(val sessionId: String)
 
 @Serializable
-data class StatusResponse(val connected: Boolean, val qr: String? = null)
+data class StatusResponse(val connected: Boolean, val qr: String? = null) 
 
 @Serializable
 data class Chat(val jid: String, val name: String)
+
+enum class MessageStatus {
+    SENDING,
+    FAILED,
+    SENT
+}
 
 @Serializable
 data class Message(
@@ -139,7 +154,8 @@ data class Message(
     val text: String?,
     val timestamp: Long,
     val jid: String,
-    val reactions: String = ""
+    val reactions: String = "",
+    val status: MessageStatus = MessageStatus.SENT
 )
 
 @Serializable
@@ -151,12 +167,14 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val SESSION_KEY = stringPreferencesKey("session_id")
+    
+    private val SESSION_KEY = stringPreferencesKey("session_id") 
 
     val sessionIdFlow: Flow<String?> = context.dataStore.data
         .map { it[SESSION_KEY] }
 
-    suspend fun getSessionId(): String? = sessionIdFlow.firstOrNull()
+    suspend fun getSessionId(): String?
+        = sessionIdFlow.firstOrNull() 
 
     suspend fun saveSessionId(id: String) {
         context.dataStore.edit { prefs ->
@@ -174,7 +192,8 @@ class UserPreferencesRepository @Inject constructor(
 @Singleton
 class ChatRepository @Inject constructor(
     private val dao: ChatDao,
-    private val api: ApiService,
+  
+    private val api: ApiService, 
     private val prefs: UserPreferencesRepository
 ) {
     fun observeChats(): Flow<List<Chat>> =
@@ -187,7 +206,8 @@ class ChatRepository @Inject constructor(
         return remote
     }
 
-    suspend fun clearLocal() = dao.clear()
+    suspend fun clearLocal() 
+        = dao.clear() 
 }
 
 @Singleton
@@ -203,7 +223,8 @@ class MessageRepository @Inject constructor(
         val session = prefs.getSessionId() ?: return emptyList()
         val remote = api.fetchMessages(session, jid)
         dao.upsertAll(remote.map { it.toEntity() })
-        return remote
+    
+        return remote 
     }
 
     suspend fun sendText(sessionId: String, jid: String, text: String): Boolean {

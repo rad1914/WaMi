@@ -11,6 +11,13 @@ import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
+sealed interface SessionUiState {
+    object Loading : SessionUiState
+    data class AwaitingScan(val qrCode: String?) : SessionUiState
+    object Authenticated : SessionUiState
+    data class Error(val message: String) : SessionUiState
+}
+
 @HiltViewModel
 class MessageViewModel @Inject constructor(
     private val repo: MessageRepository
@@ -19,7 +26,6 @@ class MessageViewModel @Inject constructor(
     val msgs = _msgs.asStateFlow()
 
     fun load(jid: String) = viewModelScope.launch {
-        _msgs.value = repo.observeMessages(jid).firstOrNull().orEmpty()
         _msgs.value = repo.refreshMessages(jid)
     }
 
@@ -35,19 +41,16 @@ class SessionViewModel @Inject constructor(
     private val prefs: UserPreferencesRepository,
     private val api: ApiService
 ) : ViewModel() {
-    private val _sessionId = MutableStateFlow<String?>(null)
-    private val _qrCode = MutableStateFlow<String?>(null)
-    private val _auth = MutableStateFlow(false)
+    private val _uiState = MutableStateFlow<SessionUiState>(SessionUiState.Loading)
+    val uiState = _uiState.asStateFlow()
 
-    val sessionId = _sessionId.asStateFlow()
-    val qrCode = _qrCode.asStateFlow()
-    val isAuth = _auth.asStateFlow()
+    val sessionId = prefs.sessionIdFlow.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     fun start() = viewModelScope.launch {
+        _uiState.value = SessionUiState.Loading
         prefs.sessionIdFlow.firstOrNull()?.let { id ->
             if (api.getStatus(id)?.connected == true) {
-                _sessionId.value = id
-                _auth.value = true
+                _uiState.value = SessionUiState.Authenticated
                 return@launch
             }
         }
@@ -57,32 +60,42 @@ class SessionViewModel @Inject constructor(
     private fun createSession() = viewModelScope.launch {
         api.createSession()?.let { id ->
             prefs.saveSessionId(id)
-            _sessionId.value = id
-            while (!_auth.value) {
+            var authenticated = false
+            while (!authenticated) {
                 delay(3000)
                 api.getStatus(id)?.let {
-                    _auth.value = it.connected
-                    _qrCode.value = it.qr
+                    if (it.connected) {
+                        authenticated = true
+                        _uiState.value = SessionUiState.Authenticated
+                    } else {
+                        _uiState.value = SessionUiState.AwaitingScan(it.qr)
+                    }
+                } ?: run {
+                    _uiState.value = SessionUiState.Error("Failed to get status")
+                    return@launch
                 }
             }
+        } ?: run {
+            _uiState.value = SessionUiState.Error("Failed to create session")
         }
     }
 
     fun loginWithId(id: String) = viewModelScope.launch {
+        _uiState.value = SessionUiState.Loading
         api.getStatus(id)?.takeIf { it.connected }?.let {
             prefs.saveSessionId(id)
-            _sessionId.value = id
-            _auth.value = true
+            _uiState.value = SessionUiState.Authenticated
+        } ?: run {
+            _uiState.value = SessionUiState.Error("Invalid or expired Session ID")
+            delay(2000)
+            start()
         }
     }
 
     fun logout() = viewModelScope.launch {
-        sessionId.value?.let {
-            api.getStatus(it)
-            prefs.clearSessionId()
-            _sessionId.value = null
-            _auth.value = false
-        }
+        prefs.clearSessionId()
+        _uiState.value = SessionUiState.Loading
+        start()
     }
 }
 

@@ -37,8 +37,9 @@ interface ChatDao {
     @Upsert
     suspend fun upsertAll(chats: List<ChatEntity>)
 
+  
     @Query("DELETE FROM chats")
-    suspend fun clear()
+    suspend fun clear() 
 }
 
 @Dao
@@ -62,19 +63,22 @@ interface MessageDao {
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun chatDao(): ChatDao
+  
+    abstract fun chatDao(): ChatDao 
     abstract fun messageDao(): MessageDao
 
     companion object {
         private const val DB_NAME = "wami_db"
-        @Volatile private var INSTANCE: AppDatabase? = null
+        @Volatile private var INSTANCE: AppDatabase?
+            = null 
 
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    DB_NAME
+              
+                    DB_NAME 
                 ).build().also { INSTANCE = it }
             }
     }
@@ -97,7 +101,8 @@ object DatabaseModule {
     fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao()
 }
 
-fun ChatEntity.toChat(): Chat {
+fun ChatEntity.toChat(): Chat 
+{ 
     return Chat(
         jid = this.jid,
         name = this.name
@@ -116,7 +121,8 @@ fun MessageEntity.toMessage(): Message {
         id = this.id,
         fromMe = this.fromMe,
         text = this.text,
-        timestamp = this.timestamp,
+ 
+        timestamp = this.timestamp, 
         jid = this.jid,
         reactions = this.reactions
     )
@@ -129,6 +135,7 @@ fun Message.toEntity(): MessageEntity {
         text = this.text,
         timestamp = this.timestamp,
         jid = this.jid,
-        reactions = this.reactions
+        reactions 
+            = this.reactions 
     )
 }
