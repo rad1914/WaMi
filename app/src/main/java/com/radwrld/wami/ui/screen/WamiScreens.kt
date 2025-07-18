@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/screen/WamiScreens.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
@@ -18,10 +17,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.radwrld.wami.Constants
 import com.radwrld.wami.data.MessageStatus
-import com.radwrld.wami.ui.vm.ChatViewModel
-import com.radwrld.wami.ui.vm.MessageViewModel
-import com.radwrld.wami.ui.vm.SessionUiState
-import com.radwrld.wami.ui.vm.SessionViewModel
+import com.radwrld.wami.ui.vm.*
 
 @Composable
 fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
@@ -31,10 +27,7 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
 
     LaunchedEffect(uiState) {
         if (uiState is SessionUiState.Authenticated) {
-            nav.navigate("chats") {
-              
-                popUpTo("qr") { inclusive = true } 
-            }
+            nav.navigate("chats") { popUpTo("qr") { inclusive = true } }
         }
     }
 
@@ -42,61 +35,46 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Enter Session ID") },
-            text = {
-     
-                OutlinedTextField(value = input, onValueChange = { input = it }, label = { Text("Session ID") }) 
-            },
+            text = { OutlinedTextField(input, { input = it }, label = { Text("Session ID") }) },
             confirmButton = {
                 Button(onClick = {
                     vm.loginWithId(input)
-          
-                    showDialog = false 
+                    showDialog = false
                 }) { Text("Login") }
             },
-            dismissButton = { Button(onClick = { showDialog = false }) { Text("Cancel") } }
+            dismissButton = { Button({ showDialog = false }) { Text("Cancel") } }
         )
     }
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement 
-            = Arrangement.Center) { 
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             when (val state = uiState) {
                 is SessionUiState.Loading -> CircularProgressIndicator()
                 is SessionUiState.AwaitingScan -> {
                     val bmp = remember(state.qrCode) {
-                   
-                        state.qrCode?.substringAfter(",")?.let { 
+                        state.qrCode?.substringAfter(",")?.let {
                             runCatching {
-                                val bytes = Base64.decode(it, Base64.DEFAULT)
-                             
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() 
+                                BitmapFactory.decodeByteArray(Base64.decode(it, Base64.DEFAULT), 0, it.length)?.asImageBitmap()
                             }.getOrNull()
                         }
                     }
-                    if (bmp != 
-                        null) { 
+                    if (bmp != null) {
                         Text("Scan this QR")
                         Spacer(Modifier.height(16.dp))
-                        Image(bitmap = bmp, contentDescription = "QR Code", modifier = Modifier.size(250.dp))
-                
-                    } else { 
+                        Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(250.dp))
+                    } else {
                         Text("Generating QR Code...")
                         Spacer(Modifier.height(16.dp))
                         CircularProgressIndicator()
-                    
-                    } 
+                    }
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { showDialog = true }) { Text("Login with ID") }
+                    Button({ showDialog = true }) { Text("Login with ID") }
                 }
-                is SessionUiState.Authenticated -> {
-              
-                    Text("Authenticated! Redirecting...") 
-                }
+                is SessionUiState.Authenticated -> Text("Authenticated! Redirecting...")
                 is SessionUiState.Error -> {
                     Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(16.dp))
-              
-                    Button(onClick = { vm.start() }) { Text("Retry") } 
+                    Button({ vm.start() }) { Text("Retry") }
                 }
             }
         }
@@ -110,100 +88,83 @@ fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel()) {
 
     LazyColumn(Modifier.fillMaxSize()) {
         items(chats) { chat ->
-          
             ListItem(
                 leadingContent = {
                     AsyncImage(
                         model = "${Constants.BASE_URL}/avatar/${chat.jid}",
                         contentDescription = null,
-        
-                        modifier = Modifier.size(40.dp) 
+                        modifier = Modifier.size(40.dp)
                     )
                 },
-                headlineContent = { Column { Text(chat.name) } },
-                supportingContent = { Column { Text(chat.jid) } },
-      
+                headlineContent = { Text(chat.name) },
+                supportingContent = { Text(chat.jid) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { nav.navigate("chat/${chat.jid}") }
                     .padding(vertical = 4.dp)
             )
-           
-            HorizontalDivider() 
+            HorizontalDivider()
         }
     }
 }
 
 @Composable
-fun MessageScreen(
-    jid: String,
-    sessionVM: SessionViewModel = hiltViewModel(),
-    vm: MessageViewModel = hiltViewModel()
-) {
+fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm: MessageViewModel = hiltViewModel()) {
     val sid by sessionVM.sessionId.collectAsState()
     val msgs by vm.msgs.collectAsState()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(jid) {
-        vm.load(jid)
-    }
+    LaunchedEffect(jid) { vm.load(jid) }
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(
-     
-            state = listState, 
-            modifier = Modifier.weight(1f).padding(8.dp),
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .padding(8.dp),
             reverseLayout = true
         ) {
             items(msgs, key = { it.id }) { msg ->
                 Column(
-                  
-                    modifier = Modifier.fillMaxWidth(), 
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = if (msg.fromMe) Alignment.End else Alignment.Start
                 ) {
                     Text("${if (msg.fromMe) "You: " else ""}${msg.text ?: "[Media]"}")
                     if (msg.fromMe) {
-    
-                        val statusText = when (msg.status) { 
+                        val status = when (msg.status) {
                             MessageStatus.SENDING -> "Sending..."
                             MessageStatus.FAILED -> "Failed"
-               
                             MessageStatus.SENT -> "Sent"
                         }
-                        if(statusText.isNotEmpty()) {
-                            Text(statusText, style = MaterialTheme.typography.bodySmall)
-     
-                        } 
+                        Text(status, style = MaterialTheme.typography.bodySmall)
                     }
                     if (msg.reactions.isNotEmpty()) Text("Reactions: ${msg.reactions}")
                 }
-                 Spacer(Modifier.height(8.dp))
-     
-            } 
+                Spacer(Modifier.height(8.dp))
+            }
         }
 
         Row(
-            Modifier.padding(8.dp).fillMaxWidth(),
+            Modifier
+                .padding(8.dp)
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TextField(
-                value = input,
-            
-                onValueChange = { input = it }, 
+                input,
+                { input = it },
                 placeholder = { Text("Type…") },
                 modifier = Modifier.weight(1f)
             )
             Button(
                 onClick = {
-          
-                    sid?.let { 
+                    sid?.let {
                         vm.send(it, jid, input)
                         input = ""
                     }
                 },
- 
-                enabled = input.isNotBlank() && sid != null 
+                enabled = input.isNotBlank() && sid != null
             ) {
                 Text("Send")
             }
