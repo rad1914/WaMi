@@ -113,16 +113,33 @@ class ApiService @Inject constructor(
         }
     }
 
-    suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = safeCall {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/messages?jid=$jid")
-            .header("Authorization", "Bearer $sessionId")
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) emptyList()
-            else json.decodeFromString(resp.body!!.string())
+    suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder()
+                .url("${Constants.BASE_URL}/messages?jid=$jid")
+                .header("Authorization", "Bearer $sessionId")
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val bodyString = resp.body?.string()
+                val message = "Messages Response [${resp.code}]: $bodyString"
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+
+                if (resp.isSuccessful) {
+                    bodyString?.let { json.decodeFromString<List<Message>>(it) } ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            val message = "Messages Exception: ${e.message}"
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+            emptyList<Message>()
         }
-    } ?: emptyList()
+    }
 
     suspend fun sendMessage(sessionId: String, jid: String, text: String): Boolean = safeCall {
         val body = json.encodeToString(SendMessageRequest(jid, text)).toRequestBody()
