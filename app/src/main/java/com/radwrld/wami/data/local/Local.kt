@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/data/local/Local.kt
 package com.radwrld.wami.data.local
 
 import android.content.Context
@@ -12,12 +13,10 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
-// --- Entities ---
-
 @Entity(tableName = "chats")
 data class ChatEntity(
     @PrimaryKey val jid: String,
-    val name: String
+    val name: String?
 )
 
 @Entity(tableName = "messages")
@@ -29,8 +28,6 @@ data class MessageEntity(
     val jid: String,
     val reactions: String
 )
-
-// --- DAOs ---
 
 @Dao
 interface ChatDao {
@@ -49,11 +46,9 @@ interface MessageDao {
     @Query("DELETE FROM messages") suspend fun clearAll()
 }
 
-// --- Database ---
-
 @Database(
     entities = [ChatEntity::class, MessageEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -70,12 +65,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     DB_NAME
-                ).build().also { INSTANCE = it }
+                ).fallbackToDestructiveMigration().build().also { INSTANCE = it }
             }
     }
 }
-
-// --- Hilt Module ---
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,8 +84,6 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao()
 }
-
-// --- Mappers ---
 
 fun ChatEntity.toChat() = Chat(jid, name)
 

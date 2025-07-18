@@ -1,6 +1,8 @@
+// @path: app/src/main/java/com/radwrld/wami/data/Data.kt
 package com.radwrld.wami.data
 
 import android.content.Context
+import android.widget.Toast
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -48,7 +50,10 @@ object NetworkModule {
     fun provideOkHttpClient(): OkHttpClient = Http.client
 }
 
-class ApiService @Inject constructor(private val client: OkHttpClient) {
+class ApiService @Inject constructor(
+    private val client: OkHttpClient,
+    @ApplicationContext private val context: Context
+) {
     private val json = Json { ignoreUnknownKeys = true }
 
     private inline fun <T> safeCall(block: () -> T): T? =
@@ -80,16 +85,33 @@ class ApiService @Inject constructor(private val client: OkHttpClient) {
         }
     }
 
-    suspend fun fetchChats(sessionId: String): List<Chat> = safeCall {
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/chats")
-            .header("Authorization", "Bearer $sessionId")
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) emptyList()
-            else json.decodeFromString(resp.body!!.string())
+    suspend fun fetchChats(sessionId: String): List<Chat> = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder()
+                .url("${Constants.BASE_URL}/chats")
+                .header("Authorization", "Bearer $sessionId")
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val bodyString = resp.body?.string()
+                val message = "Response: ${resp.code}, Body: $bodyString"
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+
+                if (resp.isSuccessful) {
+                    bodyString?.let { json.decodeFromString<List<Chat>>(it) } ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            val message = "Exception: ${e.message}"
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+            emptyList<Chat>()
         }
-    } ?: emptyList()
+    }
 
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = safeCall {
         val req = Request.Builder()
@@ -115,7 +137,7 @@ class ApiService @Inject constructor(private val client: OkHttpClient) {
 
 @Serializable data class CreateSessionResponse(val sessionId: String)
 @Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
-@Serializable data class Chat(val jid: String, val name: String)
+@Serializable data class Chat(val jid: String, val name: String?)
 @Serializable data class SendMessageRequest(val jid: String, val text: String)
 @Serializable data class Message(
     val id: String,

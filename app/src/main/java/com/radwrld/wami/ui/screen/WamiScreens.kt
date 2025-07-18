@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/WamiScreens.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
@@ -98,28 +99,41 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel()) {
+fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel(), sessionVM: SessionViewModel = hiltViewModel()) {
     val chats by vm.chats.collectAsState()
+    val sid by sessionVM.sessionId.collectAsState()
     LaunchedEffect(Unit) { vm.load() }
 
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(chats) { chat ->
-            ListItem(
-                leadingContent = {
-                    AsyncImage(
-                        model = "${Constants.BASE_URL}/avatar/${chat.jid}",
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp)
-                    )
-                },
-                headlineContent = { Text(chat.name) },
-                supportingContent = { Text(chat.jid) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { nav.navigate("chat/${chat.jid}") }
-                    .padding(vertical = 4.dp)
-            )
-            HorizontalDivider()
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(text = "---- DEBUG DATA ----")
+            Text(text = "Session ID: ${sid ?: "Not available"}")
+            Text(text = "Chat count: ${chats.size}")
+            Text(text = "API Endpoint: ${Constants.BASE_URL}/chats")
+            Text(text = "--------------------")
+        }
+        HorizontalDivider()
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(chats) { chat ->
+                ListItem(
+                    leadingContent = {
+                        AsyncImage(
+                            model = "${Constants.BASE_URL}/avatar/${chat.jid}",
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    },
+                    headlineContent = { Text(chat.name ?: chat.jid) },
+                    supportingContent = { Text(chat.jid) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { nav.navigate("chat/${chat.jid}") }
+                        .padding(vertical = 4.dp)
+                )
+                HorizontalDivider()
+            }
         }
     }
 }
@@ -149,11 +163,11 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
                     Text("${if (msg.fromMe) "You: " else ""}${msg.text ?: "[Media]"}")
 
                     if (msg.fromMe) {
-                        val statusText = when (msg.status) {
-                            MessageStatus.SENDING -> "Sending..."
-                            MessageStatus.FAILED -> "Failed"
-                            MessageStatus.SENT -> "Sent"
-                        }
+val statusText = when (msg.status) {
+    MessageStatus.SENDING -> "Sending..."
+    MessageStatus.FAILED -> "Failed" // Correcto
+    MessageStatus.SENT -> "Sent"
+}
                         Text(statusText, style = MaterialTheme.typography.bodySmall)
                     }
 
