@@ -26,9 +26,9 @@ class MessageViewModel @Inject constructor(
     val msgs: StateFlow<List<Message>> = _msgs.asStateFlow()
     private var currentJid: String? = null
 
-    fun load(jid: String) = viewModelScope.launch { 
+    fun load(jid: String) = viewModelScope.launch {
         currentJid = jid
-        _msgs.value = repo.refreshMessages(jid) 
+        _msgs.value = repo.refreshMessages(jid)
     }
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
@@ -37,8 +37,8 @@ class MessageViewModel @Inject constructor(
             id = tempId, isOutgoing = true, text = text, jid = jid,
             timestamp = System.currentTimeMillis(),
             reactions = emptyMap(), status = MessageStatus.SENDING
-        ) 
-        _msgs.update { listOf(optimisticMsg) + it } 
+        )
+        _msgs.update { listOf(optimisticMsg) + it }
 
         val response = repo.sendText(sessionId, jid, text, tempId)
 
@@ -72,13 +72,50 @@ class MessageViewModel @Inject constructor(
             }
         }
     }
+
+    fun retryFailedMessage(message: Message, sessionId: String) = viewModelScope.launch {
+        if (message.status != MessageStatus.FAILED || message.text == null || currentJid == null) return@launch
+
+        _msgs.update { currentMsgs ->
+            currentMsgs.map { msg ->
+                if (msg.id == message.id) {
+                    msg.copy(status = MessageStatus.SENDING)
+                } else {
+                    msg
+                }
+            }
+        }
+
+        val response = repo.sendText(sessionId, currentJid!!, message.text, message.id)
+
+        if (response != null) {
+            _msgs.update { currentMsgs ->
+                currentMsgs.map { msg ->
+                    if (msg.id == message.id) {
+                        msg.copy(
+                            id = response.messageId,
+                            timestamp = response.timestamp,
+                            status = MessageStatus.SENT
+                        )
+                    } else {
+                        msg
+                    }
+                }
+            }
+            repo.refreshMessages(currentJid!!)
+        } else {
+            _msgs.update {
+                it.map { m -> if (m.id == message.id) m.copy(status = MessageStatus.FAILED) else m }
+            }
+        }
+    }
 }
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
     private val prefs: UserPreferencesRepository,
     private val api: ApiService
-) : ViewModel() { 
+) : ViewModel() {
     private val _uiState = MutableStateFlow<SessionUiState>(SessionUiState.Loading)
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
@@ -89,7 +126,7 @@ class SessionViewModel @Inject constructor(
         prefs.sessionIdFlow.firstOrNull()?.let { id ->
             if (api.getStatus(id)?.connected == true) {
                 _uiState.value = SessionUiState.Authenticated
-                return@launch 
+                return@launch
             }
         }
         createSession()
@@ -99,7 +136,7 @@ class SessionViewModel @Inject constructor(
         val id = api.createSession()
         if (id == null) {
             _uiState.value = SessionUiState.Error("Failed to create session")
-            return@launch 
+            return@launch
         }
 
         prefs.saveSessionId(id)
@@ -109,14 +146,14 @@ class SessionViewModel @Inject constructor(
             val status = api.getStatus(id)
             if (status == null) {
                 _uiState.value = SessionUiState.Error("Failed to get status")
-                return@launch 
+                return@launch
             }
             if (status.connected) {
                 _uiState.value = SessionUiState.Authenticated
                 return@launch
             }
             _uiState.value = SessionUiState.AwaitingScan(status.qr)
-        } 
+        }
     }
 
     fun loginWithId(id: String) = viewModelScope.launch {
@@ -127,7 +164,7 @@ class SessionViewModel @Inject constructor(
             _uiState.value = SessionUiState.Authenticated
         } else {
             _uiState.value = SessionUiState.Error("Invalid or expired Session ID")
-            delay(2000) 
+            delay(2000)
             start()
         }
     }
@@ -144,7 +181,7 @@ class ChatViewModel @Inject constructor(
     private val repo: ChatRepository
 ) : ViewModel() {
     val chats = repo.observeChats()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList()) 
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun load() = viewModelScope.launch {
         repo.refreshChats()
