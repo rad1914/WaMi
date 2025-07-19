@@ -33,21 +33,19 @@ class MessageViewModel @Inject constructor(
         val tempId = UUID.randomUUID().toString()
         val optimisticMessage = Message(
             id = tempId,
-            fromMe = true,
+            isOutgoing = true,
             text = text,
             timestamp = System.currentTimeMillis(),
             jid = jid,
+            reactions = emptyMap(),
             status = MessageStatus.SENDING
         )
-        
+
         _msgs.update { listOf(optimisticMessage) + it }
-        
+
         val success = repo.sendText(sessionId, jid, text, tempId)
-        
-        // TODO: Update message status based on server response
+
         if (success) {
-            // Here you would ideally get the real message ID from the server 
-            // and update the message in the list. For now, we just refresh.
             repo.refreshMessages(jid)
         } else {
              _msgs.update { currentMsgs ->

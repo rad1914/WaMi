@@ -54,7 +54,10 @@ class ApiService @Inject constructor(
     private val client: OkHttpClient,
     @ApplicationContext private val context: Context
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
 
     private inline fun <T> safeCall(block: () -> T): T? =
         try { block() } catch (_: Exception) { null }
@@ -115,7 +118,7 @@ class ApiService @Inject constructor(
 
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
         try {
-            val url = "${Constants.BASE_URL}/chat/history/$jid"
+            val url = "${Constants.BASE_URL}/history/$jid"
             val req = Request.Builder().url(url)
                 .header("Authorization", "Bearer $sessionId")
                 .build()
@@ -156,14 +159,15 @@ class ApiService @Inject constructor(
 @Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
 @Serializable data class Chat(val jid: String, val name: String?)
 @Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
-@Serializable data class Message(
+@Serializable
+data class Message(
     val id: String,
-    val fromMe: Boolean,
+    val isOutgoing: Boolean,
     val text: String?,
     val timestamp: Long,
     val jid: String,
     val reactions: Map<String, Int> = emptyMap(),
-    val status: MessageStatus = MessageStatus.SENT
+    var status: MessageStatus? = null
 )
 
 enum class MessageStatus { SENDING, FAILED, SENT }

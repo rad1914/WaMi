@@ -1,4 +1,3 @@
-// @path: app/src/main/java/com/radwrld/wami/ui/screen/WamiScreens.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
@@ -9,8 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -22,12 +20,12 @@ import com.radwrld.wami.ui.vm.*
 
 @Composable
 fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
-    val uiState by vm.uiState.collectAsState()
+    val state by vm.uiState.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
 
-    LaunchedEffect(uiState) {
-        if (uiState is SessionUiState.Authenticated) {
+    LaunchedEffect(state) {
+        if (state is SessionUiState.Authenticated) {
             nav.navigate("chats") { popUpTo("qr") { inclusive = true } }
         }
     }
@@ -50,47 +48,28 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
                 }) { Text("Login") }
             },
             dismissButton = {
-                Button(onClick = { showDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
             }
         )
     }
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            when (val state = uiState) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            when (val s = state) {
                 is SessionUiState.Loading -> CircularProgressIndicator()
-
                 is SessionUiState.AwaitingScan -> {
-                    val bmp = remember(state.qrCode) {
-                        state.qrCode?.substringAfter(",")?.let {
-                            runCatching {
-                                val bytes = Base64.decode(it, Base64.DEFAULT)
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                            }.getOrNull()
-                        }
-                    }
-
+                    val bmp = remember(s.qrCode) { qrCodeToImageBitmap(s.qrCode) }
                     Text("Scan this QR")
                     Spacer(Modifier.height(16.dp))
-
-                    if (bmp != null) {
-                        Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(250.dp))
-                    } else {
-                        CircularProgressIndicator()
-                    }
-
+                    bmp?.let {
+                        Image(bitmap = it, contentDescription = null, modifier = Modifier.size(250.dp))
+                    } ?: CircularProgressIndicator()
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { showDialog = true }) { Text("Login with ID") }
                 }
-
-                is SessionUiState.Authenticated -> Text("Authenticated! Redirecting...")
-
+                is SessionUiState.Authenticated -> Text("Authenticated! Redirecting…")
                 is SessionUiState.Error -> {
-                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(16.dp))
+                    Text("Error: ${s.message}", color = MaterialTheme.colorScheme.error)
                     Button(onClick = { vm.start() }) { Text("Retry") }
                 }
             }
@@ -98,48 +77,59 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
     }
 }
 
+private fun qrCodeToImageBitmap(dataUrl: String?): androidx.compose.ui.graphics.ImageBitmap? {
+    val base64 = dataUrl?.substringAfter(",") ?: return null
+    return runCatching {
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    }.getOrNull()
+}
+
 @Composable
-fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel(), sessionVM: SessionViewModel = hiltViewModel()) {
+fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel()) {
     val chats by vm.chats.collectAsState()
-    val sid by sessionVM.sessionId.collectAsState()
+    val listState = rememberLazyListState()
+    var visibleCount by remember { mutableStateOf(12) }
+
     LaunchedEffect(Unit) { vm.load() }
 
-    Column(Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(text = "---- DEBUG DATA ----")
-            Text(text = "Session ID: ${sid ?: "Not available"}")
-            Text(text = "Chat count: ${chats.size}")
-            Text(text = "API Endpoint: ${Constants.BASE_URL}/chats")
-            Text(text = "--------------------")
-        }
-        HorizontalDivider()
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(chats) { chat ->
-                ListItem(
-                    leadingContent = {
-                        AsyncImage(
-                            model = "${Constants.BASE_URL}/avatar/${chat.jid}",
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    },
-                    headlineContent = { Text(chat.name ?: chat.jid) },
-                    supportingContent = { Text(chat.jid) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { nav.navigate("chat/${chat.jid}") }
-                        .padding(vertical = 4.dp)
-                )
-                HorizontalDivider()
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+            .collect {
+                if ((it.lastOrNull()?.index ?: 0) >= visibleCount - 3 && visibleCount < chats.size) {
+                    visibleCount += 12
+                }
             }
+    }
+
+    LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
+        items(chats.take(visibleCount)) { chat ->
+            ListItem(
+                leadingContent = {
+                    AsyncImage(
+                        model = "${Constants.BASE_URL}/avatar/${chat.jid}",
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp)
+                    )
+                },
+                headlineContent = { Text(chat.name ?: chat.jid) },
+                supportingContent = { Text(chat.jid) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { nav.navigate("chat/${chat.jid}") }
+                    .padding(vertical = 4.dp)
+            )
+            HorizontalDivider()
         }
     }
 }
 
 @Composable
-fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm: MessageViewModel = hiltViewModel()) {
+fun MessageScreen(
+    jid: String,
+    sessionVM: SessionViewModel = hiltViewModel(),
+    vm: MessageViewModel = hiltViewModel()
+) {
     val sid by sessionVM.sessionId.collectAsState()
     val msgs by vm.msgs.collectAsState()
     var input by remember { mutableStateOf("") }
@@ -150,30 +140,32 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
     Column(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
+            reverseLayout = true,
             modifier = Modifier
                 .weight(1f)
-                .padding(8.dp),
-            reverseLayout = true
+                .padding(8.dp)
         ) {
             items(msgs, key = { it.id }) { msg ->
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = if (msg.fromMe) Alignment.End else Alignment.Start
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = if (msg.isOutgoing) Alignment.End else Alignment.Start
                 ) {
-                    Text("${if (msg.fromMe) "You: " else ""}${msg.text ?: "[Media]"}")
+                    Text("${if (msg.isOutgoing) "You: " else ""}${msg.text ?: "[Media]"}")
 
-                    if (msg.fromMe) {
-                        val statusText = when (msg.status) {
-                            MessageStatus.SENDING -> "Enviando..."
-                            MessageStatus.FAILED -> "Falló"
-                            MessageStatus.SENT -> "Enviado"
+                    if (msg.isOutgoing) {
+                        msg.status?.let {
+                            val label = when (it) {
+                                MessageStatus.SENDING -> "Sending..."
+                                MessageStatus.FAILED -> "Failed"
+                                MessageStatus.SENT -> "Sent"
+                            }
+                            Text(label, style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(statusText, style = MaterialTheme.typography.bodySmall)
                     }
 
                     if (msg.reactions.isNotEmpty()) {
-                        val reactionsText = msg.reactions.map { "${it.key} ${it.value}" }.joinToString(" ")
-                        Text("Reactions: $reactionsText", style = MaterialTheme.typography.bodySmall)
+                        val r = msg.reactions.entries.joinToString(" ") { "${it.key} ${it.value}" }
+                        Text("Reactions: $r", style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -182,8 +174,8 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
 
         Row(
             Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TextField(
@@ -200,9 +192,7 @@ fun MessageScreen(jid: String, sessionVM: SessionViewModel = hiltViewModel(), vm
                     }
                 },
                 enabled = input.isNotBlank() && sid != null
-            ) {
-                Text("Send")
-            }
+            ) { Text("Send") }
         }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.*
 import com.radwrld.wami.data.Chat
 import com.radwrld.wami.data.Message
+import com.radwrld.wami.data.MessageStatus
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,11 +26,11 @@ data class ChatEntity(
 @Entity(tableName = "messages")
 data class MessageEntity(
     @PrimaryKey val id: String,
-    val fromMe: Boolean,
+    val isOutgoing: Boolean,
     val text: String?,
     val timestamp: Long,
     val jid: String,
-    val reactions: String
+    val reactions: Map<String, Int>
 )
 
 @Dao
@@ -65,10 +66,10 @@ class Converters {
 
 @Database(
     entities = [ChatEntity::class, MessageEntity::class],
-    version = 2,
-    exportSchema = false,
-    typeConverters = [Converters::class]
+    version = 3,
+    exportSchema = false
 )
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun messageDao(): MessageDao
@@ -107,6 +108,6 @@ fun ChatEntity.toChat() = Chat(jid, name)
 
 fun Chat.toEntity() = ChatEntity(jid, name)
 
-fun MessageEntity.toMessage() = Message(id, fromMe, text, timestamp, jid, if (reactions.isEmpty()) emptyMap() else Json.decodeFromString(reactions))
+fun MessageEntity.toMessage() = Message(id, isOutgoing, text, timestamp, jid, reactions, status = MessageStatus.SENT)
 
-fun Message.toEntity() = MessageEntity(id, fromMe, text, timestamp, jid, Json.encodeToString(reactions))
+fun Message.toEntity() = MessageEntity(id, isOutgoing, text, timestamp, jid, reactions)
