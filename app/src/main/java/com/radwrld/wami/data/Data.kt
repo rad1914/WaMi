@@ -1,12 +1,9 @@
-// @path: app/src/main/java/com/radwrld/wami/data/Data.kt
 package com.radwrld.wami.data
 
 import android.content.Context
-import android.widget.Toast
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.radwrld.wami.data.local.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,154 +22,90 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import java.util.concurrent.TimeUnit
 
-object Constants {
-    const val BASE_URL = "http://22.ip.gl.ply.gg:18880"
-}
+private const val BASE_URL = "http://22.ip.gl.ply.gg:18880"
+private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-object Http {
-    val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
-            .writeTimeout(20, TimeUnit.SECONDS)
-            .build()
-    }
-}
+private val Context.dataStore by preferencesDataStore(name = "settings")
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient = Http.client
+    fun provideOkHttpClient(): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .build()
 }
 
+@Singleton
 class ApiService @Inject constructor(
-    private val client: OkHttpClient,
-    @ApplicationContext private val context: Context
+    private val client: OkHttpClient
 ) {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
-
-    private inline fun <T> safeCall(block: () -> T): T? =
-        try { block() } catch (_: Exception) { null }
+    private inline fun <T> safeCall(block: () -> T): T? = try { block() } catch (_: Exception) { null }
 
     suspend fun createSession(): String? = withContext(Dispatchers.IO) {
         safeCall {
-            val req = Request.Builder()
-                .url("${Constants.BASE_URL}/session/create")
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/session/create")
                 .post("".toRequestBody())
-                .build()
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) null
-                else json.decodeFromString<CreateSessionResponse>(resp.body!!.string()).sessionId
-            }
+                .build()).execute().use {
+                    if (it.isSuccessful) json.decodeFromString<CreateSessionResponse>(it.body!!.string()).sessionId
+                    else null
+                }
         }
     }
 
     suspend fun getStatus(sessionId: String): StatusResponse? = withContext(Dispatchers.IO) {
         safeCall {
-            val req = Request.Builder()
-                .url("${Constants.BASE_URL}/session/status")
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/session/status")
                 .header("Authorization", "Bearer $sessionId")
-                .build()
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) null
-                else json.decodeFromString(resp.body!!.string())
-            }
+                .build()).execute().use {
+                    if (it.isSuccessful) json.decodeFromString(it.body!!.string())
+                    else null
+                }
         }
     }
 
     suspend fun fetchChats(sessionId: String): List<Chat> = withContext(Dispatchers.IO) {
-        try {
-            val req = Request.Builder()
-                .url("${Constants.BASE_URL}/chats")
+        safeCall {
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/chats")
                 .header("Authorization", "Bearer $sessionId")
-                .build()
-            client.newCall(req).execute().use { resp ->
-                val bodyString = resp.body?.string()
-                val message = "Response: ${resp.code}, Body: $bodyString"
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                .build()).execute().use {
+                    if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")
+                    else emptyList()
                 }
-
-                if (resp.isSuccessful) {
-                    bodyString?.let { json.decodeFromString<List<Chat>>(it) } ?: emptyList()
-                } else {
-                    emptyList()
-                }
-            }
-        } catch (e: Exception) {
-            val message = "Exception: ${e.message}"
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-            }
-            emptyList<Chat>()
-        }
+        } ?: emptyList()
     }
 
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
-        try {
-            val url = "${Constants.BASE_URL}/history/$jid"
-            val req = Request.Builder().url(url)
+        safeCall {
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/history/$jid")
                 .header("Authorization", "Bearer $sessionId")
-                .build()
-            client.newCall(req).execute().use { resp ->
-                val bodyString = resp.body?.string()
-                val message = "Messages Response [${resp.code}]: $bodyString"
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                .build()).execute().use {
+                    if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")
+                    else emptyList()
                 }
-
-                if (resp.isSuccessful) {
-                    bodyString?.let { json.decodeFromString<List<Message>>(it) } ?: emptyList()
-                } else {
-                    emptyList()
-                }
-            }
-        } catch (e: Exception) {
-            val message = "Messages Exception: ${e.message}"
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-            }
-            emptyList<Message>()
-        }
+        } ?: emptyList()
     }
 
-    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): Boolean = safeCall {
-        val body = json.encodeToString(SendMessageRequest(jid, text, tempId)).toRequestBody()
-        val req = Request.Builder()
-            .url("${Constants.BASE_URL}/message/send")
-            .header("Authorization", "Bearer $sessionId")
-            .post(body)
-            .build()
-        client.newCall(req).execute().use { it.isSuccessful }
-    } ?: false
+    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): Boolean = withContext(Dispatchers.IO) {
+        safeCall {
+            val body = json.encodeToString(SendMessageRequest(jid, text, tempId)).toRequestBody()
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/message/send")
+                .header("Authorization", "Bearer $sessionId")
+                .post(body)
+                .build()).execute().isSuccessful
+        } ?: false
+    }
 }
-
-@Serializable data class CreateSessionResponse(val sessionId: String)
-@Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
-@Serializable data class Chat(val jid: String, val name: String?)
-@Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
-@Serializable
-data class Message(
-    val id: String,
-    val isOutgoing: Boolean,
-    val text: String?,
-    val timestamp: Long,
-    val jid: String,
-    val reactions: Map<String, Int> = emptyMap(),
-    var status: MessageStatus? = null
-)
-
-enum class MessageStatus { SENDING, FAILED, SENT }
-
-private val Context.dataStore by preferencesDataStore(name = "settings")
 
 @Singleton
 class UserPreferencesRepository @Inject constructor(
@@ -199,8 +132,7 @@ class ChatRepository @Inject constructor(
     private val api: ApiService,
     private val prefs: UserPreferencesRepository
 ) {
-    fun observeChats(): Flow<List<Chat>> =
-        dao.getAll().map { it.map { it.toChat() } }
+    fun observeChats(): Flow<List<Chat>> = dao.getAll().map { it.map { it.toChat() } }
 
     suspend fun refreshChats(): List<Chat> {
         val session = prefs.getSessionId() ?: return emptyList()
@@ -218,8 +150,7 @@ class MessageRepository @Inject constructor(
     private val api: ApiService,
     private val prefs: UserPreferencesRepository
 ) {
-    fun observeMessages(jid: String): Flow<List<Message>> =
-        dao.getForJid(jid).map { it.map { it.toMessage() } }
+    fun observeMessages(jid: String): Flow<List<Message>> = dao.getForJid(jid).map { it.map { it.toMessage() } }
 
     suspend fun refreshMessages(jid: String): List<Message> {
         val session = prefs.getSessionId() ?: return emptyList()
@@ -233,3 +164,19 @@ class MessageRepository @Inject constructor(
 
     suspend fun clearForJid(jid: String) = dao.clearForJid(jid)
 }
+
+@Serializable data class CreateSessionResponse(val sessionId: String)
+@Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
+@Serializable data class Chat(val jid: String, val name: String?)
+@Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
+@Serializable data class Message(
+    val id: String,
+    val isOutgoing: Boolean,
+    val text: String?,
+    val timestamp: Long,
+    val jid: String,
+    val reactions: Map<String, Int> = emptyMap(),
+    var status: MessageStatus? = null
+)
+
+enum class MessageStatus { SENDING, FAILED, SENT }

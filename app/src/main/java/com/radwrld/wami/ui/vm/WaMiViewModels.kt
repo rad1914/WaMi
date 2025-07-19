@@ -23,7 +23,7 @@ class MessageViewModel @Inject constructor(
     private val repo: MessageRepository
 ) : ViewModel() {
     private val _msgs = MutableStateFlow<List<Message>>(emptyList())
-    val msgs = _msgs.asStateFlow()
+    val msgs: StateFlow<List<Message>> = _msgs.asStateFlow()
 
     fun load(jid: String) = viewModelScope.launch {
         _msgs.value = repo.refreshMessages(jid)
@@ -31,26 +31,17 @@ class MessageViewModel @Inject constructor(
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
         val tempId = UUID.randomUUID().toString()
-        val optimisticMessage = Message(
-            id = tempId,
-            isOutgoing = true,
-            text = text,
+        val optimisticMsg = Message(
+            id = tempId, isOutgoing = true, text = text, jid = jid,
             timestamp = System.currentTimeMillis(),
-            jid = jid,
-            reactions = emptyMap(),
-            status = MessageStatus.SENDING
+            reactions = emptyMap(), status = MessageStatus.SENDING
         )
-
-        _msgs.update { listOf(optimisticMessage) + it }
+        _msgs.update { listOf(optimisticMsg) + it }
 
         val success = repo.sendText(sessionId, jid, text, tempId)
-
-        if (success) {
-            repo.refreshMessages(jid)
-        } else {
-             _msgs.update { currentMsgs ->
-                currentMsgs.map { if (it.id == tempId) it.copy(status = MessageStatus.FAILED) else it }
-            }
+        if (success) repo.refreshMessages(jid)
+        else _msgs.update {
+            it.map { m -> if (m.id == tempId) m.copy(status = MessageStatus.FAILED) else m }
         }
     }
 }
@@ -61,7 +52,7 @@ class SessionViewModel @Inject constructor(
     private val api: ApiService
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<SessionUiState>(SessionUiState.Loading)
-    val uiState = _uiState.asStateFlow()
+    val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
     val sessionId = prefs.sessionIdFlow.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
@@ -77,34 +68,36 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun createSession() = viewModelScope.launch {
-        api.createSession()?.let { id ->
-            prefs.saveSessionId(id)
-            var authenticated = false
-            while (!authenticated) {
-                delay(3000)
-                api.getStatus(id)?.let {
-                    if (it.connected) {
-                        authenticated = true
-                        _uiState.value = SessionUiState.Authenticated
-                    } else {
-                        _uiState.value = SessionUiState.AwaitingScan(it.qr)
-                    }
-                } ?: run {
-                    _uiState.value = SessionUiState.Error("Failed to get status")
-                    return@launch
-                }
-            }
-        } ?: run {
+        val id = api.createSession()
+        if (id == null) {
             _uiState.value = SessionUiState.Error("Failed to create session")
+            return@launch
+        }
+
+        prefs.saveSessionId(id)
+
+        while (true) {
+            delay(3000)
+            val status = api.getStatus(id)
+            if (status == null) {
+                _uiState.value = SessionUiState.Error("Failed to get status")
+                return@launch
+            }
+            if (status.connected) {
+                _uiState.value = SessionUiState.Authenticated
+                return@launch
+            }
+            _uiState.value = SessionUiState.AwaitingScan(status.qr)
         }
     }
 
     fun loginWithId(id: String) = viewModelScope.launch {
         _uiState.value = SessionUiState.Loading
-        api.getStatus(id)?.takeIf { it.connected }?.let {
+        val status = api.getStatus(id)
+        if (status?.connected == true) {
             prefs.saveSessionId(id)
             _uiState.value = SessionUiState.Authenticated
-        } ?: run {
+        } else {
             _uiState.value = SessionUiState.Error("Invalid or expired Session ID")
             delay(2000)
             start()
