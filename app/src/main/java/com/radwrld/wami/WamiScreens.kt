@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.radwrld.wami.Constants
+import com.radwrld.wami.Constants // Add this import
 import com.radwrld.wami.data.Message
 import com.radwrld.wami.data.MessageStatus
 import com.radwrld.wami.ui.vm.*
