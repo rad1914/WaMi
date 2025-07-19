@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/data/Local.kt
 // @path: app/src/main/java/com/radwrld/wami/data/local/Local.kt
 package com.radwrld.wami.data.local
 

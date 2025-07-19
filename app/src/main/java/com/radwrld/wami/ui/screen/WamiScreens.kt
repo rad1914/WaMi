@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ui/screen/WamiScreens.kt
 package com.radwrld.wami.ui.screen
 
 import android.graphics.BitmapFactory
@@ -28,27 +29,27 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
         if (state is SessionUiState.Authenticated) {
             nav.navigate("chats") { popUpTo("qr") { inclusive = true } }
         }
-    }
+    } 
 
     if (showDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { showDialog = false }, 
             title = { Text("Enter Session ID") },
             text = {
                 OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
+                    value = input, 
+                    onValueChange = { input = it }, 
                     label = { Text("Session ID") }
                 )
             },
             confirmButton = {
-                Button(onClick = {
+                Button(onClick = { 
                     vm.loginWithId(input)
                     showDialog = false
                 }) { Text("Login") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+            dismissButton = { 
+                TextButton(onClick = { showDialog = false }) { Text("Cancel") } 
             }
         )
     }
@@ -56,24 +57,24 @@ fun QRScreen(nav: NavController, vm: SessionViewModel = hiltViewModel()) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             when (val s = state) {
-                is SessionUiState.Loading -> CircularProgressIndicator()
+                is SessionUiState.Loading -> CircularProgressIndicator() 
                 is SessionUiState.AwaitingScan -> {
                     val bmp = remember(s.qrCode) { qrCodeToImageBitmap(s.qrCode) }
                     Text("Scan this QR")
                     Spacer(Modifier.height(16.dp))
                     bmp?.let {
-                        Image(bitmap = it, contentDescription = null, modifier = Modifier.size(250.dp))
+                        Image(bitmap = it, contentDescription = null, modifier = Modifier.size(250.dp)) 
                     } ?: CircularProgressIndicator()
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { showDialog = true }) { Text("Login with ID") }
+                    Button(onClick = { showDialog = true }) { Text("Login with ID") } 
                 }
-                is SessionUiState.Authenticated -> Text("Authenticated! Redirecting…")
+                is SessionUiState.Authenticated -> Text("Authenticated! Redirecting…") 
                 is SessionUiState.Error -> {
-                    Text("Error: ${s.message}", color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { vm.start() }) { Text("Retry") }
+                    Text("Error: ${s.message}", color = MaterialTheme.colorScheme.error) 
+                    Button(onClick = { vm.start() }) { Text("Retry") } 
                 }
             }
-        }
+        } 
     }
 }
 
@@ -93,31 +94,31 @@ fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel()) {
 
     LaunchedEffect(Unit) { vm.load() }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState) { 
         snapshotFlow { listState.layoutInfo.visibleItemsInfo }
             .collect {
                 if ((it.lastOrNull()?.index ?: 0) >= visibleCount - 3 && visibleCount < chats.size) {
                     visibleCount += 12
                 }
-            }
-    }
+            } 
+    } 
 
     LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
         items(chats.take(visibleCount)) { chat ->
             ListItem(
                 leadingContent = {
                     AsyncImage(
-                        model = "${Constants.BASE_URL}/avatar/${chat.jid}",
+                        model = "${Constants.BASE_URL}/avatar/${chat.jid}", 
                         contentDescription = null,
                         modifier = Modifier.size(40.dp)
                     )
                 },
-                headlineContent = { Text(chat.name ?: chat.jid) },
+                headlineContent = { Text(chat.name ?: chat.jid) }, 
                 supportingContent = { Text(chat.jid) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { nav.navigate("chat/${chat.jid}") }
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 4.dp) 
             )
             HorizontalDivider()
         }
@@ -133,7 +134,7 @@ fun MessageScreen(
     val sid by sessionVM.sessionId.collectAsState()
     val msgs by vm.msgs.collectAsState()
     var input by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState() 
 
     LaunchedEffect(jid) { vm.load(jid) }
 
@@ -143,29 +144,40 @@ fun MessageScreen(
             reverseLayout = true,
             modifier = Modifier
                 .weight(1f)
-                .padding(8.dp)
+                .padding(8.dp) 
         ) {
             items(msgs, key = { it.id }) { msg ->
                 Column(
                     Modifier.fillMaxWidth(),
-                    horizontalAlignment = if (msg.isOutgoing) Alignment.End else Alignment.Start
-                ) {
+                    horizontalAlignment = if (msg.isOutgoing) Alignment.End else Alignment.Start 
+                ) { 
                     Text("${if (msg.isOutgoing) "You: " else ""}${msg.text ?: "[Media]"}")
 
                     if (msg.isOutgoing) {
                         msg.status?.let {
                             val label = when (it) {
-                                MessageStatus.SENDING -> "Sending..."
-                                MessageStatus.FAILED -> "Failed"
-                                MessageStatus.SENT -> "Sent"
+                                MessageStatus.SENDING -> "Sending..." 
+                                MessageStatus.FAILED -> "Failed" 
+                                MessageStatus.SENT -> "Sent" 
                             }
                             Text(label, style = MaterialTheme.typography.bodySmall)
                         }
-                    }
+                    } 
 
                     if (msg.reactions.isNotEmpty()) {
                         val r = msg.reactions.entries.joinToString(" ") { "${it.key} ${it.value}" }
-                        Text("Reactions: $r", style = MaterialTheme.typography.bodySmall)
+                        Text("Reactions: $r", style = MaterialTheme.typography.bodySmall) 
+                    }
+
+                    if (!msg.isOutgoing) {
+                       TextButton(onClick = {
+                           sid?.let { sessionId ->
+                               vm.sendReaction(sessionId, msg.jid, msg.id, "👍")
+                           }
+                       },
+                       modifier = Modifier.height(36.dp)) {
+                           Text("👍")
+                       }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -175,23 +187,23 @@ fun MessageScreen(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(8.dp), 
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TextField(
                 value = input,
                 onValueChange = { input = it },
-                placeholder = { Text("Type…") },
+                placeholder = { Text("Type…") }, 
                 modifier = Modifier.weight(1f)
             )
             Button(
                 onClick = {
-                    sid?.let {
-                        vm.send(it, jid, input)
-                        input = ""
+                    sid?.let { 
+                        vm.send(it, jid, input) 
+                        input = "" 
                     }
                 },
-                enabled = input.isNotBlank() && sid != null
+                enabled = input.isNotBlank() && sid != null 
             ) { Text("Send") }
         }
     }

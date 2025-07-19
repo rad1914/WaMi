@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.radwrld.wami.data.local.ChatDao // Added
+import com.radwrld.wami.data.local.MessageDao // Added
+import com.radwrld.wami.data.local.toChat // Added
+import com.radwrld.wami.data.local.toEntity // Added
+import com.radwrld.wami.data.local.toMessage // Added
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,9 +23,9 @@ import kotlinx.serialization.json.Json
 import okhttp3.*
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
-import java.util.concurrent.TimeUnit
 
 private const val BASE_URL = "http://22.ip.gl.ply.gg:18880"
 private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
@@ -95,11 +100,25 @@ class ApiService @Inject constructor(
         } ?: emptyList()
     }
 
-    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): SendMessageResponse? = withContext(Dispatchers.IO) {
         safeCall {
             val body = json.encodeToString(SendMessageRequest(jid, text, tempId)).toRequestBody()
             client.newCall(Request.Builder()
                 .url("$BASE_URL/message/send")
+                .header("Authorization", "Bearer $sessionId")
+                .post(body)
+                .build()).execute().use {
+                    if (it.isSuccessful) json.decodeFromString<SendMessageResponse>(it.body!!.string())
+                    else null
+                }
+        }
+    }
+
+    suspend fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean = withContext(Dispatchers.IO) {
+        safeCall {
+            val body = json.encodeToString(SendReactionRequest(jid, messageId, emoji)).toRequestBody()
+            client.newCall(Request.Builder()
+                .url("$BASE_URL/message/send/reaction")
                 .header("Authorization", "Bearer $sessionId")
                 .post(body)
                 .build()).execute().isSuccessful
@@ -132,7 +151,7 @@ class ChatRepository @Inject constructor(
     private val api: ApiService,
     private val prefs: UserPreferencesRepository
 ) {
-    fun observeChats(): Flow<List<Chat>> = dao.getAll().map { it.map { it.toChat() } }
+    fun observeChats(): Flow<List<Chat>> = dao.getAll().map { list -> list.map { it.toChat() } }
 
     suspend fun refreshChats(): List<Chat> {
         val session = prefs.getSessionId() ?: return emptyList()
@@ -150,7 +169,7 @@ class MessageRepository @Inject constructor(
     private val api: ApiService,
     private val prefs: UserPreferencesRepository
 ) {
-    fun observeMessages(jid: String): Flow<List<Message>> = dao.getForJid(jid).map { it.map { it.toMessage() } }
+    fun observeMessages(jid: String): Flow<List<Message>> = dao.getForJid(jid).map { list -> list.map { it.toMessage() } }
 
     suspend fun refreshMessages(jid: String): List<Message> {
         val session = prefs.getSessionId() ?: return emptyList()
@@ -159,8 +178,11 @@ class MessageRepository @Inject constructor(
         return remote
     }
 
-    suspend fun sendText(sessionId: String, jid: String, text: String, tempId: String): Boolean =
+    suspend fun sendText(sessionId: String, jid: String, text: String, tempId: String): SendMessageResponse? =
         api.sendMessage(sessionId, jid, text, tempId)
+
+    suspend fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean =
+        api.sendReaction(sessionId, jid, messageId, emoji)
 
     suspend fun clearForJid(jid: String) = dao.clearForJid(jid)
 }
@@ -169,6 +191,8 @@ class MessageRepository @Inject constructor(
 @Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
 @Serializable data class Chat(val jid: String, val name: String?)
 @Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
+@Serializable data class SendReactionRequest(val jid: String, val messageId: String, val emoji: String)
+@Serializable data class SendMessageResponse(val messageId: String, val tempId: String, val timestamp: Long)
 @Serializable data class Message(
     val id: String,
     val isOutgoing: Boolean,
