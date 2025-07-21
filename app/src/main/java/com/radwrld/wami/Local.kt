@@ -30,13 +30,15 @@ data class MessageEntity(
     val text: String?,
     val timestamp: Long,
     val jid: String,
+    // Reactions are no longer supported by backend, but kept for schema compatibility
     val reactions: Map<String, Int>
 )
 
 @Dao
 interface ChatDao {
     @Query("SELECT * FROM chats") fun getAll(): Flow<List<ChatEntity>>
-    @Upsert suspend fun upsertAll(chats: List<ChatEntity>)
+   
+ @Upsert suspend fun upsertAll(chats: List<ChatEntity>)
     @Query("DELETE FROM chats") suspend fun clear()
 }
 
@@ -55,7 +57,8 @@ class Converters {
 
     @TypeConverter
     fun fromReactionsMap(reactions: Map<String, Int>): String {
-        return json.encodeToString(reactions)
+   
+     return json.encodeToString(reactions)
     }
 
     @TypeConverter
@@ -66,7 +69,7 @@ class Converters {
 
 @Database(
     entities = [ChatEntity::class, MessageEntity::class],
-    version = 3,
+    version = 3, // Version bumped due to schema changes if any, using fallback for simplicity.
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -76,14 +79,17 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         private const val DB_NAME = "wami_db"
-        @Volatile private var INSTANCE: AppDatabase? = null
+   
+     @Volatile private var INSTANCE: AppDatabase?
+= null
 
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    DB_NAME
+              
+      DB_NAME
                 ).fallbackToDestructiveMigration().build().also { INSTANCE = it }
             }
     }
@@ -106,7 +112,8 @@ object DatabaseModule {
 
 fun ChatEntity.toChat() = Chat(jid, name)
 
-fun Chat.toEntity() = ChatEntity(jid, name)
+fun 
+Chat.toEntity() = ChatEntity(jid, name)
 
 fun MessageEntity.toMessage() = Message(id, isOutgoing, text, timestamp, jid, reactions, status = MessageStatus.SENT)
 

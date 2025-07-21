@@ -25,7 +25,8 @@ fun AppNav() {
         composable("chats") { ChatScreen(nav) }
         composable("chat/{jid}",
             arguments = listOf(navArgument("jid") { type = NavType.StringType })
-        ) { back ->
+     
+   ) { back ->
             MessageScreen(back.arguments!!.getString("jid")!!, sessionVM)
         }
     }

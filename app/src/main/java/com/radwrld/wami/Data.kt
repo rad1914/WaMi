@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.radwrld.wami.WamiApp.Constants.BASE_URL
+import com.radwrld.wami.WamiApp
 import com.radwrld.wami.data.local.ChatDao
 import com.radwrld.wami.data.local.MessageDao
 import com.radwrld.wami.data.local.toChat
@@ -23,6 +23,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
@@ -30,6 +31,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+private val JSON = "application/json; charset=utf-8".toMediaType()
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -53,76 +55,54 @@ class ApiService @Inject constructor(
 ) {
     private inline fun <T> safeCall(block: () -> T): T? = try { block() } catch (_: Exception) { null }
 
-    suspend fun createSession(): String? = withContext(Dispatchers.IO) {
+    suspend fun createSession(sessionId: String): Boolean = withContext(Dispatchers.IO) {
         safeCall {
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/session/create")
-                .post("".toRequestBody())
-                .build()).execute().use {
-                    if (it.isSuccessful) json.decodeFromString<CreateSessionResponse>(it.body!!.string()).sessionId
-                    else null
-                }
-        }
+            val body = json.encodeToString(mapOf("sessionId" to sessionId)).toRequestBody(JSON)
+            client.newCall(
+                Request.Builder()
+                    .url("${WamiApp.Constants.BASE_URL}/sessions")
+                    .post(body)
+                    .build()
+            ).execute().isSuccessful
+        } ?: false
     }
 
-    suspend fun getStatus(sessionId: String): StatusResponse? = withContext(Dispatchers.IO) {
+    suspend fun getSessions(): List<String> = withContext(Dispatchers.IO) {
         safeCall {
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/session/status")
-                .header("Authorization", "Bearer $sessionId")
-                .build()).execute().use {
-                    if (it.isSuccessful) json.decodeFromString(it.body!!.string())
-                    else null
-                }
-        }
+            client.newCall(
+                Request.Builder()
+                    .url("${WamiApp.Constants.BASE_URL}/sessions")
+                    .get()
+                    .build()
+            ).execute().use {
+                if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "[]")
+                else emptyList()
+            }
+        } ?: emptyList()
     }
 
     suspend fun fetchChats(sessionId: String): List<Chat> = withContext(Dispatchers.IO) {
         safeCall {
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/chat/chats")
-                .header("Authorization", "Bearer $sessionId")
-                .build()).execute().use {
-                    if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")
-                    else emptyList()
-                }
+            client.newCall(
+                Request.Builder()
+                    .url("${WamiApp.Constants.BASE_URL}/chats/$sessionId")
+                    .build()
+            ).execute().use {
+                if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "[]")
+                else emptyList()
+            }
         } ?: emptyList()
     }
 
-    suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
+    suspend fun sendMessage(sessionId: String, jid: String, text: String): Boolean = withContext(Dispatchers.IO) {
         safeCall {
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/chat/history/$jid")
-                .header("Authorization", "Bearer $sessionId")
-                .build()).execute().use {
-                    if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")
-                    else emptyList()
-                }
-        } ?: emptyList()
-    }
-
-    suspend fun sendMessage(sessionId: String, jid: String, text: String, tempId: String): SendMessageResponse? = withContext(Dispatchers.IO) {
-        safeCall {
-            val body = json.encodeToString(SendMessageRequest(jid, text, tempId)).toRequestBody()
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/message/send")
-                .header("Authorization", "Bearer $sessionId")
-                .post(body)
-                .build()).execute().use {
-                    if (it.isSuccessful) json.decodeFromString<SendMessageResponse>(it.body!!.string())
-                    else null
-                }
-        }
-    }
-
-    suspend fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean = withContext(Dispatchers.IO) {
-        safeCall {
-            val body = json.encodeToString(SendReactionRequest(jid, messageId, emoji)).toRequestBody()
-            client.newCall(Request.Builder()
-                .url("$BASE_URL/message/send/reaction")
-                .header("Authorization", "Bearer $sessionId")
-                .post(body)
-                .build()).execute().isSuccessful
+            val body = json.encodeToString(SendMessageRequest(jid, text)).toRequestBody(JSON)
+            client.newCall(
+                Request.Builder()
+                    .url("${WamiApp.Constants.BASE_URL}/messages/$sessionId/send")
+                    .post(body)
+                    .build()
+            ).execute().isSuccessful
         } ?: false
     }
 }
@@ -171,29 +151,26 @@ class MessageRepository @Inject constructor(
     private val prefs: UserPreferencesRepository
 ) {
     fun observeMessages(jid: String): Flow<List<Message>> = dao.getForJid(jid).map { list -> list.map { it.toMessage() } }
-
+    
+    // History fetching is no longer supported by the backend
     suspend fun refreshMessages(jid: String): List<Message> {
-        val session = prefs.getSessionId() ?: return emptyList()
-        val remote = api.fetchMessages(session, jid)
-        dao.upsertAll(remote.map { it.toEntity() })
-        return remote
+        return emptyList()
     }
 
-    suspend fun sendText(sessionId: String, jid: String, text: String, tempId: String): SendMessageResponse? =
-        api.sendMessage(sessionId, jid, text, tempId)
-
-    suspend fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String): Boolean =
-        api.sendReaction(sessionId, jid, messageId, emoji)
+    suspend fun sendText(sessionId: String, jid: String, text: String): Boolean =
+        api.sendMessage(sessionId, jid, text)
 
     suspend fun clearForJid(jid: String) = dao.clearForJid(jid)
 }
 
-@Serializable data class CreateSessionResponse(val sessionId: String)
-@Serializable data class StatusResponse(val connected: Boolean, val qr: String? = null)
-@Serializable data class Chat(val jid: String, val name: String?)
-@Serializable data class SendMessageRequest(val jid: String, val text: String, val tempId: String)
-@Serializable data class SendReactionRequest(val jid: String, val messageId: String, val emoji: String)
-@Serializable data class SendMessageResponse(val messageId: String, val tempId: String, val timestamp: Long)
+// Renamed 'id' to 'jid' to match Baileys' terminology used in backend
+@Serializable data class Chat(val id: String, val name: String?) {
+    val jid: String
+        get() = id
+}
+// The 'to' field is for the backend, 'jid' is for the frontend data models.
+@Serializable data class SendMessageRequest(val to: String, val text: String)
+
 @Serializable data class Message(
     val id: String,
     val isOutgoing: Boolean,

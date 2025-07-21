@@ -26,7 +26,8 @@ class WamiApp : Application() {
 
             Thread.sleep(250)
 
-            android.os.Process.killProcess(android.os.Process.myPid())
+     
+       android.os.Process.killProcess(android.os.Process.myPid())
             exitProcess(10)
         }
     }
@@ -35,19 +36,22 @@ class WamiApp : Application() {
         fun report(e: Throwable, context: Context) {
             try {
                 val logFile = File(context.filesDir, "crash.log")
-                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ", Locale.getDefault()).format(Date())
+                
+val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ", Locale.getDefault()).format(Date())
                 val trace = Log.getStackTraceString(e)
 
                 logFile.appendText("\n==== Crash @ $timestamp ====\n$trace\n====================\n")
                 Log.d("LogCrash", "Crash logged at ${logFile.absolutePath}")
             } catch (ex: Exception) {
                 ex.printStackTrace()
-            }
+    
+        }
         }
     }
 
     object Constants {
-        const val BASE_URL = "http://22.ip.gl.ply.gg:18880/api"
+        // IMPORTANT: Replace with your server's public IP or domain and port
+        const val BASE_URL = "http://127.0.0.1:3000"
     }
 }
 
@@ -58,7 +62,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                AppNav()
+                
+AppNav()
             }
         }
     }

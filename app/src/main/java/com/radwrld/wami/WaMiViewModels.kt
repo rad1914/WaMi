@@ -12,8 +12,10 @@ import java.util.*
 import javax.inject.Inject
 
 sealed interface SessionUiState {
-    object Loading : SessionUiState
-    data class AwaitingScan(val qrCode: String?) : SessionUiState
+ 
+   object Loading : SessionUiState
+    object AwaitingRegistration : SessionUiState
+    data class AwaitingScan(val sessionId: String) : SessionUiState
     object Authenticated : SessionUiState
     data class Error(val message: String) : SessionUiState
 }
@@ -24,90 +26,28 @@ class MessageViewModel @Inject constructor(
 ) : ViewModel() {
     private val _msgs = MutableStateFlow<List<Message>>(emptyList())
     val msgs: StateFlow<List<Message>> = _msgs.asStateFlow()
-    private var currentJid: String? = null
-
-    fun load(jid: String) = viewModelScope.launch {
+    private var currentJid: String?
+= null
+    
+    // This function now only clears the previous chat's messages
+    fun prepareForJid(jid: String) {
         currentJid = jid
-        _msgs.value = repo.refreshMessages(jid)
+        _msgs.value = emptyList()
     }
 
     fun send(sessionId: String, jid: String, text: String) = viewModelScope.launch {
         val tempId = UUID.randomUUID().toString()
         val optimisticMsg = Message(
             id = tempId, isOutgoing = true, text = text, jid = jid,
-            timestamp = System.currentTimeMillis(),
+        
+    timestamp = System.currentTimeMillis(),
             reactions = emptyMap(), status = MessageStatus.SENDING
         )
         _msgs.update { listOf(optimisticMsg) + it }
 
-        val response = repo.sendText(sessionId, jid, text, tempId)
-
-        if (response != null) {
-            _msgs.update { currentMsgs ->
-                currentMsgs.map { msg ->
-                    if (msg.id == tempId) {
-                        msg.copy(
-                            id = response.messageId,
-                            timestamp = response.timestamp,
-                            status = MessageStatus.SENT
-                        )
-                    } else {
-                        msg
-                    }
-                }
-            }
-            repo.refreshMessages(jid)
-        } else {
-            _msgs.update {
-                it.map { m -> if (m.id == tempId) m.copy(status = MessageStatus.FAILED) else m }
-            }
-        }
-    }
-
-    fun sendReaction(sessionId: String, jid: String, messageId: String, emoji: String) = viewModelScope.launch {
-        val success = repo.sendReaction(sessionId, jid, messageId, emoji)
-        if (success) {
-            currentJid?.let {
-                _msgs.value = repo.refreshMessages(it)
-            }
-        }
-    }
-
-    fun retryFailedMessage(message: Message, sessionId: String) = viewModelScope.launch {
-        if (message.status != MessageStatus.FAILED || message.text == null || currentJid == null) return@launch
-
-        _msgs.update { currentMsgs ->
-            currentMsgs.map { msg ->
-                if (msg.id == message.id) {
-                    msg.copy(status = MessageStatus.SENDING)
-                } else {
-                    msg
-                }
-            }
-        }
-
-        val response = repo.sendText(sessionId, currentJid!!, message.text, message.id)
-
-        if (response != null) {
-            _msgs.update { currentMsgs ->
-                currentMsgs.map { msg ->
-                    if (msg.id == message.id) {
-                        msg.copy(
-                            id = response.messageId,
-                            timestamp = response.timestamp,
-                            status = MessageStatus.SENT
-                        )
-                    } else {
-                        msg
-                    }
-                }
-            }
-            repo.refreshMessages(currentJid!!)
-        } else {
-            _msgs.update {
-                it.map { m -> if (m.id == message.id) m.copy(status = MessageStatus.FAILED) else m }
-            }
-        }
+        // Backend no longer confirms message ID or timestamp, so we just fire and forget.
+        // We can't reliably update the message status to SENT or FAILED.
+        repo.sendText(sessionId, jid, text)
     }
 }
 
@@ -119,60 +59,57 @@ class SessionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<SessionUiState>(SessionUiState.Loading)
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
-    val sessionId = prefs.sessionIdFlow.stateIn(viewModelScope, SharingStarted.Lazily, null)
+    val sessionId = prefs.sessionIdFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    fun start() = viewModelScope.launch {
+  
+  fun start() = viewModelScope.launch {
         _uiState.value = SessionUiState.Loading
-        prefs.sessionIdFlow.firstOrNull()?.let { id ->
-            if (api.getStatus(id)?.connected == true) {
-                _uiState.value = SessionUiState.Authenticated
-                return@launch
-            }
+        val savedId = prefs.getSessionId()
+        if (savedId == null) {
+            _uiState.value = SessionUiState.AwaitingRegistration
+            return@launch
         }
-        createSession()
+        
+        // Check if saved session is still active
+        val activeSessions = api.getSessions()
+        if (activeSessions.contains(savedId)) {
+            _uiState.value = SessionUiState.Authenticated
+        } else {
+            // Session expired or was deleted
+            prefs.clearSessionId()
+            _uiState.value = SessionUiState.AwaitingRegistration
+        }
     }
 
-    private fun createSession() = viewModelScope.launch {
-        val id = api.createSession()
-        if (id == null) {
-            _uiState.value = SessionUiState.Error("Failed to create session")
+    fun registerSession(sessionId: String) = viewModelScope.launch {
+        _uiState.value = SessionUiState.Loading
+        val success = api.createSession(sessionId)
+        if (!success) {
+            _uiState.value = SessionUiState.Error("Failed to register session. It might already exist.")
+            delay(2000)
+            _uiState.value = SessionUiState.AwaitingRegistration
             return@launch
         }
 
-        prefs.saveSessionId(id)
+        prefs.saveSessionId(sessionId)
+        _uiState.value = SessionUiState.AwaitingScan(sessionId)
 
+        // Poll the server to see when the QR code is scanned and the session becomes active.
         while (true) {
             delay(3000)
-            val status = api.getStatus(id)
-            if (status == null) {
-                _uiState.value = SessionUiState.Error("Failed to get status")
-                return@launch
-            }
-            if (status.connected) {
+            val activeSessions = api.getSessions()
+            if (activeSessions.contains(sessionId)) {
                 _uiState.value = SessionUiState.Authenticated
                 return@launch
             }
-            _uiState.value = SessionUiState.AwaitingScan(status.qr)
-        }
-    }
-
-    fun loginWithId(id: String) = viewModelScope.launch {
-        _uiState.value = SessionUiState.Loading
-        val status = api.getStatus(id)
-        if (status?.connected == true) {
-            prefs.saveSessionId(id)
-            _uiState.value = SessionUiState.Authenticated
-        } else {
-            _uiState.value = SessionUiState.Error("Invalid or expired Session ID")
-            delay(2000)
-            start()
+            // Keep polling while in AwaitingScan state
+            if (uiState.value !is SessionUiState.AwaitingScan) break
         }
     }
 
     fun logout() = viewModelScope.launch {
         prefs.clearSessionId()
-        _uiState.value = SessionUiState.Loading
-        start()
+        _uiState.value = SessionUiState.AwaitingRegistration
     }
 }
 
