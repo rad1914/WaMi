@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.radwrld.wami.WamiApp.Constants.BASE_URL
 import com.radwrld.wami.data.local.ChatDao
 import com.radwrld.wami.data.local.MessageDao
 import com.radwrld.wami.data.local.toChat
@@ -28,7 +29,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val BASE_URL = "http://22.ip.gl.ply.gg:18880"
 private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -80,7 +80,7 @@ class ApiService @Inject constructor(
     suspend fun fetchChats(sessionId: String): List<Chat> = withContext(Dispatchers.IO) {
         safeCall {
             client.newCall(Request.Builder()
-                .url("$BASE_URL/chats")
+                .url("$BASE_URL/chat/chats")
                 .header("Authorization", "Bearer $sessionId")
                 .build()).execute().use {
                     if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")
@@ -92,7 +92,7 @@ class ApiService @Inject constructor(
     suspend fun fetchMessages(sessionId: String, jid: String): List<Message> = withContext(Dispatchers.IO) {
         safeCall {
             client.newCall(Request.Builder()
-                .url("$BASE_URL/history/$jid")
+                .url("$BASE_URL/chat/history/$jid")
                 .header("Authorization", "Bearer $sessionId")
                 .build()).execute().use {
                     if (it.isSuccessful) json.decodeFromString(it.body?.string() ?: "")

@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.radwrld.wami.Constants // Add this import
+import com.radwrld.wami.WamiApp // Para acceder a WamiApp.Constants
 import com.radwrld.wami.data.Message
 import com.radwrld.wami.data.MessageStatus
 import com.radwrld.wami.ui.vm.*
@@ -110,7 +110,7 @@ fun ChatScreen(nav: NavController, vm: ChatViewModel = hiltViewModel()) {
             ListItem(
                 leadingContent = {
                     AsyncImage(
-                        model = "${Constants.BASE_URL}/avatar/${chat.jid}",
+                        model = "${WamiApp.Constants.BASE_URL}/media/avatar/${chat.jid}",
                         contentDescription = null,
                         modifier = Modifier.size(40.dp)
                     )
@@ -150,7 +150,6 @@ fun MessageScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-
         LazyColumn(
             state = listState,
             reverseLayout = true,
@@ -231,7 +230,6 @@ private fun MessageItem(
         Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start
     ) {
-
         Card(
             modifier = Modifier
                 .widthIn(max = 280.dp)

@@ -47,7 +47,7 @@ class WamiApp : Application() {
     }
 
     object Constants {
-        const val BASE_URL = "http://22.ip.gl.ply.gg:18880"
+        const val BASE_URL = "http://22.ip.gl.ply.gg:18880/api"
     }
 }
 
