@@ -1,4 +1,3 @@
-// MainActivity.kt
 package com.radwrld.wami
 
 import android.os.Bundle
@@ -20,102 +19,52 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent { App() }
-    }
-}
+class MainActivity: ComponentActivity(){ override fun onCreate(savedInstanceState: Bundle?){ super.onCreate(savedInstanceState); setContent{ App() } } }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-fun App() {
-    val client = remember {
-        HttpClient(OkHttp) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
-        }
-    }
+fun App(){
+    val client = remember{ HttpClient(OkHttp){ install(ContentNegotiation){ json(Json{ ignoreUnknownKeys=true }) } } }
+    DisposableEffect(Unit){ onDispose{ client.close() } }
+    val base="http://192.168.100.53:3000"
+    var to by remember{ mutableStateOf("") }
+    var text by remember{ mutableStateOf("") }
+    var msgs by remember{ mutableStateOf(emptyList<Message>()) }
+    val scope=rememberCoroutineScope()
 
-    val baseUrl = "http://192.168.100.53:3000"
-    var to by remember { mutableStateOf("") }
-    var text by remember { mutableStateOf("") }
-    var messages by remember { mutableStateOf(emptyList<Message>()) }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            try {
-                val resp = client.get("$baseUrl/messages").body<List<Message>>()
-                messages = resp
-            } catch (_: Exception) {}
+    LaunchedEffect(Unit){
+        while(true){
+            try{ msgs = client.get("$base/messages").body<List<Message>>().sortedBy{ it.ts } }catch(_:Exception){}
             delay(2000)
         }
     }
 
-    MaterialTheme {
-        Scaffold(topBar = { TopAppBar(title = { Text("WaMi") }) }) { pad ->
-            Column(
-                Modifier
-                    .padding(pad)
-                    .padding(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = to,
-                    onValueChange = { to = it },
-                    label = { Text("To (jid)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("Message") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Button(onClick = {
-                    if (to.isNotBlank() && text.isNotBlank()) {
-                        scope.launch {
-                            try {
-                                client.post("$baseUrl/send") {
-                                    contentType(ContentType.Application.Json)
-                                    setBody(SendReq(to, text))
-                                }
-                            } catch (_: Exception) {}
-                        }
-                        text = ""
+    MaterialTheme{
+        Column(Modifier.padding(16.dp)){
+            OutlinedTextField(to,{to=it},label={Text("To")},modifier=Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(text,{text=it},label={Text("Message")},modifier=Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            Button({
+                if(to.isNotBlank()&&text.isNotBlank()){
+                    scope.launch{
+                        try{
+                            client.post("$base/send"){
+                                contentType(ContentType.Application.Json)
+                                setBody(SendReq(to,text))
+                            }
+                        }catch(_:Exception){}
                     }
-                }) {
-                    Text("Send")
+                    text=""
                 }
-
-                Spacer(Modifier.height(16.dp))
-
-                LazyColumn {
-                    items(messages) { m ->
-                        Text("${m.from}: ${m.text}", Modifier.padding(4.dp))
-                    }
-                }
-            }
+            }){ Text("Send") }
+            Spacer(Modifier.height(16.dp))
+            LazyColumn{ items(msgs,key={it.ts}){ Text("${it.from}: ${it.text}",Modifier.padding(4.dp)) } }
         }
     }
 }
 
-@Serializable
-data class Message(val from: String, val text: String, val ts: Long)
-
-@Serializable
-data class SendReq(
-    val to: String,
-    val text: String
-)
+@Serializable data class Message(val from:String,val text:String,val ts:Long)
+@Serializable data class SendReq(val to:String,val text:String)
