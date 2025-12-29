@@ -1,5 +1,4 @@
 package com.radwrld.wami
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,25 +21,23 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class MainActivity: ComponentActivity(){ override fun onCreate(savedInstanceState: Bundle?){ super.onCreate(savedInstanceState); setContent{ App() } } }
+class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.onCreate(b);setContent{App()}}}
 
 @Composable
 fun App(){
-    val client = remember{ HttpClient(OkHttp){ install(ContentNegotiation){ json(Json{ ignoreUnknownKeys=true }) } } }
-    DisposableEffect(Unit){ onDispose{ client.close() } }
+    val c=remember{HttpClient(OkHttp){install(ContentNegotiation){json(Json{ignoreUnknownKeys=true})}}}
+    DisposableEffect(Unit){onDispose{c.close()}}
     val base="http://192.168.100.53:3000"
-    var to by remember{ mutableStateOf("") }
-    var text by remember{ mutableStateOf("") }
-    var msgs by remember{ mutableStateOf(emptyList<Message>()) }
+    var to by remember{mutableStateOf("")}
+    var text by remember{mutableStateOf("")}
+    var msgs by remember{mutableStateOf(emptyList<Message>())}
     val scope=rememberCoroutineScope()
-
     LaunchedEffect(Unit){
         while(true){
-            try{ msgs = client.get("$base/messages").body<List<Message>>().sortedBy{ it.ts } }catch(_:Exception){}
+            try{msgs=c.get("$base/messages").body<List<Message>>().sortedBy{it.ts}}catch(_:Exception){}
             delay(2000)
         }
     }
-
     MaterialTheme{
         Column(Modifier.padding(16.dp)){
             OutlinedTextField(to,{to=it},label={Text("To")},modifier=Modifier.fillMaxWidth())
@@ -51,7 +48,7 @@ fun App(){
                 if(to.isNotBlank()&&text.isNotBlank()){
                     scope.launch{
                         try{
-                            client.post("$base/send"){
+                            c.post("$base/send"){
                                 contentType(ContentType.Application.Json)
                                 setBody(SendReq(to,text))
                             }
@@ -59,9 +56,9 @@ fun App(){
                     }
                     text=""
                 }
-            }){ Text("Send") }
+            }){Text("Send")}
             Spacer(Modifier.height(16.dp))
-            LazyColumn{ items(msgs,key={it.ts}){ Text("${it.from}: ${it.text}",Modifier.padding(4.dp)) } }
+            LazyColumn{items(msgs,key={it.ts}){Text("${it.from}: ${it.text}",Modifier.padding(4.dp))}}
         }
     }
 }
