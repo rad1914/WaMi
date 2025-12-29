@@ -1,0 +1,43 @@
+name: Android CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Remove Termux-only Gradle properties
+        run: |
+          sed -i '/org.gradle.java.home/d' gradle.properties
+          sed -i '/android.aapt2FromMavenOverride/d' gradle.properties
+
+      - name: Build with Gradle (skip lint)
+        run: |
+          ./gradlew build \
+            --no-daemon \
+            -x lintVitalAnalyzeRelease \
+            -x lintAnalyzeDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
