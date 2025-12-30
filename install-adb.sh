@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/bash
+# @path: install-adb.sh
 
 apt-get update
 apt-get  --assume-yes upgrade

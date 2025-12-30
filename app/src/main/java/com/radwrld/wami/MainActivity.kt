@@ -1,4 +1,5 @@
 package com.radwrld.wami
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,47 +22,71 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.onCreate(b);setContent{App()}}}
+class MainActivity : ComponentActivity() {
+    override fun onCreate(b: Bundle?) = super.onCreate(b).also { setContent { App() } }
+}
 
 @Composable
-fun App(){
-    val c=remember{HttpClient(OkHttp){install(ContentNegotiation){json(Json{ignoreUnknownKeys=true})}}}
-    DisposableEffect(Unit){onDispose{c.close()}}
-    val base="http://192.168.100.53:3000"
-    var to by remember{mutableStateOf("")}
-    var text by remember{mutableStateOf("")}
-    var msgs by remember{mutableStateOf(emptyList<Message>())}
-    val scope=rememberCoroutineScope()
-    LaunchedEffect(Unit){
-        while(true){
-            try{msgs=c.get("$base/messages").body<List<Message>>().sortedBy{it.ts}}catch(_:Exception){}
+fun App() {
+    val client = remember {
+        HttpClient(OkHttp) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        }
+    }
+    DisposableEffect(Unit) { onDispose { client.close() } }
+
+    val base = "http://192.168.100.53:3000"
+    var to by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("") }
+    var msgs by remember { mutableStateOf<List<Message>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            runCatching { client.get("$base/messages").body<List<Message>>() }
+                .onSuccess { msgs = it.sortedBy(Message::ts) }
             delay(2000)
         }
     }
-    MaterialTheme{
-        Column(Modifier.padding(16.dp)){
-            OutlinedTextField(to,{to=it},label={Text("To")},modifier=Modifier.fillMaxWidth())
+
+    MaterialTheme {
+        Column(Modifier.padding(16.dp)) {
+            OutlinedTextField(to, { to = it }, label = { Text("To") }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(text,{text=it},label={Text("Message")},modifier=Modifier.fillMaxWidth())
+            OutlinedTextField(text, { text = it }, label = { Text("Message") }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            Button({
-                if(to.isNotBlank()&&text.isNotBlank()){
-                    scope.launch{
-                        try{
-                            c.post("$base/send"){
+
+            Button(
+                onClick = {
+                    val cleanTo = to.trim()
+                    val cleanText = text.trim()
+                    if (cleanTo.isBlank() || cleanText.isBlank()) return@Button
+                    scope.launch {
+                        runCatching {
+                            client.post("$base/send") {
                                 contentType(ContentType.Application.Json)
-                                setBody(SendReq(to,text))
-                            }
-                        }catch(_:Exception){}
+                                setBody(SendReq(cleanTo, cleanText))
+                            }.body<String>()
+                        }.onFailure {
+                            println("Send failed: ${it.message}")
+                        }.onSuccess {
+                            println("Send ok: $it")
+                        }
                     }
-                    text=""
+                    text = ""
                 }
-            }){Text("Send")}
+            ) { Text("Send") }
+
             Spacer(Modifier.height(16.dp))
-            LazyColumn{items(msgs,key={it.ts}){Text("${it.from}: ${it.text}",Modifier.padding(4.dp))}}
+
+            LazyColumn {
+                items(msgs, key = Message::ts) {
+                    Text("${it.from}: ${it.text}", Modifier.padding(4.dp))
+                }
+            }
         }
     }
 }
 
-@Serializable data class Message(val from:String,val text:String,val ts:Long)
-@Serializable data class SendReq(val to:String,val text:String)
+@Serializable data class Message(val from: String, val text: String, val ts: Long)
+@Serializable data class SendReq(val to: String, val text: String)

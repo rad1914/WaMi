@@ -1,7 +1,6 @@
-#!/usr/bin/env sh
-set -eu
+# @path: analyze_drawables.sh
 
-### ─── Configuration ──────────────────────────────────────────────────────────
+set -eu
 
 MODULE_NAME="app"
 RES_SEARCH_PATH="$MODULE_NAME/src/main/res"
@@ -12,16 +11,13 @@ AGG_OUT="$OUTPUT_DIR/all_unused_files.txt"
 LOG_FILE="$OUTPUT_DIR/actions.log"
 BACKUP_DIR="$OUTPUT_DIR/backups"
 
-# Defaults
 DRY_RUN=false
 DELETE_UNUSED=true
 FORCE_DELETE=true
 VERBOSE=false
 CI_CHECK=true
-# Default resource types to analyze
-TYPES="drawable,mipmap,layout,color,string"
 
-### ─── Helpers ────────────────────────────────────────────────────────────────
+TYPES="drawable,mipmap,layout,color,string"
 
 usage() {
   cat <<EOF
@@ -81,8 +77,6 @@ confirm_delete() {
   esac
 }
 
-### ─── Parse Options (Portable while-loop) ──────────────────────────────────
-
 while [ $# -gt 0 ]; do
   case "$1" in
     -n|--dry-run)    DRY_RUN=true; shift ;;
@@ -113,8 +107,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-### ─── Pre-Flight Checks ──────────────────────────────────────────────────────
-
 if [ ! -d "$RES_SEARCH_PATH" ]; then
   colored RED "❌ Resource directory not found: $RES_SEARCH_PATH"
   echo "Hint: Run this from the project root and ensure MODULE_NAME is correct." >&2
@@ -125,8 +117,6 @@ mkdir -p "$OUTPUT_DIR"
 mkdir -p "$BACKUP_DIR"
 : > "$AGG_OUT"
 : > "$LOG_FILE"
-
-### ─── Core Analysis Function ─────────────────────────────────────────────────
 
 analyze_type() {
   local type="$1"
@@ -151,24 +141,24 @@ analyze_type() {
 
   tr '\0' '\n' < "$OUTPUT_DIR/all_${type}_files0.txt" \
     | xargs -n1 basename \
-    | sed -E 's/(\.9)?\.[^.]+$//' \
+    | sed -E 's/(\.9)?\.[^.]+$
     | sort -u \
     > "$OUTPUT_DIR/basenames_${type}s.txt"
-  
+
   local file_count
   file_count=$(wc -l < "$OUTPUT_DIR/basenames_${type}s.txt" | tr -d ' ')
   log "Found $file_count unique '$type' basenames."
 
   local master_regex
-  master_regex=$(tr '\n' '|' < "$OUTPUT_DIR/basenames_${type}s.txt" | sed 's/|$//')
-  
+  master_regex=$(tr '\n' '|' < "$OUTPUT_DIR/basenames_${type}s.txt" | sed 's/|$
+
   if [ -z "$master_regex" ]; then
     log "No basenames found for type '$type'. Skipping."
   else
     master_regex="(${master_regex})"
     log "Searching for usages with master regex..."
     grep -R --include='*.{java,kt,xml}' -E -o "${regex}${master_regex}\b" "$CODE_DIRS" \
-      | sed -E "s/.*(${regex})//; s/\b//g" \
+      | sed -E "s/.*(${regex})
       | sort -u \
       > "$OUTPUT_DIR/used_${type}s.txt"
     log "Finished single-pass search. Identified used resources."
@@ -180,10 +170,10 @@ analyze_type() {
             >> "$unused_file"
         done
   fi
-  
+
   tr '\n' '\0' < "$unused_file" > "${unused_file}.0"
   mv "${unused_file}.0" "$unused_file"
-  
+
   local unused_count
   unused_count=$(tr -cd '\0' < "$unused_file" | wc -c)
   colored GREEN "✓ Found unused $type(s): $unused_count entries"
@@ -196,7 +186,7 @@ analyze_type() {
     | xargs -I{} $hash_cmd "{}" \
     | awk '{print $1, $2}' \
     > "$tmp_hash"
-  
+
   sort "$tmp_hash" | awk -v out="$dup_file" '
     {
       h=$1; f=$2;
@@ -226,11 +216,9 @@ analyze_type() {
     log "No duplicate '$type' files found."
     rm -f "$dup_file"
   fi
-  
+
   cat "$unused_file" >> "$AGG_OUT"
 }
-
-### ─── Run Analyses ───────────────────────────────────────────────────────────
 
 colored YELLOW "===== Starting Resource Analysis ====="
 log "Output will be in: $OUTPUT_DIR"
@@ -253,15 +241,13 @@ colored GREEN "  • Delete mode:      $DELETE_UNUSED"
 colored GREEN "  • Dry-run:          $DRY_RUN"
 colored GREEN "  • CI-check:         $CI_CHECK"
 
-### ─── Deletion Phase ────────────────────────────────────────────────────────
-
 if [ "$DELETE_UNUSED" = true ]; then
   if [ "$total_unused" -eq 0 ]; then
     colored GREEN "✨ No unused resources to delete."
   else
     colored RED "⚠️  $total_unused unused files targeted for deletion."
     log "Backups of deleted files will be stored in: $BACKUP_DIR"
-    
+
     tr '\0' '\n' < "$AGG_OUT" | while read -r file; do
       case "$file" in
         "$RES_SEARCH_PATH"/*) ;;
@@ -288,8 +274,6 @@ if [ "$DELETE_UNUSED" = true ]; then
     [ "$DRY_RUN" = false ] && colored GREEN "\n✓ Deletion complete. Backups are in $BACKUP_DIR"
   fi
 fi
-
-### ─── CI-Check Exit ─────────────────────────────────────────────────────────
 
 if [ "$CI_CHECK" = true ] && [ "$total_unused" -gt 0 ]; then
   colored RED "\n❌ CI-check FAILED: $total_unused unused resources found."
