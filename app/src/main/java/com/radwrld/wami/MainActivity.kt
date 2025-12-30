@@ -4,8 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,7 +37,7 @@ fun App() {
     val base = "http://192.168.100.53:3000"
     var to by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("") }
-    var msgs by remember { mutableStateOf<List<Message>>(emptyList()) }
+    var msgs by remember { mutableStateOf(emptyList<Message>()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -50,39 +49,26 @@ fun App() {
     }
 
     MaterialTheme {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(to, { to = it }, label = { Text("To") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
             OutlinedTextField(text, { text = it }, label = { Text("Message") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    val cleanTo = to.trim()
-                    val cleanText = text.trim()
-                    if (cleanTo.isBlank() || cleanText.isBlank()) return@Button
-                    scope.launch {
-                        runCatching {
-                            client.post("$base/send") {
-                                contentType(ContentType.Application.Json)
-                                setBody(SendReq(cleanTo, cleanText))
-                            }.body<String>()
-                        }.onFailure {
-                            println("Send failed: ${it.message}")
-                        }.onSuccess {
-                            println("Send ok: $it")
-                        }
+            Button({
+                val a = to.trim()
+                val b = text.trim()
+                if (a.isBlank() || b.isBlank()) return@Button
+                scope.launch {
+                    runCatching {
+                        client.post("$base/send") {
+                            contentType(ContentType.Application.Json)
+                            setBody(SendReq(a, b))
+                        }.body<String>()
                     }
-                    text = ""
                 }
-            ) { Text("Send") }
-
-            Spacer(Modifier.height(16.dp))
+                text = ""
+            }) { Text("Send") }
 
             LazyColumn {
-                items(msgs, key = Message::ts) {
-                    Text("${it.from}: ${it.text}", Modifier.padding(4.dp))
-                }
+                items(msgs, key = { it.ts }) { Text("${it.from}: ${it.text}", Modifier.padding(4.dp)) }
             }
         }
     }
