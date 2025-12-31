@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- @path: app/build/intermediates/incremental/debug/mergeDebugResources/merged.dir/values-lo/values-lo.xml -->
 <resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
     <string msgid="881409763997275156" name="call_notification_answer_action">"ຮັບສາຍ"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"ວິດີໂອ"</string>
