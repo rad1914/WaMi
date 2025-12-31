@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -22,7 +23,12 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?)=super.onCreate(b).also{setContent{App()}}}
+class MainActivity:ComponentActivity(){
+    override fun onCreate(b:Bundle?)=super.onCreate(b).also{
+        ChatStore.init(applicationContext)
+        setContent{App()}
+    }
+}
 
 @Composable fun App(){
     val c=remember{HttpClient(OkHttp){install(ContentNegotiation){json(Json{ignoreUnknownKeys=true})}}}
@@ -32,25 +38,19 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?)=super.on
     var text by remember{mutableStateOf("")}
     var msgs by remember{mutableStateOf(emptyList<Message>())}
     val scope=rememberCoroutineScope()
-
     LaunchedEffect(Unit){
-        msgs = ChatStore.get()
+        msgs=ChatStore.get()
         while(true){
-            runCatching { c.get("$base/messages").body<List<Message>>() }
-                .onSuccess { list ->
-                    if (list.isNotEmpty()) {
-                        val merged = (msgs + list)
-                            .distinctBy { it.ts to it.from }
-                            .sortedBy(Message::ts)
-
-                        msgs = merged
-                        ChatStore.update(merged)
+            runCatching{c.get("$base/messages").body<List<Message>>()}
+                .onSuccess{
+                    if(it.isNotEmpty()){
+                        val m=(msgs+it).distinctBy{v->v.ts to v.from}.sortedBy(Message::ts)
+                        msgs=m;ChatStore.update(m)
                     }
                 }
             delay(2000)
         }
     }
-
     MaterialTheme{
         Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
             OutlinedTextField(to,{to=it},label={Text("To")},modifier=Modifier.fillMaxWidth())
@@ -60,23 +60,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?)=super.on
                 if(a.isBlank()||b.isBlank())return@Button
                 scope.launch{
                     runCatching{
-                        c.post("$base/send"){
-                            contentType(ContentType.Application.Json);setBody(SendReq(a,b))
-                        }.body<String>()
+                        c.post("$base/send"){contentType(ContentType.Application.Json);setBody(SendReq(a,b))}.body<String>()
                     }
                 }
                 text=""
             }){Text("Send")}
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ){
-                items(
-                    msgs,
-                    key = { "${it.ts}-${it.from}" }
-                ){
-                    Text("${it.from}: ${it.text}", Modifier.padding(4.dp))
+            SelectionContainer {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth()){
+                    items(msgs,key={ "${it.ts}-${it.from}" }){
+                        Text("${it.from}: ${it.text}",Modifier.padding(4.dp))
+                    }
                 }
             }
         }
