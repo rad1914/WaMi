@@ -1,3 +1,4 @@
+// @path: app/src/main/java/com/radwrld/wami/ChatStore.kt
 package com.radwrld.wami
 
 object ChatStore {

@@ -36,11 +36,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?)=super.on
     LaunchedEffect(Unit){
         msgs = ChatStore.get()
         while(true){
-            runCatching{c.get("$base/messages").body<List<Message>>()}
-                .onSuccess{
-                    val sorted = it.sortedBy(Message::ts)
-                    msgs = sorted
-                    ChatStore.update(sorted)
+            runCatching { c.get("$base/messages").body<List<Message>>() }
+                .onSuccess { list ->
+                    if (list.isNotEmpty()) {
+                        val merged = (msgs + list)
+                            .distinctBy { it.ts to it.from }
+                            .sortedBy(Message::ts)
+
+                        msgs = merged
+                        ChatStore.update(merged)
+                    }
                 }
             delay(2000)
         }
@@ -62,7 +67,18 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?)=super.on
                 }
                 text=""
             }){Text("Send")}
-            LazyColumn{items(msgs,key={it.ts}){Text("${it.from}: ${it.text}",Modifier.padding(4.dp))}}
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ){
+                items(
+                    msgs,
+                    key = { "${it.ts}-${it.from}" }
+                ){
+                    Text("${it.from}: ${it.text}", Modifier.padding(4.dp))
+                }
+            }
         }
     }
 }
