@@ -1,12 +1,9 @@
-// @path: app/src/main/java/com/radwrld/wami/MainActivity.kt
 package com.radwrld.wami
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,6 +35,7 @@ class MainActivity:ComponentActivity(){
     var text by remember{mutableStateOf("")}
     var msgs by remember{mutableStateOf(emptyList<Message>())}
     val scope=rememberCoroutineScope()
+
     LaunchedEffect(Unit){
         msgs=ChatStore.get()
         while(true){
@@ -51,8 +49,9 @@ class MainActivity:ComponentActivity(){
             delay(2000)
         }
     }
+
     MaterialTheme{
-        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Column(Modifier.padding(16.dp),Arrangement.spacedBy(8.dp)){
             OutlinedTextField(to,{to=it},label={Text("To")},modifier=Modifier.fillMaxWidth())
             OutlinedTextField(text,{text=it},label={Text("Message")},modifier=Modifier.fillMaxWidth())
             Button({
@@ -60,16 +59,17 @@ class MainActivity:ComponentActivity(){
                 if(a.isBlank()||b.isBlank())return@Button
                 scope.launch{
                     runCatching{
-                        c.post("$base/send"){contentType(ContentType.Application.Json);setBody(SendReq(a,b))}.body<String>()
+                        c.post("$base/send"){
+                            contentType(ContentType.Application.Json)
+                            setBody(SendReq(a,b))
+                        }.body<String>()
                     }
                 }
                 text=""
             }){Text("Send")}
-            SelectionContainer {
-                LazyColumn(Modifier.weight(1f).fillMaxWidth()){
-                    items(msgs,key={ "${it.ts}-${it.from}" }){
-                        Text("${it.from}: ${it.text}",Modifier.padding(4.dp))
-                    }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()){
+                items(msgs,key={ "${it.ts}-${it.from}" }){
+                    Text("${it.from}: ${it.text}",Modifier.padding(4.dp))
                 }
             }
         }
