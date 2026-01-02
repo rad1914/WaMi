@@ -38,16 +38,16 @@ fun App() {
     val base = "http://192.168.100.53:3000"
     var to by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("") }
-    var msgs by remember { mutableStateOf(emptyList<Message>()) }
+    var msgs by remember { mutableStateOf(emptyList<M>()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         msgs = ChatStore.get()
         while (true) {
-            runCatching { c.get("$base/messages").body<List<Message>>() }
+            runCatching { c.get("$base/Messages").body<List<M>>() }
                 .onSuccess {
                     if (it.isNotEmpty()) {
-                        val m = (msgs + it).distinctBy { v -> v.ts to v.from }.sortedBy(Message::ts)
+                        val m = (msgs + it).distinctBy { v -> v.ts to v.from }.sortedBy(M::ts)
                         msgs = m; ChatStore.update(m)
                     }
                 }
@@ -58,7 +58,7 @@ fun App() {
     MaterialTheme {
         Column(Modifier.padding(16.dp), Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(to, { to = it }, label = { Text("To") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(text, { text = it }, label = { Text("Message") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(text, { text = it }, label = { Text("M") }, modifier = Modifier.fillMaxWidth())
             Button({
                 val a = to.trim(); val b = text.trim()
                 if (a.isBlank() || b.isBlank()) return@Button
@@ -66,7 +66,7 @@ fun App() {
                     runCatching {
                         c.post("$base/send") {
                             contentType(ContentType.Application.Json)
-                            setBody(SendReq(a, b))
+                            setBody(S(a, b))
                         }.body<String>()
                     }
                 }
@@ -84,16 +84,16 @@ fun App() {
 object ChatStore {
     private const val KEY = "msgs"
     private lateinit var prefs: SharedPreferences
-    @Volatile private var cached = emptyList<Message>()
+    @Volatile private var cached = emptyList<M>()
 
     fun init(c: Context) {
         prefs = c.getSharedPreferences("chat", Context.MODE_PRIVATE)
         cached = prefs.getString(KEY, null)?.let {
-            runCatching { Json.decodeFromString<List<Message>>(it) }.getOrDefault(emptyList())
+            runCatching { Json.decodeFromString<List<M>>(it) }.getOrDefault(emptyList())
         } ?: emptyList()
     }
 
-    fun update(n: List<Message>) {
+    fun update(n: List<M>) {
         cached = n
         prefs.edit().putString(KEY, Json.encodeToString(n)).apply()
     }
@@ -101,5 +101,5 @@ object ChatStore {
     fun get() = cached
 }
 
-@Serializable data class Message(val from: String, val text: String, val ts: Long)
-@Serializable data class SendReq(val to: String, val text: String)
+@Serializable data class M(val from: String, val text: String, val ts: Long)
+@Serializable data class S(val to: String, val text: String)
