@@ -1,0 +1,14 @@
+# ninja log v7
+13	209	1772399005214713893	CMakeFiles/kissfft.dir/kiss_fft/kiss_fft.c.o	94854b99dd207dd7
+18	227	1772399005218713893	CMakeFiles/kissfft.dir/kiss_fft/kiss_fftr.c.o	8e141e1472104a86
+228	347	1772399005430713893	libkissfft.a	b3435e523e4fd59c
+32	2526	1772399005234713893	CMakeFiles/native_mel.dir/mel_filterbank.cpp.o	9222809d8d7e297b
+23	2791	1772399005226713893	CMakeFiles/native_mel.dir/native_mel.cpp.o	959cae059aad1ccf
+2792	2885	1772399007994713892	/storage/emulated/0/_Box/WaMi/app/build/intermediates/cxx/Debug/g4j5a716/obj/arm64-v8a/libnative_mel.so	71e02d887a21df08
+49	141	1772399153090713837	clean	eeccb6fb2edf3fab
+183	402	1772399165890713832	CMakeFiles/kissfft.dir/kiss_fft/kiss_fftr.c.o	8e141e1472104a86
+181	427	1772399165890713832	CMakeFiles/kissfft.dir/kiss_fft/kiss_fft.c.o	94854b99dd207dd7
+428	564	1772399166138713832	libkissfft.a	b3435e523e4fd59c
+186	4149	1772399165894713832	CMakeFiles/native_mel.dir/mel_filterbank.cpp.o	9222809d8d7e297b
+184	4255	1772399165894713832	CMakeFiles/native_mel.dir/native_mel.cpp.o	959cae059aad1ccf
+4255	4573	1772399169962713830	/storage/emulated/0/_Box/WaMi/app/build/intermediates/cxx/Debug/g4j5a716/obj/arm64-v8a/libnative_mel.so	71e02d887a21df08

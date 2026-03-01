@@ -1,0 +1,11 @@
+node_modules/
+                                      .env
+                                      auth/
+                                      auth/*
+                                      ./auth/
+                                      
+/build/
+app/build/
+*.apk
+*.aab
+*.onnx

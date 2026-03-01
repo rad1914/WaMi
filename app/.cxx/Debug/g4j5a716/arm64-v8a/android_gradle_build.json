@@ -1,0 +1,46 @@
+{
+  "buildFiles": [
+    "/storage/emulated/0/_Box/WaMi/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/data/data/com.termux/files/usr/bin/ninja",
+      "-C",
+      "/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/data/data/com.termux/files/usr/bin/ninja",
+    "-C",
+    "/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "kissfft::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "kissfft",
+      "output": "/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a/libkissfft.a"
+    },
+    "native_mel::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "native_mel",
+      "output": "/storage/emulated/0/_Box/WaMi/app/build/intermediates/cxx/Debug/g4j5a716/obj/arm64-v8a/libnative_mel.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/data/data/com.termux/files/home/termux-ndk/toolchains/llvm/prebuilt/linux-aarch64/bin/clang.lld",
+      "cppCompilerExecutable": "/data/data/com.termux/files/home/termux-ndk/toolchains/llvm/prebuilt/linux-aarch64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

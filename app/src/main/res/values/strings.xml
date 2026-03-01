@@ -1,0 +1,9 @@
+<!-- @path: app/src/main/res/values/strings.xml -->
+<resources>
+    <string name="app_name">GeoQuiz_JetPackCompose2</string>
+    <string name="pregunta_1">¿Es Madrid la capital de México?</string>
+    <string name="pregunta_2">¿Es Buenos Aires la capital de Argentina?</string>
+    <string name="pregunta_3">¿Es Lima la capital de Perú?</string>
+    <string name="respuesta_correcta">Respuesta correcta</string>
+    <string name="respuesta_incorrecta">Respuesta incorrecta</string>
+</resources>

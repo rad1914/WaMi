@@ -1,0 +1,4 @@
+/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a/CMakeFiles/kissfft.dir
+/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a/CMakeFiles/native_mel.dir
+/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a/CMakeFiles/edit_cache.dir
+/storage/emulated/0/_Box/WaMi/app/.cxx/Debug/g4j5a716/arm64-v8a/CMakeFiles/rebuild_cache.dir
